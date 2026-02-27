@@ -15,7 +15,7 @@ class EventAdmin(admin.ModelAdmin):
 
 @admin.register(EventRegistration)
 class EventRegistrationAdmin(admin.ModelAdmin):
-    list_display = ("ticket_code", "full_name", "email", "phone", "event", "ticket_link")
+    list_display = ("ticket_code", "full_name", "phone", "event", "ticket_link")
     list_filter = ("event", "payment_status", "status")
     search_fields = ("full_name", "email", "phone", "ticket_code")
     readonly_fields = ("created_at", "updated_at")

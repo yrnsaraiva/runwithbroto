@@ -63,7 +63,6 @@ def register(request, slug: str):
 
     full_name = (request.POST.get("full_name") or "").strip()
     phone = (request.POST.get("phone") or "").strip()
-    email = (request.POST.get("email") or "").strip()
     payment_method = request.POST.get("payment")
 
     if not full_name or not phone:
@@ -77,15 +76,13 @@ def register(request, slug: str):
         status=RegistrationStatus.ACTIVE,
         defaults={
             "full_name": full_name,
-            "email": email,
             "payment_status": PaymentStatus.UNPAID,
         }
     )
     if not created:
         # atualiza nome/email caso o utilizador mude
         reg.full_name = full_name
-        reg.email = email
-        reg.save(update_fields=["full_name", "email"])
+        reg.save(update_fields=["full_name"])
 
     # Evento grátis => confirma
     if event.is_free:

@@ -133,7 +133,6 @@ class EventRegistration(models.Model):
 
     # pessoa / ingresso (1:1)
     full_name = models.CharField(max_length=120)
-    email = models.EmailField()
     phone = models.CharField(max_length=20, validators=[phone_validator], blank=True)
 
     status = models.CharField(
@@ -156,10 +155,6 @@ class EventRegistration(models.Model):
         indexes = [
             models.Index(fields=["event", "payment_status"]),
             models.Index(fields=["phone"]),
-        ]
-        constraints = [
-            # impede 2 pedidos pagos/pendentes para o MESMO email no MESMO evento
-            models.UniqueConstraint(fields=["event", "email"], name="uniq_order_event_email"),
         ]
 
     def __str__(self):
