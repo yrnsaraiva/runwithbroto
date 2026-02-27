@@ -1,3 +1,4 @@
+import logging
 import json
 import hmac
 import hashlib
@@ -12,6 +13,8 @@ from django.views.decorators.http import require_http_methods
 
 from .models import Payment, PaymentStatus as PaymentState  # <-- usa o enum do payments (ajusta ao teu model)
 from events.models import PaymentStatus as RegPaymentStatus  # <-- enum da inscrição
+
+logger = logging.getLogger(__name__)
 
 
 def _verify_signature(raw: bytes, signature: str | None) -> bool:
@@ -36,6 +39,8 @@ def paysuite_webhook(request):
 
     try:
         payload = json.loads(raw.decode("utf-8"))
+        logger.info("PaySuite webhook payload: %s", payload)
+        logger.info("PaySuite webhook headers: X-Webhook-Signature=%s", request.headers.get("X-Webhook-Signature"))
     except json.JSONDecodeError:
         return HttpResponse("ok")
 
