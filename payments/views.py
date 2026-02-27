@@ -43,7 +43,7 @@ def start_event_payment(request):
 
     payment.paysuite_id = resp["id"]
     payment.checkout_url = resp["checkout_url"]
-    payment.save()
+    payment.save(update_fields=["paysuite_id", "checkout_url", "updated_at"])
 
     return redirect(payment.checkout_url)
 

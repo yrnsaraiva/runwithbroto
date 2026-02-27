@@ -53,6 +53,8 @@ def paysuite_webhook(request):
     reference = data.get("reference")
     paysuite_id = data.get("id")
 
+    logger.info("PaySuite webhook: event=%s request_id=%s reference=%s paysuite_id=%s", event_name, request_id, reference, paysuite_id)
+
     # se não vier reference, tenta variações comuns
     if not reference:
         reference = data.get("merchant_reference") or data.get("client_reference")
