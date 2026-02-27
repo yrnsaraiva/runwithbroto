@@ -42,9 +42,6 @@
                     <div class="text-[11px] muted label">participante</div>
                     <div class="mt-2 font-semibold">{{ reg.full_name }}</div>
 
-                    <div class="mt-4 text-[11px] muted label">email</div>
-                    <div class="mt-2">{{ reg.email|default:"—" }}</div>
-
                     <div class="mt-4 text-[11px] muted label">ticket</div>
                     <div class="mt-2 font-mono">{{ reg.ticket_code }}</div>
 
@@ -57,7 +54,7 @@
             </div>
 
             <!-- Actions -->
-            <div class="mt-10 flex flex-col sm:flex-row gap-4">
+            <div class="mt-8 flex flex-col sm:flex-row gap-4">
                 <a href="{% url 'events:order_ticket_pdf' reg.ticket_code %}"
                    class="flex-1 bg-black text-white rounded-2xl py-4 text-center font-semibold hover:opacity-90 transition">
                     Baixar Ingresso (PDF)
