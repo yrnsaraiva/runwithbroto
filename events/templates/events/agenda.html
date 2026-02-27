@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <!-- TITLE -->
+    <section class="max-w-6xl mx-auto px-4 pt-10 pb-6">
+        <div class="text-[11px] muted label">broto.st // schedule</div>
+        <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[0.92]">Weekly runs & meet-ups.</h1>
+
+        <!-- FILTERS -->
+        <div class="mt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-t hairline pt-6">
+            <div class="flex flex-wrap gap-2">
+                <button aria-pressed="true" class="pill" data-city="all" type="button">All</button>
+                <button aria-pressed="false" class="pill" data-city="maputo" type="button">Maputo</button>
+                <button aria-pressed="false" class="pill" data-city="matola" type="button">Matola</button>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <select class="px-4 py-3 rounded-xl border hairline bg-white text-sm" id="typeFilter">
+                    <option value="all">All types</option>
+                    <option value="weekly">Weekly Run</option>
+                    <option value="long">Long Run</option>
+                    <option value="collab">Collab</option>
+                </select>
+                <select class="px-4 py-3 rounded-xl border hairline bg-white text-sm" id="timeFilter">
+                    <option value="all">Any time</option>
+                    <option value="morning">Morning</option>
+                    <option value="evening">Evening</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <!-- LIST -->
+    <section class="max-w-6xl mx-auto px-4 pb-16">
+        <div class="grid lg:grid-cols-2 gap-4">
+
+            {% for event in events %}
+                <!-- CARD -->
+                <a class="card border hairline rounded-2xl p-6"
+                   data-city="maputo"
+                   data-time="evening" data-type="weekly" href="{% url 'events:event_detail' event.slug %}">
+                    <div class="flex items-start justify-between gap-6">
+                        <div>
+                            <div class="text-[11px] muted label">{{ event.city }} • {{ event.get_event_type_display }}</div>
+                            <div class="mt-2 font-display text-3xl leading-[0.95] cardTitle">
+                                {{ event.start_at|date:"l" }} — {{ event.start_at|time:"H:i" }}
+                                <span class="block">{{ event.title }}</span>
+                            </div>
+                            <div class="mt-3 text-sm muted leading-relaxed">
+                                {{ event.meeting_point }} • {{ event.distance_min_km }}km
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[11px] muted label">
+                                {{ event.start_at|date:"M"|lower }}
+                            </div>
+                            <div class="font-display text-5xl leading-none">
+                                {{ event.start_at|date:"d" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex items-center justify-between border-t hairline pt-4 text-sm">
+                        <span class="text-[11px] muted label">open</span>
+                        <span class="link-u" href="{% url 'events:event_detail' event.slug %}">Details</span>
+                    </div>
+                </a>
+            {% endfor %}
+
+        </div>
+
+        <div class="hidden mt-10 border hairline rounded-2xl p-8" id="emptyState">
+            <div class="text-[11px] muted label">no results</div>
+            <div class="mt-3 font-display text-3xl leading-[0.95]">No runs match these filters.</div>
+            <p class="mt-3 muted">Try changing city/type/time.</p>
+        </div>
+    </section>
+
+{% endblock %}

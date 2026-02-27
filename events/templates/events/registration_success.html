@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <section class="max-w-4xl mx-auto px-4 pt-16 pb-24">
+
+        <!-- Status -->
+        <div class="text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--brand)]/15 text-[var(--brand)] text-2xl">
+                ✓
+            </div>
+
+            <h1 class="mt-6 font-display text-5xl leading-[0.95]">
+                Pagamento Confirmado
+            </h1>
+
+            <p class="mt-4 muted max-w-xl mx-auto">
+                Sua inscrição foi concluída com sucesso. O ingresso já está disponível para download.
+            </p>
+        </div>
+
+        <!-- Card -->
+        <div class="mt-14 border hairline rounded-2xl p-8">
+            <div class="text-[11px] muted label">order details</div>
+
+            <div class="mt-6 grid md:grid-cols-2 gap-8 text-sm">
+
+                <div>
+                    <div class="text-[11px] muted label">evento</div>
+                    <div class="mt-2 font-semibold">{{ reg.event.title }}</div>
+
+                    <div class="mt-4 text-[11px] muted label">cidade</div>
+                    <div class="mt-2">{{ reg.event.get_city_display }}</div>
+
+                    <div class="mt-4 text-[11px] muted label">data</div>
+                    <div class="mt-2">
+                        {{ reg.event.start_at|date:"l, d M Y" }} —
+                        {{ reg.event.start_at|time:"H:i" }}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-[11px] muted label">participante</div>
+                    <div class="mt-2 font-semibold">{{ reg.full_name }}</div>
+
+                    <div class="mt-4 text-[11px] muted label">email</div>
+                    <div class="mt-2">{{ reg.email|default:"—" }}</div>
+
+                    <div class="mt-4 text-[11px] muted label">ticket</div>
+                    <div class="mt-2 font-mono">{{ reg.ticket_code }}</div>
+
+                    <div class="mt-4 text-[11px] muted label">total pago</div>
+                    <div class="mt-2 font-semibold">
+                        {{ reg.event.price }} {{ reg.event.currency|default:"MZN" }}
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-10 flex flex-col sm:flex-row gap-4">
+                <a href="{% url 'events:order_ticket_pdf' reg.ticket_code %}"
+                   class="flex-1 bg-black text-white rounded-2xl py-4 text-center font-semibold hover:opacity-90 transition">
+                    Baixar Ingresso (PDF)
+                </a>
+
+                <a href="{% url 'events:event_list' %}"
+                   class="flex-1 border hairline rounded-2xl py-4 text-center font-semibold hover:border-black transition">
+                    Voltar ao Schedule
+                </a>
+            </div>
+
+        </div>
+
+    </section>
+{% endblock %}

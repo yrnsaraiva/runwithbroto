@@ -1,0 +1,100 @@
+:root {
+    --ink: #0B0B0B;
+    --muted: #6B6B6B;
+    --line: #E7E7E7;
+    --paper: #FFFFFF;
+}
+
+/* Helpers para usar com Tailwind via classes no body */
+.bg-paper {
+    background: var(--paper);
+}
+
+.text-ink {
+    color: var(--ink);
+}
+
+.text-muted {
+    color: var(--muted);
+}
+
+.border-hairline {
+    border-color: var(--line);
+}
+
+.font-display {
+    font-family: "Oswald", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.font-body {
+    font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.label {
+    letter-spacing: .18em;
+    text-transform: uppercase;
+}
+
+.link-u {
+    text-decoration: underline;
+    text-decoration-color: rgba(0, 0, 0, .25);
+    text-underline-offset: 4px;
+}
+
+.btn {
+    border: 1px solid var(--ink);
+    padding: .85rem 1.05rem;
+    border-radius: .75rem;
+    font-weight: 600;
+    transition: 150ms ease;
+}
+
+.btn:hover {
+    background: var(--ink);
+    color: #fff;
+}
+
+.btn-solid {
+    background: var(--ink);
+    color: #fff;
+    border: 1px solid var(--ink);
+    padding: .85rem 1.05rem;
+    border-radius: .75rem;
+    font-weight: 700;
+    transition: 150ms ease;
+}
+
+.btn-solid:hover {
+    opacity: .9;
+}
+
+.field {
+    border: 1px solid var(--line);
+    border-radius: .85rem;
+    padding: .85rem 1rem;
+    width: 100%;
+    background: #fff;
+}
+
+.field:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px rgba(11, 11, 11, .08);
+}
+
+.pill {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: .5rem .85rem;
+    font-size: .875rem;
+}
+
+.pill[aria-pressed="true"] {
+    border-color: var(--ink);
+}
+
+.card:hover .cardTitle {
+    text-decoration: underline;
+    text-decoration-color: rgba(0, 0, 0, .25);
+    text-underline-offset: 5px;
+}

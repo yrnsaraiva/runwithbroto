@@ -1,0 +1,36 @@
+{% load static %}
+<!doctype html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>{% block title %}Run With Broto{% endblock %}</title>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Oswald:wght@400;500;600;700&display=swap"
+          rel="stylesheet">
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="font-body bg-paper text-ink antialiased">
+{% include "includes/navbar.html" %}
+
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+{% include "includes/footer.html" %}
+
+<script src="{% static 'js/app.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

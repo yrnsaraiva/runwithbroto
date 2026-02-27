@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <div class="max-w-6xl mx-auto px-4 pt-6">
+        <a class="inline-flex items-center gap-2 text-sm muted hover:text-black transition"
+           href="javascript:history.back()">
+
+            <svg aria-hidden="true" fill="none" height="16" viewBox="0 0 24 24" width="16">
+                <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                      stroke-width="1.8"/>
+            </svg>
+
+            Voltar
+        </a>
+    </div>
+
+    <section class="max-w-6xl mx-auto px-4 pt-12 pb-20">
+        <div class="grid lg:grid-cols-12 gap-12 items-start">
+
+            <!-- LEFT: SUMMARY -->
+            <aside class="lg:col-span-5 lg:sticky lg:top-8">
+                <div class="border hairline rounded-2xl p-8">
+
+                    <div class="text-[11px] muted label">order summary</div>
+
+                    <!-- Poster + Meta -->
+                    <div class="mt-6 flex gap-4">
+                        <div class="w-[120px] shrink-0">
+                            <div class="aspect-[4/5] rounded-2xl overflow-hidden border hairline bg-neutral-100">
+                                <img
+                                        alt="Capa do evento"
+                                        class="w-full h-full object-cover"
+                                        src="{{ event.poster.url }}"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="flex-1">
+                            <div class="font-display text-3xl leading-[0.95]">
+                                {{ event.title }}
+                            </div>
+                            <div class="mt-2 text-sm muted">
+                                {{ event.get_event_type_display }} • {{ event.city }}
+                            </div>
+                            <div class="mt-3 text-[11px] muted label">
+                                {{ event.start_at|date:"l" }} — {{ event.start_at|time:"H:i" }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Benefits (fix: was using white text on white background) -->
+                    <div class="mt-8 border-t hairline pt-6 grid gap-3 text-sm">
+                        <div class="flex items-center gap-3">
+                            <span class="inline-flex w-6 h-6 rounded-full bg-[var(--brand)] text-black items-center justify-center">✓</span>
+                            <span>Entrada individual</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="inline-flex w-6 h-6 rounded-full bg-[var(--brand)] text-black items-center justify-center">✓</span>
+                            <span>Confirmação por SMS/WhatsApp</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="inline-flex w-6 h-6 rounded-full bg-[var(--brand)] text-black items-center justify-center">✓</span>
+                            <span>Lista de presença no check-in</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 border-t hairline pt-6 flex justify-between items-end">
+                        <span class="muted text-sm">Total</span>
+                        <span class="font-display text-4xl">{{ event.ticket_price_display }}</span>
+                    </div>
+
+                    <!-- Secure payment badge (kept dark, but coherent) -->
+                    <div class="mt-6 rounded-2xl p-4 bg-[#141414] border border-black/10 flex gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-[var(--brand)]/15 grid place-items-center text-[var(--brand)]">
+                            🛡️
+                        </div>
+                        <div class="text-sm">
+                            <div class="font-semibold text-white">Pagamento 100% seguro</div>
+                            <div class="text-white/70 text-xs">Transação encriptada e confirmação automática.</div>
+                        </div>
+                    </div>
+
+                </div>
+            </aside>
+
+            <!-- RIGHT: FORM -->
+            <section class="lg:col-span-7">
+
+                <h1 class="font-display text-6xl leading-[0.9]">
+                    Finalizar Inscrição
+                </h1>
+
+                <p class="mt-4 muted">
+                    Preencha os seus dados para confirmar a sua participação.
+                </p>
+
+                <form class="mt-10 grid gap-8" method="post" action="{% url 'events:register' event.slug %}">
+
+                    {% csrf_token %}
+
+                    <div>
+                        <label class="text-[11px] muted label">nome completo *</label>
+                        <input class="mt-3 w-full border hairline rounded-xl px-4 py-4 text-sm focus-ring"
+                               name="full_name"
+                               placeholder="O seu nome"
+                               required type="text">
+                    </div>
+
+                    <div>
+                        <label class="text-[11px] muted label">email *</label>
+                        <input class="mt-3 w-full border hairline rounded-xl px-4 py-4 text-sm focus-ring"
+                               name="email"
+                               placeholder="seuemail@exemplo.com"
+                               required type="email">
+                    </div>
+
+                    <div>
+                        <label class="text-[11px] muted label">telefone</label>
+                        <input class="mt-3 w-full border hairline rounded-xl px-4 py-4 text-sm focus-ring"
+                               name="phone"
+                               placeholder="+258 84 xxx xxxx"
+                               type="tel">
+                    </div>
+
+                    <div>
+                        <div class="text-[11px] muted label">payment method *</div>
+
+                        <div class="mt-6 grid gap-4">
+
+                            <!-- MPesa -->
+                            <label class="border hairline rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-black transition">
+                                <div class="flex items-center gap-4">
+                                <span class="w-12 h-12 rounded-xl border hairline grid place-items-center bg-white">
+                                  <svg aria-hidden="true" fill="none" height="22" viewBox="0 0 24 24" width="22">
+                                    <path d="M8 4h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+                                          stroke="currentColor" stroke-width="1.6"/>
+                                    <path d="M10 7h4" stroke="currentColor" stroke-linecap="round" stroke-width="1.6"/>
+                                    <path d="M12 18h0" stroke="currentColor" stroke-linecap="round" stroke-width="2.4"/>
+                                  </svg>
+                                </span>
+                                    <div>
+                                        <div class="font-semibold flex items-center gap-2">
+                                            M-Pesa <span class="text-[10px] label muted">vodacom</span>
+                                        </div>
+                                        <div class="text-xs muted mt-1">Pagamento via M-Pesa</div>
+                                    </div>
+                                </div>
+                                <input class="accent-black" name="payment" required type="radio" value="mpesa">
+                            </label>
+
+                            <!-- eMola -->
+                            <label class="border hairline rounded-2xl p-5 flex items-center justify-between cursor-pointer hover:border-black transition">
+                                <div class="flex items-center gap-4">
+                                <span class="w-12 h-12 rounded-xl border hairline grid place-items-center bg-white">
+                                  <svg aria-hidden="true" fill="none" height="22" viewBox="0 0 24 24" width="22">
+                                    <path d="M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"
+                                          stroke="currentColor" stroke-width="1.6"/>
+                                    <path d="M16 12h6v4h-6a2 2 0 0 1 0-4Z" stroke="currentColor" stroke-width="1.6"/>
+                                    <path d="M18.5 14h0" stroke="currentColor" stroke-linecap="round"
+                                          stroke-width="2.4"/>
+                                  </svg>
+                                </span>
+                                    <div>
+                                        <div class="font-semibold flex items-center gap-2">
+                                            e-Mola <span class="text-[10px] label muted">movitel</span>
+                                        </div>
+                                        <div class="text-xs muted mt-1">Pagamento via e-Mola</div>
+                                    </div>
+                                </div>
+                                <input class="accent-black" name="payment" type="radio" value="emola">
+                            </label>
+
+                        </div>
+                    </div>
+
+                    <button class="mt-2 bg-black text-white rounded-2xl py-5 font-semibold hover:opacity-90 transition"
+                            type="submit">
+                        Confirmar & Pagar
+                    </button>
+
+                    <p class="text-xs muted leading-relaxed">
+                        Você receberá confirmação automática após o pagamento.
+                    </p>
+
+                </form>
+
+            </section>
+
+        </div>
+    </section>
+
+{% endblock %}

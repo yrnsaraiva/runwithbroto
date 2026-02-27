@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <!-- HERO -->
+    <section class="max-w-6xl mx-auto px-4 pt-10 pb-10">
+        <div class="text-[11px] muted label">broto.st // our story</div>
+        <h1 class="mt-3 font-display text-5xl md:text-7xl leading-[0.9] max-w-4xl">
+            Community first.
+            <span class="block">Consistency always.</span>
+        </h1>
+
+        <p class="mt-5 muted text-lg leading-relaxed max-w-3xl">
+            Run With Broto nasceu para criar rotina e pertencimento através da corrida. A rua é o nosso espaço
+            e a comunidade é o motivo.
+        </p>
+
+        <div class="mt-8 grid lg:grid-cols-12 gap-6 items-start">
+            <div class="lg:col-span-7">
+                <div class="aspect-[16/9] border hairline rounded-2xl bg-[linear-gradient(135deg,#f2f2f2,#dcdcdc)] grid place-items-center">
+                    <span class="text-[11px] muted label">black & white photo</span>
+                </div>
+            </div>
+
+            <div class="lg:col-span-5 border hairline rounded-2xl p-6">
+                <div class="text-[11px] muted label">manifesto</div>
+                <blockquote class="mt-4">
+                    <p class="font-display text-3xl leading-[0.95]">
+                        “We run together. We grow together.”
+                    </p>
+                    <p class="mt-3 text-sm muted leading-relaxed">
+                        Ninguém fica para trás. A consistência vence a motivação. E a rua é para todos.
+                    </p>
+                </blockquote>
+
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <a class="btn-solid" href="./join.html">Join</a>
+                    <a class="btn" href="./agenda.html">Schedule</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- STORY -->
+    <section class="max-w-6xl mx-auto px-4 pb-16">
+        <div class="grid lg:grid-cols-12 gap-10 items-start hairline pt-10">
+            <div class="lg:col-span-5">
+                <div class="text-[11px] muted label">why we exist</div>
+                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[0.95]">
+                    A place to show up.
+                </h2>
+                <p class="mt-4 muted leading-relaxed">
+                    A maioria das pessoas não precisa de “mais informação”. Precisa de um lugar e um horário.
+                    A Broto é isso: encontros consistentes, paces acessíveis, e uma comunidade que recebe.
+                </p>
+            </div>
+
+            <div class="lg:col-span-7">
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div class="border hairline rounded-2xl p-6">
+                        <div class="text-[11px] muted label">01</div>
+                        <div class="mt-3 font-display text-3xl leading-[0.95]">Belonging</div>
+                        <p class="mt-3 text-sm muted leading-relaxed">
+                            Corrida como ponte para amizade, disciplina e saúde mental.
+                        </p>
+                    </div>
+
+                    <div class="border hairline rounded-2xl p-6">
+                        <div class="text-[11px] muted label">02</div>
+                        <div class="mt-3 font-display text-3xl leading-[0.95]">Consistency</div>
+                        <p class="mt-3 text-sm muted leading-relaxed">
+                            Rotina simples: aparece, aquece, corre, volta.
+                        </p>
+                    </div>
+
+                    <div class="border hairline rounded-2xl p-6">
+                        <div class="text-[11px] muted label">03</div>
+                        <div class="mt-3 font-display text-3xl leading-[0.95]">No ego</div>
+                        <p class="mt-3 text-sm muted leading-relaxed">
+                            Ritmos diferentes, mesma vibe. Apoio > competição.
+                        </p>
+                    </div>
+
+                    <div class="border hairline rounded-2xl p-6">
+                        <div class="text-[11px] muted label">04</div>
+                        <div class="mt-3 font-display text-3xl leading-[0.95]">The city</div>
+                        <p class="mt-3 text-sm muted leading-relaxed">
+                            Maputo e Matola como pista: rua, marginal, rotas novas.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- CTA -->
+        <div class="mt-10 hairline pt-10">
+            <div class="border hairline rounded-2xl overflow-hidden">
+                <div class="p-6 md:p-10 border-b hairline">
+                    <div class="text-[11px] muted label">ready?</div>
+                    <div class="mt-3 font-display text-4xl md:text-5xl leading-[0.95]">Show up this week.</div>
+                    <p class="mt-4 muted max-w-2xl leading-relaxed">
+                        Escolhe Maputo ou Matola. Entra no grupo. Aparece.
+                    </p>
+                    <div class="mt-6 flex flex-wrap gap-2">
+                        <a class="btn-solid" href="./agenda.html">Schedule</a>
+                        <a class="btn" href="./join.html">Join</a>
+                    </div>
+                </div>
+                <div class="aspect-[16/9] bg-[linear-gradient(135deg,#f2f2f2,#dcdcdc)] grid place-items-center">
+                    <span class="text-[11px] muted label">black & white photo</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+{% endblock %}
