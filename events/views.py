@@ -51,10 +51,6 @@ def register_form(request, slug: str):
 
 @require_http_methods(["POST"])
 def register(request, slug: str):
-    """
-    Cria uma inscrição. Se o evento for grátis => confirma.
-    Se for pago => redireciona para iniciar pagamento.
-    """
     event = get_object_or_404(Event, slug=slug, is_published=True)
 
     if event.is_sold_out:
@@ -63,24 +59,35 @@ def register(request, slug: str):
 
     full_name = (request.POST.get("full_name") or "").strip()
     phone = (request.POST.get("phone") or "").strip()
-    payment_method = request.POST.get("payment")
+    payment_method = (request.POST.get("payment") or "").strip()
 
     if not full_name or not phone:
         messages.error(request, "Nome e telefone são obrigatórios.")
-        return redirect("events:event_detail", slug=event.slug)
+        return redirect("events:register_form", slug=event.slug)
 
-    # Evita duplicar inscrição do mesmo telefone no mesmo evento
-    reg, created = EventRegistration.objects.get_or_create(
-        event=event,
-        phone=phone,
-        status=RegistrationStatus.ACTIVE,
-        defaults={
-            "full_name": full_name,
-            "payment_status": PaymentStatus.UNPAID,
-        }
+    # Evita duplicação acidental por clique duplo:
+    # se existir inscrição NÃO paga muito recente para o mesmo telefone/evento,
+    # reaproveita em vez de criar outra.
+    cooldown = timezone.now() - timedelta(seconds=45)
+
+    reg = (
+        EventRegistration.objects
+        .filter(event=event, phone=phone, created_at__gte=cooldown)
+        .exclude(payment_status=PaymentStatus.PAID)
+        .order_by("-created_at")
+        .first()
     )
-    if not created:
-        # atualiza nome/email caso o utilizador mude
+
+    if not reg:
+        reg = EventRegistration.objects.create(
+            event=event,
+            phone=phone,
+            status=RegistrationStatus.ACTIVE,
+            full_name=full_name,
+            payment_status=PaymentStatus.UNPAID,
+        )
+    else:
+        # se reaproveitar, atualiza o nome (opcional)
         reg.full_name = full_name
         reg.save(update_fields=["full_name"])
 
@@ -90,7 +97,7 @@ def register(request, slug: str):
         reg.save(update_fields=["payment_status"])
         return redirect("events:registration_success", ticket_code=reg.ticket_code)
 
-    # Pago => cria payment request e redirect via payments app
+    # Pago => inicia pagamento
     return redirect(
         reverse("payments:start_event_payment") +
         f"?registration_id={reg.id}&method={payment_method}"
