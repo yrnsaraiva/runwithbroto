@@ -1,53 +1,85 @@
 from django.db import models
 from django.utils import timezone
+from django.core.validators import RegexValidator
+from events.models import EventRegistration
+
+
+alnum_ref_validator = RegexValidator(
+    regex=r"^[A-Za-z0-9]+$",
+    message="Reference deve conter apenas letras e números."
+)
 
 
 class PaymentStatus(models.TextChoices):
-    UNPAID = "UNPAID", "Unpaid"
     PENDING = "PENDING", "Pending"
     PAID = "PAID", "Paid"
     FAILED = "FAILED", "Failed"
-    REFUNDED = "REFUNDED", "Refunded"
+
+
+class PaymentMethod(models.TextChoices):
+    MPESA = "mpesa", "M-Pesa"
+    EMOLA = "emola", "e-Mola"
+    CARD = "card", "Card"
 
 
 class Payment(models.Model):
-    """
-    1 pagamento PaySuite por inscrição (padrão recomendado).
-    """
     registration = models.OneToOneField(
-        "events.EventRegistration",
-        on_delete=models.CASCADE,
+        EventRegistration,
+        on_delete=models.PROTECT,
         related_name="payment",
     )
 
-    # referência única do teu sistema (vai pro PaySuite)
-    reference = models.CharField(max_length=50, unique=True)
+    # referência que tu envias ao PaySuite (ALFANUMÉRICA)
+    reference = models.CharField(
+        max_length=32,
+        unique=True,
+        db_index=True,
+        validators=[alnum_ref_validator],
+    )
 
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # UUID/id devolvido pelo PaySuite ao criar o payment request
+    paysuite_id = models.CharField(max_length=80, blank=True, null=True, db_index=True)
 
-    status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
-
-    # PaySuite
-    paysuite_id = models.CharField(max_length=64, blank=True, null=True)  # uuid no provider
     checkout_url = models.URLField(blank=True, null=True)
 
-    method = models.CharField(max_length=40, blank=True, null=True)
-    transaction_id = models.CharField(max_length=64, blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+        db_index=True,
+    )
+
+    method = models.CharField(
+        max_length=20,
+        choices=PaymentMethod.choices,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+
+    transaction_id = models.CharField(max_length=120, blank=True, null=True, db_index=True)
     paid_at = models.DateTimeField(blank=True, null=True)
 
-    # idempotência do webhook
-    last_webhook_request_id = models.CharField(max_length=64, blank=True, null=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default="MZN")
 
+    # Auditoria / debug
     raw_provider_payload = models.JSONField(blank=True, null=True)
+    last_webhook_request_id = models.CharField(max_length=120, blank=True, null=True, db_index=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def mark_paid(self, *, method=None, transaction_id=None, paid_at=None, payload=None):
-        self.status = PaymentStatus.PAID
-        self.method = method or self.method
-        self.transaction_id = transaction_id or self.transaction_id
-        self.paid_at = paid_at or timezone.now()
-        if payload is not None:
-            self.raw_provider_payload = payload
-        self.save(update_fields=["status", "method", "transaction_id", "paid_at", "raw_provider_payload", "updated_at"])
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.reference} • {self.status}"
+
+    @property
+    def is_paid(self) -> bool:
+        return self.status == PaymentStatus.PAID
+
+    @property
+    def is_failed(self) -> bool:
+        return self.status == PaymentStatus.FAILED

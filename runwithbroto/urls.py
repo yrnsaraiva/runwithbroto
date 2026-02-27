@@ -8,7 +8,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("core.urls")),
     path("events/", include("events.urls")),
-    path("payments/", include("payments.urls")),
+    path("payments/", include("payments.urls", namespace='payments')),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

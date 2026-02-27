@@ -16,7 +16,15 @@ def _headers():
     }
 
 
-def create_payment_request(*, amount: str, reference: str, description: str, return_url: str, callback_url: str, method: str | None = None):
+def create_payment_request(
+    *,
+    amount: str,
+    reference: str,
+    description: str,
+    return_url: str,
+    callback_url: str,
+    method: str | None = None,
+):
     """
     POST /api/v1/payments
     Retorna: {id, checkout_url, ...}

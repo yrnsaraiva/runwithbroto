@@ -1,7 +1,7 @@
-import logging
 import json
 import hmac
 import hashlib
+import logging
 
 from django.conf import settings
 from django.db import transaction
@@ -11,11 +11,10 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from .models import Payment, PaymentStatus as PaymentState  # <-- usa o enum do payments (ajusta ao teu model)
-from events.models import PaymentStatus as RegPaymentStatus  # <-- enum da inscrição
+from .models import Payment, PaymentStatus as PayPaymentStatus
+from events.models import PaymentStatus as RegPaymentStatus
 
 logger = logging.getLogger(__name__)
-logger.info("PaySuite webhook reached")
 
 
 def _verify_signature(raw: bytes, signature: str | None) -> bool:
@@ -29,9 +28,9 @@ def _verify_signature(raw: bytes, signature: str | None) -> bool:
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def paysuite_webhook(request):
+    # healthcheck
     if request.method == "GET":
         return HttpResponse("OK", status=200)
-    print("PAYSUITE WEBHOOK HIT", request.headers.get("X-Webhook-Signature"))
 
     raw = request.body
     signature = request.headers.get("X-Webhook-Signature")
@@ -41,8 +40,6 @@ def paysuite_webhook(request):
 
     try:
         payload = json.loads(raw.decode("utf-8"))
-        logger.info("PaySuite webhook payload: %s", payload)
-        logger.info("PaySuite webhook headers: X-Webhook-Signature=%s", request.headers.get("X-Webhook-Signature"))
     except json.JSONDecodeError:
         return HttpResponse("ok")
 
@@ -55,10 +52,6 @@ def paysuite_webhook(request):
 
     logger.info("PaySuite webhook: event=%s request_id=%s reference=%s paysuite_id=%s", event_name, request_id, reference, paysuite_id)
 
-    # se não vier reference, tenta variações comuns
-    if not reference:
-        reference = data.get("merchant_reference") or data.get("client_reference")
-
     if not reference and not paysuite_id:
         return HttpResponse("ok")
 
@@ -67,10 +60,12 @@ def paysuite_webhook(request):
         payment = q.filter(reference=reference).first() if reference else None
         if not payment and paysuite_id:
             payment = q.filter(paysuite_id=paysuite_id).first()
+
         if not payment:
+            logger.warning("Webhook payment not found: reference=%s paysuite_id=%s payload=%s", reference, paysuite_id, payload)
             return HttpResponse("ok")
 
-        # idempotência
+        # idempotência por request_id
         if request_id and payment.last_webhook_request_id == request_id:
             return HttpResponse("ok")
 
@@ -82,20 +77,24 @@ def paysuite_webhook(request):
         if event_name == "payment.success":
             tx = (data.get("transaction") or {})
 
-            # Payment (payments app)
-            payment.status = PaymentState.PAID
-            payment.method = tx.get("method") or payment.method
-            payment.transaction_id = tx.get("id") or tx.get("transaction_id") or payment.transaction_id
+            payment.status = PayPaymentStatus.PAID
+            payment.method = (tx.get("method") or payment.method)
+
+            payment.transaction_id = (
+                tx.get("id") or
+                tx.get("transaction_id") or
+                payment.transaction_id
+            )
 
             paid_at = tx.get("paid_at") or data.get("paid_at")
             payment.paid_at = parse_datetime(paid_at) if paid_at else timezone.now()
 
-            # Registration (events app)
             reg.payment_status = RegPaymentStatus.PAID
             reg.save(update_fields=["payment_status"])
 
         elif event_name == "payment.failed":
-            payment.status = PaymentState.FAILED
+            payment.status = PayPaymentStatus.FAILED
+
             reg.payment_status = RegPaymentStatus.FAILED
             reg.save(update_fields=["payment_status"])
 

@@ -1,11 +1,32 @@
 {% extends "base.html" %}
 {% block content %}
     <section class="max-w-3xl mx-auto px-4 py-16">
-        <div class="text-xs uppercase tracking-widest text-gray-500">payment</div>
-        <h1 class="text-3xl font-semibold mt-3">Obrigado.</h1>
-        <p class="mt-3 text-gray-600">
-            Estamos a confirmar o pagamento via gateway. Se pagaste agora, a confirmação pode demorar alguns segundos.
-        </p>
-        <a href="{% url 'events:event_list' %}" class="inline-block mt-6 underline">Voltar ao schedule</a>
+        <div class="text-[11px] muted label">payment</div>
+
+        {% if state == "failed" %}
+            <h1 class="mt-3 font-display text-4xl">Pagamento não confirmado</h1>
+            <p class="mt-3 muted">Se o pagamento falhou, tenta novamente.</p>
+            <a class="btn mt-6 inline-block" href="{% url 'events:event_list' %}">Voltar ao schedule</a>
+        {% else %}
+            <h1 class="mt-3 font-display text-4xl">A confirmar pagamento…</h1>
+            <p class="mt-3 muted">Estamos a verificar com a PaySuite. Esta página vai atualizar automaticamente.</p>
+
+            {% if payment %}
+                <p class="mt-4 text-sm muted">Ref: <span class="font-mono">{{ payment.reference }}</span></p>
+            {% endif %}
+
+            <script>
+                // Recarrega a página algumas vezes para permitir "pull" até confirmar
+                let tries = 0;
+                const maxTries = 12; // ~24s
+                const timer = setInterval(() => {
+                    tries++;
+                    if (tries >= maxTries) clearInterval(timer);
+                    window.location.reload();
+                }, 2000);
+            </script>
+
+            <a class="btn mt-6 inline-block" href="{% url 'events:event_list' %}">Voltar ao schedule</a>
+        {% endif %}
     </section>
 {% endblock %}
