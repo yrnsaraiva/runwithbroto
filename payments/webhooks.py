@@ -74,7 +74,7 @@ def paysuite_webhook(request):
             tx = (data.get("transaction") or {})
 
             # Payment (payments app)
-            payment.state = PaymentState.PAID
+            payment.status = PaymentState.PAID
             payment.method = tx.get("method") or payment.method
             payment.transaction_id = tx.get("id") or tx.get("transaction_id") or payment.transaction_id
 
@@ -86,13 +86,13 @@ def paysuite_webhook(request):
             reg.save(update_fields=["payment_status"])
 
         elif event_name == "payment.failed":
-            payment.state = PaymentState.FAILED
+            payment.status = PaymentState.FAILED
             reg.payment_status = RegPaymentStatus.FAILED
             reg.save(update_fields=["payment_status"])
 
         # guarda sempre
         payment.save(update_fields=[
-            "state",
+            "status",
             "method",
             "transaction_id",
             "paid_at",
