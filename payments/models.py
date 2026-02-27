@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 from django.core.validators import RegexValidator
 from events.models import EventRegistration
 
@@ -29,7 +28,6 @@ class Payment(models.Model):
         related_name="payment",
     )
 
-    # referência que tu envias ao PaySuite (ALFANUMÉRICA)
     reference = models.CharField(
         max_length=32,
         unique=True,
@@ -37,9 +35,7 @@ class Payment(models.Model):
         validators=[alnum_ref_validator],
     )
 
-    # UUID/id devolvido pelo PaySuite ao criar o payment request
     paysuite_id = models.CharField(max_length=80, blank=True, null=True, db_index=True)
-
     checkout_url = models.URLField(blank=True, null=True)
 
     status = models.CharField(
@@ -63,7 +59,6 @@ class Payment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=10, default="MZN")
 
-    # Auditoria / debug
     raw_provider_payload = models.JSONField(blank=True, null=True)
     last_webhook_request_id = models.CharField(max_length=120, blank=True, null=True, db_index=True)
 
@@ -75,11 +70,3 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.reference} • {self.status}"
-
-    @property
-    def is_paid(self) -> bool:
-        return self.status == PaymentStatus.PAID
-
-    @property
-    def is_failed(self) -> bool:
-        return self.status == PaymentStatus.FAILED

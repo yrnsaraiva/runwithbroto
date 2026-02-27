@@ -51,6 +51,8 @@ def create_payment_request(
 def get_payment(paysuite_uuid: str):
     """
     GET /api/v1/payments/{uuid}
+    Retorna um dict em data, ex:
+    {"id": "...", "reference": "...", "transaction": {"status":"completed", ...}}
     """
     url = f"{settings.PAYSUITE_API_BASE}/payments/{paysuite_uuid}"
     r = requests.get(url, headers=_headers(), timeout=20)

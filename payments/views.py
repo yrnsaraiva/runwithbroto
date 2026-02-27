@@ -17,23 +17,28 @@ logger = logging.getLogger(__name__)
 
 
 def _make_reference(reg: EventRegistration) -> str:
-    """
-    PaySuite exige alfanumérico. Vamos derivar do ticket_code:
-    Ex: RWB-ABCD1234 -> RWBABCD1234
-    """
     base = (reg.ticket_code or f"RWB{reg.id}").replace("-", "").strip()
-    # garante alfanumérico
     base = "".join(ch for ch in base if ch.isalnum())
-    # limite de tamanho
     return base[:32] or f"RWB{reg.id}"
+
+
+def _interpret_remote_payment(remote: dict) -> str:
+    """
+    Normaliza status remoto -> "paid" | "failed" | "pending"
+    PaySuite no teu payload usa: transaction.status == "completed"
+    """
+    tx = remote.get("transaction") or {}
+    tx_status = (tx.get("status") or "").lower()
+
+    if tx_status == "completed":
+        return "paid"
+    if tx_status in ("failed", "cancelled", "canceled"):
+        return "failed"
+    return "pending"
 
 
 @require_http_methods(["GET"])
 def start_event_payment(request):
-    """
-    Inicia pagamento (cria Payment e payment request na PaySuite) e redireciona para checkout_url.
-    URL: /payments/start/?registration_id=123&method=mpesa|emola|card
-    """
     registration_id = request.GET.get("registration_id")
     method = (request.GET.get("method") or "").strip().lower()
 
@@ -48,12 +53,10 @@ def start_event_payment(request):
 
     amount = reg.amount_due or Decimal("0.00")
     if amount <= 0:
-        # evento free ou valor 0: marca como pago
         reg.payment_status = RegPaymentStatus.PAID
         reg.save(update_fields=["payment_status"])
         return redirect("events:registration_success", ticket_code=reg.ticket_code)
 
-    # cria/obtém Payment (1 pagamento por inscrição)
     payment, _ = Payment.objects.get_or_create(
         registration=reg,
         defaults={
@@ -65,16 +68,13 @@ def start_event_payment(request):
         }
     )
 
-    # se já existe e está pago
     if payment.status == PayPaymentStatus.PAID:
         reg.payment_status = RegPaymentStatus.PAID
         reg.save(update_fields=["payment_status"])
         return redirect("events:registration_success", ticket_code=reg.ticket_code)
 
-    # return_url (PULL)
     return_url = request.build_absolute_uri(reverse("payments:return")) + f"?ref={payment.reference}"
     callback_url = request.build_absolute_uri(reverse("payments:webhook_paysuite"))
-
     description = f"RunWithBroto • {reg.event.title} • {reg.ticket_code}"
 
     try:
@@ -91,7 +91,6 @@ def start_event_payment(request):
         messages.error(request, f"Falha ao iniciar pagamento: {e}")
         return redirect("events:register_form", slug=reg.event.slug)
 
-    # salva os dados retornados
     payment.paysuite_id = resp.get("id")
     payment.checkout_url = resp.get("checkout_url")
     payment.raw_provider_payload = resp
@@ -107,9 +106,6 @@ def start_event_payment(request):
 
 @require_http_methods(["GET"])
 def payment_return(request):
-    """
-    Return URL: faz PULL na PaySuite para atualizar status e redirecionar.
-    """
     ref = (request.GET.get("ref") or "").strip()
     if not ref:
         return render(request, "payments/return.html", {"state": "verifying"})
@@ -117,11 +113,10 @@ def payment_return(request):
     payment = get_object_or_404(Payment, reference=ref)
     reg = payment.registration
 
-    # Já confirmado?
+    # já confirmado
     if payment.status == PayPaymentStatus.PAID or reg.payment_status == RegPaymentStatus.PAID:
         return redirect("events:registration_success", ticket_code=reg.ticket_code)
 
-    # sem paysuite_id não dá para consultar
     if not payment.paysuite_id:
         return render(request, "payments/return.html", {"payment": payment, "state": "verifying"})
 
@@ -130,27 +125,28 @@ def payment_return(request):
     except PaySuiteError:
         return render(request, "payments/return.html", {"payment": payment, "state": "verifying"})
 
+    # guarda sempre
     payment.raw_provider_payload = remote
-    remote_status = (remote.get("status") or "").lower()
 
-    if remote_status == "paid":
-        tx = remote.get("transaction") or {}
+    normalized = _interpret_remote_payment(remote)
 
+    tx = remote.get("transaction") or {}
+
+    if normalized == "paid":
         payment.status = PayPaymentStatus.PAID
-        payment.method = tx.get("method") or payment.method
-        payment.transaction_id = tx.get("id") or tx.get("transaction_id") or payment.transaction_id
+        payment.transaction_id = str(tx.get("id") or tx.get("transaction_id") or payment.transaction_id)
 
         paid_at = tx.get("paid_at") or remote.get("paid_at")
         payment.paid_at = parse_datetime(paid_at) if paid_at else timezone.now()
 
-        payment.save(update_fields=["status", "method", "transaction_id", "paid_at", "raw_provider_payload", "updated_at"])
+        payment.save(update_fields=["status", "transaction_id", "paid_at", "raw_provider_payload", "updated_at"])
 
         reg.payment_status = RegPaymentStatus.PAID
         reg.save(update_fields=["payment_status"])
 
         return redirect("events:registration_success", ticket_code=reg.ticket_code)
 
-    if remote_status in ("failed", "cancelled"):
+    if normalized == "failed":
         payment.status = PayPaymentStatus.FAILED
         payment.save(update_fields=["status", "raw_provider_payload", "updated_at"])
 
@@ -159,7 +155,6 @@ def payment_return(request):
 
         return render(request, "payments/return.html", {"payment": payment, "state": "failed"})
 
-    # pending/processing
     payment.status = PayPaymentStatus.PENDING
     payment.save(update_fields=["status", "raw_provider_payload", "updated_at"])
     return render(request, "payments/return.html", {"payment": payment, "state": "verifying"})
@@ -167,10 +162,6 @@ def payment_return(request):
 
 @require_http_methods(["GET"])
 def payment_status(request):
-    """
-    Endpoint para polling no frontend:
-    /payments/status/?ref=XXXX
-    """
     ref = (request.GET.get("ref") or "").strip()
     if not ref:
         return JsonResponse({"ok": False}, status=400)

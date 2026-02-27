@@ -25,10 +25,14 @@ def _verify_signature(raw: bytes, signature: str | None) -> bool:
     return hmac.compare_digest(expected, signature or "")
 
 
+def _tx_status(payload_data: dict) -> str:
+    tx = (payload_data.get("transaction") or {})
+    return (tx.get("status") or "").lower()
+
+
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def paysuite_webhook(request):
-    # healthcheck
     if request.method == "GET":
         return HttpResponse("OK", status=200)
 
@@ -50,7 +54,10 @@ def paysuite_webhook(request):
     reference = data.get("reference")
     paysuite_id = data.get("id")
 
-    logger.info("PaySuite webhook: event=%s request_id=%s reference=%s paysuite_id=%s", event_name, request_id, reference, paysuite_id)
+    logger.info(
+        "PaySuite webhook: event=%s request_id=%s reference=%s paysuite_id=%s tx_status=%s",
+        event_name, request_id, reference, paysuite_id, _tx_status(data)
+    )
 
     if not reference and not paysuite_id:
         return HttpResponse("ok")
@@ -65,7 +72,6 @@ def paysuite_webhook(request):
             logger.warning("Webhook payment not found: reference=%s paysuite_id=%s payload=%s", reference, paysuite_id, payload)
             return HttpResponse("ok")
 
-        # idempotência por request_id
         if request_id and payment.last_webhook_request_id == request_id:
             return HttpResponse("ok")
 
@@ -74,17 +80,16 @@ def paysuite_webhook(request):
 
         reg = payment.registration
 
-        if event_name == "payment.success":
-            tx = (data.get("transaction") or {})
+        # Critério de sucesso: event_name OU transaction.status
+        tx = (data.get("transaction") or {})
+        tx_status = (tx.get("status") or "").lower()
 
+        is_paid = (event_name == "payment.success") or (tx_status == "completed")
+        is_failed = (event_name == "payment.failed") or (tx_status in ("failed", "cancelled", "canceled"))
+
+        if is_paid:
             payment.status = PayPaymentStatus.PAID
-            payment.method = (tx.get("method") or payment.method)
-
-            payment.transaction_id = (
-                tx.get("id") or
-                tx.get("transaction_id") or
-                payment.transaction_id
-            )
+            payment.transaction_id = str(tx.get("id") or tx.get("transaction_id") or payment.transaction_id)
 
             paid_at = tx.get("paid_at") or data.get("paid_at")
             payment.paid_at = parse_datetime(paid_at) if paid_at else timezone.now()
@@ -92,16 +97,14 @@ def paysuite_webhook(request):
             reg.payment_status = RegPaymentStatus.PAID
             reg.save(update_fields=["payment_status"])
 
-        elif event_name == "payment.failed":
+        elif is_failed:
             payment.status = PayPaymentStatus.FAILED
 
             reg.payment_status = RegPaymentStatus.FAILED
             reg.save(update_fields=["payment_status"])
 
-        # guarda sempre
         payment.save(update_fields=[
             "status",
-            "method",
             "transaction_id",
             "paid_at",
             "last_webhook_request_id",
