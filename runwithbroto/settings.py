@@ -139,3 +139,16 @@ PAYSUITE_API_TOKEN = os.getenv("PAYSUITE_API_TOKEN")  # Settings > API Access :c
 
 # Webhook signing secret (configuras no merchant settings do PaySuite)
 PAYSUITE_WEBHOOK_SECRET = os.getenv("PAYSUITE_WEBHOOK_SECRET")
+
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}

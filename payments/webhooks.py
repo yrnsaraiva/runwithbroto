@@ -15,6 +15,7 @@ from .models import Payment, PaymentStatus as PaymentState  # <-- usa o enum do 
 from events.models import PaymentStatus as RegPaymentStatus  # <-- enum da inscrição
 
 logger = logging.getLogger(__name__)
+logger.info("PaySuite webhook reached")
 
 
 def _verify_signature(raw: bytes, signature: str | None) -> bool:
@@ -30,6 +31,7 @@ def _verify_signature(raw: bytes, signature: str | None) -> bool:
 def paysuite_webhook(request):
     if request.method == "GET":
         return HttpResponse("OK", status=200)
+    print("PAYSUITE WEBHOOK HIT", request.headers.get("X-Webhook-Signature"))
 
     raw = request.body
     signature = request.headers.get("X-Webhook-Signature")
