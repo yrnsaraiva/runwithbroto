@@ -175,6 +175,17 @@
                         Você receberá confirmação automática após o pagamento.
                     </p>
 
+                    <script>
+                        const form = document.querySelector("form");
+                        const btn = form.querySelector("button[type='submit']");
+
+                        form.addEventListener("submit", () => {
+                            btn.disabled = true;
+                            btn.textContent = "A processar…";
+                            btn.classList.add("opacity-70", "cursor-not-allowed");
+                        });
+                    </script>
+
                 </form>
 
             </section>

@@ -6,12 +6,14 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from datetime import timedelta
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_http_methods
 
 from events.models import EventRegistration, PaymentStatus as RegPaymentStatus
 from .models import Payment, PaymentStatus as PayPaymentStatus, PaymentMethod
 from .services.paysuite import create_payment_request, get_payment, PaySuiteError
+from .ratelimit import rate_limit, RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -37,69 +39,83 @@ def _interpret_remote_payment(remote: dict) -> str:
     return "pending"
 
 
+REUSE_WINDOW = timedelta(minutes=10)
+
+
 @require_http_methods(["GET"])
 def start_event_payment(request):
     registration_id = request.GET.get("registration_id")
-    method = (request.GET.get("method") or "").strip().lower()
+    method = request.GET.get("method")
+
+    if not registration_id:
+        return redirect("events:event_list")
 
     reg = get_object_or_404(EventRegistration, id=registration_id)
 
-    if reg.payment_status == RegPaymentStatus.PAID:
-        return redirect("events:registration_success", ticket_code=reg.ticket_code)
+    # =============================
+    # 🔐 RATE LIMIT POR IP
+    # =============================
+    ip = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip() \
+        or request.META.get("REMOTE_ADDR", "")
 
-    if method and method not in dict(PaymentMethod.choices):
-        messages.error(request, "Método de pagamento inválido.")
-        return redirect("events:register_form", slug=reg.event.slug)
+    try:
+        rate_limit(f"start:{ip}", limit=10, window_seconds=60)
+    except RateLimitError as e:
+        messages.error(request, str(e))
+        return redirect("events:event_detail", slug=reg.event.slug)
 
-    amount = reg.amount_due or Decimal("0.00")
-    if amount <= 0:
-        reg.payment_status = RegPaymentStatus.PAID
-        reg.save(update_fields=["payment_status"])
-        return redirect("events:registration_success", ticket_code=reg.ticket_code)
+    # =============================
+    # 🔐 RATE LIMIT POR TELEFONE
+    # =============================
+    try:
+        rate_limit(f"reg:{reg.event.id}:{reg.phone}", limit=5, window_seconds=600)
+    except RateLimitError:
+        messages.error(request, "Muitas inscrições com este telefone. Aguarde 10 minutos.")
+        return redirect("events:event_detail", slug=reg.event.slug)
 
-    payment, _ = Payment.objects.get_or_create(
+    # =============================
+    # 🔁 REUTILIZAR PAYMENT PENDING
+    # =============================
+    payment, created = Payment.objects.get_or_create(
         registration=reg,
         defaults={
-            "reference": _make_reference(reg),
-            "amount": amount,
+            "reference": reg.ticket_code.replace("-", ""),
+            "amount": reg.event.price,
             "currency": "MZN",
             "status": PayPaymentStatus.PENDING,
-            "method": method or None,
+            "method": method,
         }
     )
 
+    # Já pago
     if payment.status == PayPaymentStatus.PAID:
-        reg.payment_status = RegPaymentStatus.PAID
-        reg.save(update_fields=["payment_status"])
         return redirect("events:registration_success", ticket_code=reg.ticket_code)
 
-    return_url = request.build_absolute_uri(reverse("payments:return")) + f"?ref={payment.reference}"
-    callback_url = request.build_absolute_uri(reverse("payments:webhook_paysuite"))
-    description = f"RunWithBroto • {reg.event.title} • {reg.ticket_code}"
+    # Reutilizar PENDING recente
+    if payment.status == PayPaymentStatus.PENDING and payment.checkout_url:
+        if payment.updated_at and (timezone.now() - payment.updated_at) < REUSE_WINDOW:
+            return redirect(payment.checkout_url)
 
-    try:
-        resp = create_payment_request(
-            amount=str(amount),
-            reference=payment.reference,
-            description=description,
-            return_url=return_url,
-            callback_url=callback_url,
-            method=payment.method,
-        )
-    except PaySuiteError as e:
-        logger.exception("PaySuite create_payment_request failed")
-        messages.error(request, f"Falha ao iniciar pagamento: {e}")
-        return redirect("events:register_form", slug=reg.event.slug)
-
-    payment.paysuite_id = resp.get("id")
-    payment.checkout_url = resp.get("checkout_url")
-    payment.raw_provider_payload = resp
+    # Se chegou aqui → criar novo checkout na PaySuite
     payment.status = PayPaymentStatus.PENDING
-    payment.save(update_fields=["paysuite_id", "checkout_url", "raw_provider_payload", "status", "updated_at"])
+    payment.save()
 
-    if not payment.checkout_url:
-        messages.error(request, "PaySuite não retornou checkout_url.")
-        return redirect("events:register_form", slug=reg.event.slug)
+    checkout = create_payment_request(
+        amount=str(reg.event.price),
+        reference=payment.reference,
+        description=reg.event.title,
+        return_url=request.build_absolute_uri(
+            reverse("payments:payment_return") + f"?ref={payment.reference}"
+        ),
+        callback_url=request.build_absolute_uri(
+            reverse("payments:paysuite_webhook")
+        ),
+        method=method,
+    )
+
+    payment.paysuite_id = checkout.get("id")
+    payment.checkout_url = checkout.get("checkout_url")
+    payment.save(update_fields=["paysuite_id", "checkout_url", "updated_at"])
 
     return redirect(payment.checkout_url)
 
