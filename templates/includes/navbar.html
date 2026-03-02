@@ -2,14 +2,8 @@
 <header class="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-hairline">
     <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         <!-- Brand -->
-        <a href="" class="flex items-end gap-3">
-            <div class="w-10 h-10 rounded-2xl border border-hairline grid place-items-center">
-                <span class="font-display text-lg font-semibold">RB</span>
-            </div>
-            <div class="leading-tight">
-                <div class="font-display text-xl font-semibold tracking-tight">RUN WITH BROTO</div>
-                <div class="text-[11px] text-muted label">running club • mozambique</div>
-            </div>
+        <a href="" class="flex items-end ">
+            <img src="{% static 'img/LogoRunwithBroto.png' %}" alt="Run With Broto Logo" class="h-10 w-auto">
         </a>
 
         <!-- Desktop nav -->
@@ -17,7 +11,7 @@
 
             <a class="hover:opacity-70 transition {% if request.path|slice:':10' == '/schedule/' %}font-semibold{% endif %}"
                href="{% url 'events:event_list' %}">Schedule</a>
-        
+
             <a class="hover:opacity-70 transition {% if request.path == '/our-story/' %}font-semibold{% endif %}"
                href="{% url 'core:our_story' %}">Our Story</a>
 
