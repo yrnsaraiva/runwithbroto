@@ -6,6 +6,7 @@ from decimal import Decimal
 from django.core.validators import MinValueValidator
 import secrets
 import string
+from django.db.models import Q
 
 
 def generate_ticket_code():
@@ -101,6 +102,18 @@ class Event(models.Model):
     def is_sold_out(self) -> bool:
         return self.registrations_count >= self.capacity
 
+    @property
+    def confirmed_count(self) -> int:
+        """
+        Pessoas confirmadas (pago) + (eventos free contam como confirmado).
+        """
+        qs = self.registrations.exclude(status=RegistrationStatus.CANCELLED)
+
+        if self.is_free:
+            return qs.count()
+
+        return qs.filter(payment_status=PaymentStatus.PAID).count()
+
 
 phone_validator = RegexValidator(
     regex=r"^\+?\d{7,15}$",
@@ -172,4 +185,5 @@ class EventRegistration(models.Model):
     @property
     def amount_due(self):
         return self.event.price if self.status == RegistrationStatus.ACTIVE else 0
+
 
