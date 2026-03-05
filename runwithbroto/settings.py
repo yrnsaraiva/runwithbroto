@@ -15,6 +15,10 @@ load_dotenv(BASE_DIR / ".env")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-m@98y4fg_3j_c-_z7kq(fyqjzagr63e1g3^use=y@!vn^r-ce!'
 
+ETICKETS_BASE_URL = os.getenv("ETICKETS_BASE_URL", "https://eticketsmz.site")
+ETICKETS_BEARER_TOKEN = os.getenv("ETICKETS_BEARER_TOKEN")  # ex: etk_live_...
+ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "15"))
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -37,7 +41,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     "core.apps.CoreConfig",
     "events.apps.EventsConfig",
-    "payments.apps.PaymentsConfig"
 ]
 
 MIDDLEWARE = [
@@ -141,13 +144,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-
-# settings.py
-PAYSUITE_API_BASE = "https://paysuite.tech/api/v1"
-PAYSUITE_API_TOKEN = os.getenv("PAYSUITE_API_TOKEN")  # Settings > API Access :contentReference[oaicite:2]{index=2}
-
-# Webhook signing secret (configuras no merchant settings do PaySuite)
-PAYSUITE_WEBHOOK_SECRET = os.getenv("PAYSUITE_WEBHOOK_SECRET")
 
 
 LOGGING = {

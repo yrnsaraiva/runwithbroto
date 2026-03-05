@@ -56,12 +56,12 @@
             <!-- Actions -->
             <div class="mt-8 flex flex-col sm:flex-row gap-4">
                 <a href="{% url 'events:order_ticket_pdf' reg.ticket_code %}"
-                   class="flex-1 bg-black text-white rounded-2xl py-4 text-center font-semibold hover:opacity-90 transition">
+                   class="flex-1 bg-[var(--brand)] text-black rounded-2xl py-4 text-center font-semibold hover:opacity-90 transition">
                     Baixar Ingresso (PDF)
                 </a>
 
                 <a href="{% url 'events:event_list' %}"
-                   class="flex-1 border hairline rounded-2xl py-4 text-center font-semibold hover:border-black transition">
+                   class="flex-1 border hairline rounded-2xl py-4 text-center font-semibold hover:border-[var(--brand)] transition">
                     Voltar ao Schedule
                 </a>
             </div>

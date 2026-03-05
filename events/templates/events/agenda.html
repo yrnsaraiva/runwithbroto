@@ -11,7 +11,7 @@
     </section>
 
     <!-- LIST -->
-    <section class="max-w-6xl mx-auto min-h-[38vh] px-4 pb-16">
+    <section class="max-w-6xl mx-auto min-h-[45vh] px-4 pb-16">
 
         {% if events %}
 
@@ -23,7 +23,7 @@
                        data-city="{{ event.city|lower }}"
                        data-time="evening"
                        data-type="{{ event.event_type|lower }}"
-                       href="{% url 'events:event_detail' event.slug %}">
+                       href="{% url 'events:event_detail' event.event_id %}">
 
                         <div class="flex items-start justify-between gap-6">
 
@@ -32,7 +32,7 @@
 
                                 <!-- City + Type -->
                                 <div class="text-[11px] muted label">
-                                    {{ event.city }} • {{ event.get_event_type_display }}
+                                    {{ event.city }} • {{ event.event_type }}
                                 </div>
 
                                 <!-- Title -->
@@ -53,8 +53,8 @@
                                 <div class="mt-4 flex items-center gap-3">
 
                                     <!-- Tag -->
-                                    <span class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium">
-                                        {{ event.get_event_type_display }}
+                                    <span class="px-3 py-1 rounded-full bg-[var(--brand)]/15 text-[var(--brand)] text-sm font-medium">
+                                        {{ event.event_type }}
                                     </span>
 
                                     <!-- Avatars + Count -->
@@ -62,11 +62,11 @@
 
                                         <!-- Colored avatars -->
                                         <div class="flex -space-x-2">
-                                            <span class="w-5 h-5 rounded-full bg-red-500 ring-2 ring-white"></span>
-                                            <span class="w-5 h-5 rounded-full bg-blue-500 ring-2 ring-white"></span>
-                                            <span class="w-5 h-5 rounded-full bg-green-500 ring-2 ring-white"></span>
-                                            <span class="w-5 h-5 rounded-full bg-yellow-400 ring-2 ring-white"></span>
-                                            <span class="w-5 h-5 rounded-full bg-purple-500 ring-2 ring-white"></span>
+                                            <span class="w-5 h-5 rounded-full bg-[var(--brand)] ring-2 ring-white"></span>
+                                            <span class="w-5 h-5 rounded-full bg-[var(--brand)] ring-2 ring-white"></span>
+                                            <span class="w-5 h-5 rounded-full bg-[var(--brand)] ring-2 ring-white"></span>
+                                            <span class="w-5 h-5 rounded-full bg-[var(--brand)] ring-2 ring-white"></span>
+                                            <span class="w-5 h-5 rounded-full bg-[var(--brand)] ring-2 ring-white"></span>
                                         </div>
 
                                         <!-- Count -->
