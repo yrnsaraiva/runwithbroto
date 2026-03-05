@@ -31,7 +31,7 @@
                                 <img
                                         alt="Capa do evento"
                                         class="w-full h-full object-cover"
-                                        src="{{ event.poster.url }}"
+                                        src="{{ event.image_url }}"
                                 />
                             </div>
                         </div>
@@ -95,7 +95,7 @@
                     Preencha os seus dados para confirmar a sua participação.
                 </p>
 
-                <form class="mt-10 grid gap-8" method="post" action="{% url 'events:register' event.slug %}">
+                <form class="mt-10 grid gap-8" method="post" action="{% url 'events:register' event.id %}">
 
                     {% csrf_token %}
 

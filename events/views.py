@@ -9,6 +9,7 @@ import requests
 from django.http import JsonResponse
 from datetime import datetime
 from django.http import Http404
+from types import SimpleNamespace
 
 
 #
@@ -98,82 +99,174 @@ def event_detail(request, event_id):
 
     return render(request, "events/event_detail.html", {"event": event})
 
-#
-# @require_http_methods(["GET"])
-# def register_form(request, slug: str):
-#     event = get_object_or_404(Event, slug=slug, is_published=True)
-#     return render(request, "events/register.html", {"event": event})
-#
-#
-# @require_http_methods(["POST"])
-# def register(request, slug: str):
-#     event = get_object_or_404(Event, slug=slug, is_published=True)
-#
-#     if event.is_sold_out:
-#         messages.error(request, "Este evento está esgotado.")
-#         return redirect("events:event_detail", slug=event.slug)
-#
-#     full_name = (request.POST.get("full_name") or "").strip()
-#     phone = (request.POST.get("phone") or "").strip()
-#     payment_method = (request.POST.get("payment") or "").strip()
-#
-#     if not full_name or not phone:
-#         messages.error(request, "Nome e telefone são obrigatórios.")
-#         return redirect("events:register_form", slug=event.slug)
-#
-#     # Evita duplicação acidental por clique duplo:
-#     # se existir inscrição NÃO paga muito recente para o mesmo telefone/evento,
-#     # reaproveita em vez de criar outra.
-#     cooldown = timezone.now() - timedelta(seconds=45)
-#
-#     reg = (
-#         EventRegistration.objects
-#         .filter(event=event, phone=phone, created_at__gte=cooldown)
-#         .exclude(payment_status=PaymentStatus.PAID)
-#         .order_by("-created_at")
-#         .first()
-#     )
-#
-#     if not reg:
-#         reg = EventRegistration.objects.create(
-#             event=event,
-#             phone=phone,
-#             status=RegistrationStatus.ACTIVE,
-#             full_name=full_name,
-#             payment_status=PaymentStatus.UNPAID,
-#         )
-#     else:
-#         # se reaproveitar, atualiza o nome (opcional)
-#         reg.full_name = full_name
-#         reg.save(update_fields=["full_name"])
-#
-#     # Evento grátis => confirma
-#     if event.is_free:
-#         reg.payment_status = PaymentStatus.PAID
-#         reg.save(update_fields=["payment_status"])
-#         return redirect("events:registration_success", ticket_code=reg.ticket_code)
-#
-#     # Pago => inicia pagamento
-#     return redirect(
-#         reverse("payments:start_event_payment") +
-#         f"?registration_id={reg.id}&method={payment_method}"
-#     )
-#
-#
-# @require_http_methods(["GET"])
-# def registration_success(request, ticket_code):
-#     reg = get_object_or_404(EventRegistration, ticket_code=ticket_code)
-#
-#     return render(request, "events/registration_success.html", {"reg": reg})
-#
-#
-# def order_ticket_pdf(request, ticket_code):
-#     reg = get_object_or_404(EventRegistration, ticket_code=ticket_code)
-#
-#     if reg.payment_status != PaymentStatus.PAID:
-#         return HttpResponse("Ticket indisponível: pagamento não confirmado.", status=403)
-#
-#     pdf_bytes = build_ticket_pdf(reg)
-#     resp = HttpResponse(pdf_bytes, content_type="application/pdf")
-#     resp["Content-Disposition"] = f'attachment; filename="ticket-{reg.ticket_code}.pdf"'
-#     return resp
+
+def _external_get_event(event_id: str) -> dict:
+    url = "https://eticketsmz.site/borrow/external/events"
+
+    headers = {
+        "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
+    }
+
+    resp = requests.get(url, headers=headers, timeout=10)
+    if resp.status_code == 404:
+        raise Http404("Evento não encontrado")
+    if not resp.ok:
+        raise Http404(f"Erro ao carregar evento (status {resp.status_code})")
+
+    payload = resp.json()
+    e = payload.get("data") if isinstance(payload, dict) else payload
+    if not isinstance(e, dict) or not e:
+        raise Http404("Evento inválido")
+
+    return e
+
+
+def _map_external_event_for_templates(e: dict) -> dict:
+    # datetime para filtros do template
+    start_at = None
+    raw_date = e.get("date")
+    if raw_date:
+        try:
+            start_at = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+        except ValueError:
+            start_at = None
+
+    # escolher price (preferir active)
+    prices = e.get("prices") or []
+    active = [p for p in prices if (p.get("status") or "").lower() == "active"]
+    chosen = active[0] if active else (prices[0] if prices else None)
+
+    amount = chosen.get("amount") if chosen else None
+    ticket_price_display = f"{amount} MTn" if amount is not None else "—"
+
+    # compatibilizar com {{ event.poster.url }}
+    image_url = e.get("imageUrl") or ""
+    poster = SimpleNamespace(url=image_url) if image_url else None
+
+    # compatibilizar com {{ event.get_event_type_display }}
+    category = e.get("category") or ""
+    event_type_display = category.replace("_", " ").title() if category else "—"
+
+    return {
+        "id": e.get("id"),
+        "event_id": e.get("id"),
+        "slug": e.get("id"),
+        "title": e.get("name"),
+        "description": e.get("description") or "",
+        "city": (e.get("location") or {}).get("province") or "",
+        "meeting_point": (e.get("location") or {}).get("details") or "",
+        "start_at": start_at,
+        "distance_min_km": None,
+        "ticket_price_display": ticket_price_display,
+        "poster": poster,
+        "image_url": image_url,
+        "category": category,
+        "get_event_type_display": event_type_display,  # <- chave para o template não quebrar
+        "confirmed_count": e.get("totalTicketsPurchased") or 0,
+
+        # úteis no POST
+        "_price_id": chosen.get("id") if chosen else None,
+    }
+
+ETK_BASE = "https://eticketsmz.site"
+ETK_TOKEN = "etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
+TIMEOUT = 10
+
+
+@require_http_methods(["GET", "POST"])
+def register_form(request, event_id: str):
+    # --- 1) Buscar evento (precisas disso para renderizar o template)
+    url = f"{ETK_BASE}/borrow/external/events/{event_id}"
+    headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
+
+    resp = requests.get(url, headers=headers, timeout=TIMEOUT)
+    if resp.status_code == 404:
+        raise Http404("Evento não encontrado")
+    if not resp.ok:
+        raise Http404(f"Erro ao carregar evento (status {resp.status_code})")
+
+    payload = resp.json()
+    e = payload.get("data") if isinstance(payload, dict) else payload
+    if not isinstance(e, dict) or not e:
+        raise Http404("Evento inválido")
+
+
+    # --- 2) Mapear campos para o template register.html
+    # data ISO -> datetime
+    start_at = None
+    raw_date = e.get("date")
+    if raw_date:
+        try:
+            start_at = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+        except ValueError:
+            start_at = None
+
+    # escolher priceId
+    # escolher price ativo
+    prices = (e or {}).get("prices") or []
+    price_id = next((p.get("id") for p in prices if (p.get("status") or "").lower() == "active"), None)
+
+    # poster compatível com {{ event.poster.url }}
+    image_url = e.get("imageUrl") or ""
+    poster = SimpleNamespace(url=image_url) if image_url else None
+
+    # compatível com {{ event.get_event_type_display }}
+    category = e.get("category") or ""
+    event_type_display = category.replace("_", " ").title() if category else "—"
+
+    event = {
+        "id": e.get("id"),
+        "eventId": e.get("id"),
+        "slug": e.get("id"),
+        "title": e.get("name"),
+        "description": e.get("description") or "",
+        "city": (e.get("location") or {}).get("province") or "",
+        "meeting_point": (e.get("location") or {}).get("details") or "",
+        "start_at": start_at,
+        "distance_min_km": None,
+        "priceId": price_id,
+        "image_url": e.get("imageUrl"),
+        "category": e.get("category"),
+        "confirmed_count": e.get("totalTicketsPurchased") or 0,
+    }
+
+    # --- 3) GET: abre o formulário
+    if request.method == "GET":
+        return render(request, "events/register.html", {"event": event})
+
+    # --- 4) POST: formulário envia dados (chamar API externa)
+    phone = (request.POST.get("phone") or "").strip()
+    if not phone:
+        return JsonResponse({"error": "Telefone é obrigatório."}, status=400)
+
+    if not event["priceId"]:
+        return JsonResponse({"error": "Evento sem preço ativo."}, status=400)
+
+    prices = e.get("prices") or []
+    first_price = prices[0] if prices else None
+
+
+    body = {
+        "priceId": event["priceId"],
+        "eventId": event_id,
+        "phone": phone,
+    }
+
+    api_headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {ETK_TOKEN}",
+    }
+
+    # reproduz teu curl: GET com body
+    pay_resp = requests.request("GET", url, headers=api_headers, json=body, timeout=TIMEOUT)
+
+    try:
+        out = pay_resp.json()
+    except ValueError:
+        out = {"raw": pay_resp.text}
+
+    # para TESTE: retornar resposta JSON
+    return JsonResponse(
+        {"ok": pay_resp.ok, "status_code": pay_resp.status_code, "sent": body, "response": out},
+        status=200 if pay_resp.ok else 400,
+    )
