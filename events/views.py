@@ -190,7 +190,7 @@ def _map_external_event_for_templates(e: dict) -> dict:
 
 ETK_BASE = "https://eticketsmz.site"
 ETK_TOKEN = "etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
-TIMEOUT = 10
+TIMEOUT = 120
 
 
 @require_http_methods(["GET", "POST"])

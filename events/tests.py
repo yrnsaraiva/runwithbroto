@@ -4,9 +4,9 @@ import requests
 url = "https://eticketsmz.site/borrow/external/tickets"
 
 payload = {
-    "priceId": "PRC17727181516715",
+    "priceId": "PRC17727248575767",
     "eventId": "EVNT17727200000001",
-    "phone": "258849651834"
+    "phone": "258845343113"
 }
 
 headers = {
