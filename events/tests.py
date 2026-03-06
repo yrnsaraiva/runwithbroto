@@ -1,3 +1,20 @@
 from django.test import TestCase
+import requests
 
-# Create your tests here.
+url = "https://eticketsmz.site/borrow/external/tickets"
+
+payload = {
+    "priceId": "PRC17727181516715",
+    "eventId": "EVNT17727200000001",
+    "phone": "258849651834"
+}
+
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
+}
+
+r = requests.post(url, json=payload, headers=headers)
+
+print(r.status_code)
+print(r.json())

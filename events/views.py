@@ -7,6 +7,7 @@ from datetime import datetime
 from django.http import Http404
 from types import SimpleNamespace
 import logging
+import re
 
 
 #
@@ -194,24 +195,31 @@ TIMEOUT = 10
 
 @require_http_methods(["GET", "POST"])
 def register_form(request, event_id: str):
-    url = f"{ETK_BASE}/borrow/external/events/{event_id}"
-    headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
+    event_url = f"{ETK_BASE}/borrow/external/events/{event_id}"
+    ticket_url = f"{ETK_BASE}/borrow/external/tickets"
+    auth_headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
 
-    # 1) Buscar evento (para render e para obter priceId)
+    # 1) Buscar evento para renderizar o formulário e obter priceId
     try:
-        resp = requests.get(url, headers=headers, timeout=TIMEOUT)
+        resp = requests.get(event_url, headers=auth_headers, timeout=TIMEOUT)
     except requests.RequestException:
         messages.error(request, "Serviço indisponível. Tente novamente em instantes.")
         return redirect("events:event_detail", event_id=event_id)
 
     if resp.status_code == 404:
         raise Http404("Evento não encontrado")
+
     if not resp.ok:
         messages.error(request, "Não foi possível carregar o evento.")
         return redirect("events:event_list")
 
     payload = resp.json()
     e = payload.get("data") if isinstance(payload, dict) else payload
+
+    # caso a API devolva lista em data
+    if isinstance(e, list):
+        e = e[0] if e else None
+
     if not isinstance(e, dict) or not e:
         messages.error(request, "Evento inválido.")
         return redirect("events:event_list")
@@ -225,70 +233,119 @@ def register_form(request, event_id: str):
         except ValueError:
             start_at = None
 
-    # 3) Selecionar price ativo
+    # 3) Selecionar preço ativo
     prices = e.get("prices") or []
-    price_id = next((p.get("id") for p in prices if (p.get("status") or "").lower() == "active"), None)
+    price_id = next(
+        (p.get("id") for p in prices if (p.get("status") or "").lower() == "active"),
+        None
+    )
+    chosen_price = next(
+        (p for p in prices if p.get("id") == price_id),
+        None
+    ) or (prices[0] if prices else None)
 
-    # 4) Compatibilidade com o template (poster.url + get_event_type_display)
+    amount = chosen_price.get("amount") if chosen_price else None
+    ticket_price_display = f"{amount} MTn" if amount is not None else "—"
+
+    # 4) Compatibilidade com o template
     image_url = e.get("imageUrl") or ""
     poster = SimpleNamespace(url=image_url) if image_url else None
 
     category = e.get("category") or ""
     event_type_display = category.replace("_", " ").title() if category else "—"
 
-    # (Opcional) preço para mostrar
-    chosen = next((p for p in prices if (p.get("id") == price_id)), None) or (prices[0] if prices else None)
-    amount = chosen.get("amount") if chosen else None
-    ticket_price_display = f"{amount} MTn" if amount is not None else "—"
-
     event = {
         "id": e.get("id"),
-        "slug": e.get("id"),  # usado no {% url 'events:register' event.slug %}
+        "slug": e.get("id"),
         "eventId": e.get("id"),
         "title": e.get("name"),
         "description": e.get("description") or "",
         "city": (e.get("location") or {}).get("province") or "",
         "meeting_point": (e.get("location") or {}).get("details") or "",
         "start_at": start_at,
-
-        "poster": poster,  # ✅ para {{ event.poster.url }}
-        "get_event_type_display": event_type_display,  # ✅ para {{ event.get_event_type_display }}
+        "poster": poster,
+        "get_event_type_display": event_type_display,
         "ticket_price_display": ticket_price_display,
-
         "priceId": price_id,
         "image_url": image_url,
         "confirmed_count": e.get("totalTicketsPurchased") or 0,
     }
 
-    # GET: abre o formulário
+    # GET: só renderiza o formulário
     if request.method == "GET":
         return render(request, "events/register.html", {"event": event})
 
-    # POST: enviar dados
+    # POST: validar e enviar compra
     phone = (request.POST.get("phone") or "").strip()
-    if not phone:
-        messages.error(request, "Telefone é obrigatório.")
+    full_name = (request.POST.get("full_name") or "").strip()
+    payment = (request.POST.get("payment") or "").strip()
+
+    # normalizar telefone: remover tudo que não for dígito
+    phone = re.sub(r"\D", "", phone)
+
+    # garantir prefixo 258
+    if not phone.startswith("258"):
+        phone = f"258{phone}"
+
+    # validar formato final: 258 + 9 dígitos
+    if not re.fullmatch(r"258\d{9}", phone):
+        messages.error(
+            request,
+            "Número inválido. Use 84xxxxxxx, 85xxxxxxx, 86xxxxxxx, 87xxxxxxx ou já com 258."
+        )
         return render(request, "events/register.html", {"event": event}, status=400)
 
     if not price_id:
         messages.error(request, "Este evento não tem preço ativo.")
         return render(request, "events/register.html", {"event": event}, status=400)
 
-    body = {"priceId": price_id, "eventId": event_id, "phone": phone}
-    api_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {ETK_TOKEN}"}
+    body = {
+        "priceId": price_id,
+        "eventId": event_id,
+        "phone": phone,
+    }
+
+    # incluir só se a API externa suportar estes campos
+    if full_name:
+        body["fullName"] = full_name
+    if payment:
+        body["paymentMethod"] = payment
+
+    api_headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {ETK_TOKEN}",
+    }
 
     try:
-        pay_resp = requests.request("GET", url, headers=api_headers, json=body, timeout=TIMEOUT)
+        pay_resp = requests.post(ticket_url, headers=api_headers, json=body, timeout=TIMEOUT)
     except requests.RequestException:
         messages.error(request, "Não foi possível processar o pagamento. Tente novamente.")
         return render(request, "events/register.html", {"event": event}, status=502)
 
+    try:
+        pay_data = pay_resp.json()
+    except ValueError:
+        pay_data = None
+
     if pay_resp.ok:
-        messages.success(request, "Pedido iniciado. Confirme o pagamento no seu telefone.")
+        messages.success(
+            request,
+            "Pedido iniciado com sucesso. Confirme o pagamento no seu telefone."
+        )
         return redirect("events:registration_success", event_id=event_id)
 
-    # erro da API (não expor o detalhe ao utilizador)
-    messages.error(request, "Falha ao iniciar o pagamento. Verifique o número e tente novamente.")
+    # tentar mostrar mensagem da API, sem expor detalhes demais
+    error_message = "Falha ao iniciar o pagamento. Verifique o número e tente novamente."
+    if isinstance(pay_data, dict):
+        api_message = (
+            pay_data.get("message")
+            or pay_data.get("detail")
+            or pay_data.get("error")
+        )
+        if api_message:
+            error_message = api_message
+
+    messages.error(request, error_message)
     return render(request, "events/register.html", {"event": event}, status=400)
 
 
