@@ -6,7 +6,7 @@ url = "https://eticketsmz.site/borrow/external/tickets"
 payload = {
     "priceId": "PRC17727248575767",
     "eventId": "EVNT17727200000001",
-    "phone": "258845343113"
+    "phone": "258847766556"
 }
 
 headers = {

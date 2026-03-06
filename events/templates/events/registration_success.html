@@ -26,28 +26,28 @@
 
                 <div>
                     <div class="text-[11px] muted label">evento</div>
-                    <div class="mt-2 font-semibold">{{ reg.event.title }}</div>
+                    <div class="mt-2 font-semibold">{{ event_name }}</div>
 
                     <div class="mt-4 text-[11px] muted label">cidade</div>
-                    <div class="mt-2">{{ reg.event.get_city_display }}</div>
+                    <div class="mt-2">{{ event_city }}</div>
 
                     <div class="mt-4 text-[11px] muted label">data</div>
                     <div class="mt-2">
-                        {{ reg.event.start_at|date:"l, d M Y" }} —
-                        {{ reg.event.start_at|time:"H:i" }}
+                        {{ event_date|date:"l, d M Y" }} —
+                        {{ event_date|time:"H:i" }}
                     </div>
                 </div>
 
                 <div>
                     <div class="text-[11px] muted label">participante</div>
-                    <div class="mt-2 font-semibold">{{ reg.full_name }}</div>
+                    <div class="mt-2 font-semibold">{{ buyer_name }}</div>
 
                     <div class="mt-4 text-[11px] muted label">ticket</div>
-                    <div class="mt-2 font-mono">{{ reg.ticket_code }}</div>
+                    <div class="mt-2 font-mono">{{ ticket }}</div>
 
                     <div class="mt-4 text-[11px] muted label">total pago</div>
                     <div class="mt-2 font-semibold">
-                        {{ reg.event.price }} {{ reg.event.currency|default:"MZN" }}
+                        {{ price_amount }} MZN
                     </div>
                 </div>
 

@@ -8,6 +8,7 @@ from django.http import Http404
 from types import SimpleNamespace
 import logging
 import re
+from .models import ExternalTicket
 
 
 #
@@ -247,10 +248,6 @@ def register_form(request, event_id: str):
     amount = chosen_price.get("amount") if chosen_price else None
     ticket_price_display = f"{amount} MTn" if amount is not None else "—"
 
-    # 4) Compatibilidade com o template
-    image_url = e.get("imageUrl") or ""
-    poster = SimpleNamespace(url=image_url) if image_url else None
-
     category = e.get("category") or ""
     event_type_display = category.replace("_", " ").title() if category else "—"
 
@@ -263,11 +260,11 @@ def register_form(request, event_id: str):
         "city": (e.get("location") or {}).get("province") or "",
         "meeting_point": (e.get("location") or {}).get("details") or "",
         "start_at": start_at,
-        "poster": poster,
+        "poster_url": e.get("imageUrl") or "",
         "get_event_type_display": event_type_display,
         "ticket_price_display": ticket_price_display,
         "priceId": price_id,
-        "image_url": image_url,
+        "image_url": e.get("imageUrl") or "",
         "confirmed_count": e.get("totalTicketsPurchased") or 0,
     }
 
@@ -327,12 +324,77 @@ def register_form(request, event_id: str):
     except ValueError:
         pay_data = None
 
-    if pay_resp.ok:
-        messages.success(
-            request,
-            "Pedido iniciado com sucesso. Confirme o pagamento no seu telefone."
-        )
-        return redirect("events:registration_success", event_id=event_id)
+    if pay_resp.ok and isinstance(pay_data, dict):
+        if (
+            pay_data.get("status") == "success"
+            and pay_data.get("message") == "Ticket created successfully"
+        ):
+            ticket_data = pay_data.get("data") or {}
+            event_data = ticket_data.get("event") or {}
+            organizer_data = event_data.get("organizer") or {}
+            location_data = event_data.get("location") or {}
+            price_data = ticket_data.get("price") or {}
+
+            created_at = None
+            updated_at = None
+            event_date = None
+
+            raw_created_at = ticket_data.get("createdAt")
+            raw_updated_at = ticket_data.get("updatedAt")
+            raw_event_date = event_data.get("date")
+
+            if raw_created_at:
+                try:
+                    created_at = datetime.fromisoformat(raw_created_at.replace("Z", "+00:00"))
+                except ValueError:
+                    created_at = None
+
+            if raw_updated_at:
+                try:
+                    updated_at = datetime.fromisoformat(raw_updated_at.replace("Z", "+00:00"))
+                except ValueError:
+                    updated_at = None
+
+            if raw_event_date:
+                try:
+                    event_date = datetime.fromisoformat(raw_event_date.replace("Z", "+00:00"))
+                except ValueError:
+                    event_date = None
+
+            ExternalTicket.objects.update_or_create(
+                external_id=ticket_data.get("id"),
+                defaults={
+                    "event_id_external": ticket_data.get("eventId"),
+                    "event_name": event_data.get("name") or "",
+                    "event_category": event_data.get("category") or "",
+
+                    "event_province": location_data.get("province") or "",
+                    "event_location_details": location_data.get("details") or "",
+                    "event_image_url": event_data.get("imageUrl") or "",
+                    "event_date": event_date,
+
+                    "price_id_external": ticket_data.get("priceId") or "",
+                    "price_amount": price_data.get("amount") or 0,
+
+                    "entered": ticket_data.get("entered", False),
+                    "status": ticket_data.get("status") or "",
+                    "payment_status": ticket_data.get("payment") or "",
+
+                    "buyer_phone": phone,
+                    "buyer_name": full_name,
+
+                    "external_created_at": created_at,
+                    "external_updated_at": updated_at,
+
+                    "raw_payload": pay_data,
+                },
+            )
+
+            messages.success(
+                request,
+                "Inscrição confirmada com sucesso. Confirme o pagamento no seu telefone."
+            )
+            return redirect("events:registration_success", event_id=event_id)
 
     # tentar mostrar mensagem da API, sem expor detalhes demais
     error_message = "Falha ao iniciar o pagamento. Verifique o número e tente novamente."
@@ -350,4 +412,28 @@ def register_form(request, event_id: str):
 
 
 def register_success(request, event_id):
-    return render(request, "events/registration_success.html", {"event_id": event_id})
+    ticket = (
+        ExternalTicket.objects
+        .filter(event_id_external=event_id)
+        .order_by("-created_at")
+        .first()
+    )
+
+    if not ticket:
+        raise Http404("Ticket não encontrado")
+
+    context = {
+        "ticket": ticket,
+        "event_name": ticket.event_name,
+        "event_date": ticket.event_date,
+        "event_location": ticket.event_location_details,
+        "event_city": ticket.event_province,
+        "buyer_name": ticket.buyer_name,
+        "price_amount": ticket.price_amount,
+    }
+
+    return render(
+        request,
+        "events/registration_success.html",
+        context
+    )
