@@ -6,11 +6,7 @@ app_name = "events"
 urlpatterns = [
     path("schedule/", views.event_list, name="event_list"),
     path("event/<str:event_id>/", views.event_detail, name="event_detail"),
-    #
-    # # Checkout
     path("events/<str:event_id>/inscrever/", views.register_form, name="register"),
-    # path("schedule/<str:event_id>/register/", views.register_form, name="register"),
-    # path("orders/<str:ticket_code>/success/", views.registration_success, name="registration_success"),
-    #
-    # path("orders/<str:ticket_code>/ticket.pdf", views.order_ticket_pdf, name="order_ticket_pdf"),
+    path("<str:event_id>/success/", views.register_success, name="registration_success"),
+
 ]

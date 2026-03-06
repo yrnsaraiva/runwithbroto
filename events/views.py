@@ -285,8 +285,12 @@ def register_form(request, event_id: str):
 
     if pay_resp.ok:
         messages.success(request, "Pedido iniciado. Confirme o pagamento no seu telefone.")
-        return redirect("events:register_success", event_id=event_id)
+        return redirect("events:registration_success", event_id=event_id)
 
     # erro da API (não expor o detalhe ao utilizador)
     messages.error(request, "Falha ao iniciar o pagamento. Verifique o número e tente novamente.")
     return render(request, "events/register.html", {"event": event}, status=400)
+
+
+def register_success(request, event_id):
+    return render(request, "events/registration_success.html", {"event_id": event_id})
