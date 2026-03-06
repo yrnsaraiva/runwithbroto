@@ -4,11 +4,13 @@ from django.views.decorators.http import require_http_methods
 import requests
 from django.http import JsonResponse
 from datetime import datetime
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from types import SimpleNamespace
 import logging
 import re
 from .models import ExternalTicket
+from django.shortcuts import get_object_or_404
+from .pdf import build_external_ticket_pdf
 
 
 #
@@ -409,6 +411,17 @@ def register_form(request, event_id: str):
 
     messages.error(request, error_message)
     return render(request, "events/register.html", {"event": event}, status=400)
+
+
+def download_external_ticket_pdf(request, ticket_id: int):
+    ticket = get_object_or_404(ExternalTicket, id=ticket_id)
+
+    pdf_bytes = build_external_ticket_pdf(ticket)
+
+    filename = f"ticket-{ticket.external_id}.pdf"
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 def register_success(request, event_id):
