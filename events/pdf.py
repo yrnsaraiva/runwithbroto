@@ -177,7 +177,7 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     # footer logo
     c.setFillColor(MUTED)
     c.setFont("Helvetica", 9)
-    c.drawCentredString(W / 2, band_y - 10 * mm, "Powered by RunWithBroto")
+    c.drawCentredString(W / 2, band_y - 10 * mm, "Powered by Shakes")
 
     # ====== Termos ======
     tc_top = band_y - 22 * mm

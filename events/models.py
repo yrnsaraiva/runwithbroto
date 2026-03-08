@@ -1,6 +1,20 @@
 from django.db import models
 
 
+class Provincia(models.TextChoices):
+    MAPUTO_CIDADE = "MAPUTO_CIDADE", "Maputo Cidade"
+    MAPUTO_PROVINCIA = "MAPUTO_PROVINCIA", "Maputo Província"
+    GAZA = "GAZA", "Gaza"
+    INHAMBANE = "INHAMBANE", "Inhambane"
+    SOFALA = "SOFALA", "Sofala"
+    MANICA = "MANICA", "Manica"
+    TETE = "TETE", "Tete"
+    ZAMBEZIA = "ZAMBEZIA", "Zambézia"
+    NAMPULA = "NAMPULA", "Nampula"
+    CABO_DELGADO = "CABO_DELGADO", "Cabo Delgado"
+    NIASSA = "NIASSA", "Niassa"
+
+
 class ExternalTicket(models.Model):
     external_id = models.CharField(max_length=50, unique=True)
 
@@ -22,6 +36,8 @@ class ExternalTicket(models.Model):
 
     buyer_phone = models.CharField(max_length=20, blank=True)
     buyer_name = models.CharField(max_length=255, blank=True)
+    buyer_email = models.EmailField(blank=True)
+    buyer_province = models.CharField(max_length=20, choices=Provincia.choices, blank=True)
 
     external_created_at = models.DateTimeField(null=True, blank=True)
     external_updated_at = models.DateTimeField(null=True, blank=True)

@@ -8,7 +8,7 @@ from django.http import Http404, HttpResponse
 from types import SimpleNamespace
 import logging
 import re
-from .models import ExternalTicket
+from .models import ExternalTicket, Provincia
 from django.shortcuts import get_object_or_404
 from .pdf import build_external_ticket_pdf
 
@@ -252,6 +252,7 @@ def register_form(request, event_id: str):
 
     category = e.get("category") or ""
     event_type_display = category.replace("_", " ").title() if category else "—"
+    provincias = Provincia.choices
 
     event = {
         "id": e.get("id"),
@@ -272,7 +273,7 @@ def register_form(request, event_id: str):
 
     # GET: só renderiza o formulário
     if request.method == "GET":
-        return render(request, "events/register.html", {"event": event})
+        return render(request, "events/register.html", {"event": event, "provincias": provincias})
 
     # POST: validar e enviar compra
     phone = (request.POST.get("phone") or "").strip()
@@ -333,7 +334,6 @@ def register_form(request, event_id: str):
         ):
             ticket_data = pay_data.get("data") or {}
             event_data = ticket_data.get("event") or {}
-            organizer_data = event_data.get("organizer") or {}
             location_data = event_data.get("location") or {}
             price_data = ticket_data.get("price") or {}
 
