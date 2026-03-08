@@ -278,6 +278,8 @@ def register_form(request, event_id: str):
     # POST: validar e enviar compra
     phone = (request.POST.get("phone") or "").strip()
     full_name = (request.POST.get("full_name") or "").strip()
+    buyer_email = (request.POST.get("email") or "").strip()
+    buyer_province = (request.POST.get("buyer_province") or "").strip()
     payment = (request.POST.get("payment") or "").strip()
 
     # normalizar telefone: remover tudo que não for dígito
@@ -303,6 +305,7 @@ def register_form(request, event_id: str):
         "priceId": price_id,
         "eventId": event_id,
         "phone": phone,
+        "email": buyer_email,
     }
 
     # incluir só se a API externa suportar estes campos
@@ -310,6 +313,8 @@ def register_form(request, event_id: str):
         body["fullName"] = full_name
     if payment:
         body["paymentMethod"] = payment
+    if buyer_email:
+        body["email"] = buyer_email
 
     api_headers = {
         "Content-Type": "application/json",
@@ -384,6 +389,8 @@ def register_form(request, event_id: str):
 
                     "buyer_phone": phone,
                     "buyer_name": full_name,
+                    "buyer_email": buyer_email,
+                    "buyer_province": buyer_province,
 
                     "external_created_at": created_at,
                     "external_updated_at": updated_at,
