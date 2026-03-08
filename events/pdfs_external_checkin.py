@@ -100,6 +100,8 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
         Paragraph("<b>Ticket</b>", cell_style),
         Paragraph("<b>Nome</b>", cell_style),
         Paragraph("<b>Telefone</b>", cell_style),
+        Paragraph("<b>Email</b>", cell_style),
+        Paragraph("<b>Confirm.</b>", cell_center),
     ]]
 
     for i, t in enumerate(tickets, start=1):
@@ -108,6 +110,8 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
             Paragraph(t.external_id or "—", cell_style),
             Paragraph(t.buyer_name or "—", cell_style),
             Paragraph(t.buyer_phone or "—", cell_style),
+            Paragraph(t.buyer_email or "—", cell_style),
+            Paragraph(" ", cell_center),
         ])
 
     table = Table(

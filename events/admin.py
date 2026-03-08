@@ -58,6 +58,8 @@ class ExternalTicketAdmin(admin.ModelAdmin):
             "fields": (
                 "buyer_name",
                 "buyer_phone",
+                "buyer_email",
+                "buyer_province",
             )
         }),
         ("Event", {
@@ -145,6 +147,7 @@ class ExternalTicketAdmin(admin.ModelAdmin):
             "ticket_id",
             "buyer_name",
             "buyer_phone",
+            "buyer_email",
             "payment_status",
             "entered",
             "event_name",
@@ -156,6 +159,7 @@ class ExternalTicketAdmin(admin.ModelAdmin):
                 t.external_id,
                 t.buyer_name,
                 t.buyer_phone,
+                t.buyer_email,
                 t.payment_status,
                 "YES" if t.entered else "NO",
                 t.event_name,
@@ -174,6 +178,7 @@ class ExternalTicketAdmin(admin.ModelAdmin):
             "ticket_id",
             "buyer_name",
             "buyer_phone",
+            "buyer_email",
             "payment_status",
             "entered",
             "event_name",
@@ -185,6 +190,7 @@ class ExternalTicketAdmin(admin.ModelAdmin):
                 t.external_id,
                 t.buyer_name,
                 t.buyer_phone,
+                t.buyer_email,
                 t.payment_status,
                 "YES" if t.entered else "NO",
                 t.event_name,
