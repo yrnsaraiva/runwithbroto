@@ -4,9 +4,38 @@ from django.http import HttpResponse
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils import timezone
+import json
+from django.db.models import Count, Sum, Q, Avg
+from datetime import timedelta
+from django.shortcuts import render
 
-from .models import ExternalTicket
+from .models import ExternalTicket, Provincia
 from .pdfs_external_checkin import build_external_checkin_list_pdf
+
+from django.contrib.admin import AdminSite
+
+
+class CustomAdminSite(AdminSite):
+    def get_app_list(self, request):
+        app_list = super().get_app_list(request)
+
+        # Adicionar Dashboard no topo do menu
+        app_list.insert(0, {
+            'name': 'Dashboard',
+            'app_label': 'dashboard',
+            'models': [{
+                'name': 'Visão Geral',
+                'object_name': 'dashboard',
+                'admin_url': reverse('admin:externalticket_dashboard'),
+                'view_only': True,
+                'perms': {'add': False, 'change': False, 'delete': False}
+            }]
+        })
+        return app_list
+
+
+# Substituir o admin padrão (opcional)
+# admin_site = CustomAdminSite(name='myadmin')
 
 
 @admin.register(ExternalTicket)
@@ -107,6 +136,8 @@ class ExternalTicketAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
+
+        extra_context['dashboard_url'] = reverse('admin:externalticket_dashboard')
 
         event_name = request.GET.get("event_name__exact")
         if event_name:
@@ -214,3 +245,48 @@ class ExternalTicketAdmin(admin.ModelAdmin):
         return response
 
     export_selected_pdf.short_description = "Exportar selecionados (PDF)"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            # ... suas URLs existentes ...
+            path(
+                "dashboard/",
+                self.admin_site.admin_view(self.dashboard_view),
+                name="externalticket_dashboard",
+            ),
+        ]
+        return custom_urls + urls
+
+    def dashboard_view(self, request):
+        # 1. TOTAL DE PESSOAS QUE COMPRARAM BILHETES
+        total_compradores = ExternalTicket.objects.values('buyer_phone').distinct().count()
+        total_tickets = ExternalTicket.objects.count()
+
+        # 2. RECEITA TOTAL
+        receita_total = ExternalTicket.objects.filter(
+            payment_status__iexact='paid'
+        ).aggregate(total=Sum('price_amount'))['total'] or 0
+
+        # 3. PESSOAS POR PROVÍNCIA
+        provincia_stats = []
+        for codigo, nome in Provincia.choices:
+            count = ExternalTicket.objects.filter(buyer_province=codigo).count()
+            if count > 0:
+                provincia_stats.append({
+                    'nome': nome,
+                    'quantidade': count
+                })
+
+        # Ordenar por quantidade (maior para menor)
+        provincia_stats.sort(key=lambda x: x['quantidade'], reverse=True)
+
+        context = {
+            'title': 'Dashboard',
+            'total_compradores': total_compradores,
+            'total_tickets': total_tickets,
+            'receita_total': receita_total,
+            'provincia_stats': provincia_stats,
+        }
+
+        return render(request, 'admin/events/externalticket/dashboard.html', context)
