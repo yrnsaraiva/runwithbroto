@@ -49,6 +49,53 @@ def _load_remote_image(url: str):
         return None
 
 
+def _draw_wrapped_text(c, text, x, y, max_width, font_name="Helvetica", font_size=9, line_height=11):
+    """
+    Desenha texto com quebra automática de linha.
+
+    Args:
+        c: objeto canvas do reportlab
+        text: texto a ser desenhado
+        x: posição x inicial
+        y: posição y inicial (base da primeira linha)
+        max_width: largura máxima em pontos
+        font_name: nome da fonte
+        font_size: tamanho da fonte
+        line_height: altura entre linhas em pontos
+    """
+    if not text:
+        return y
+
+    text = str(text)
+    c.setFont(font_name, font_size)
+
+    words = text.split(' ')
+    lines = []
+    current_line = []
+
+    for word in words:
+        test_line = ' '.join(current_line + [word])
+        text_width = c.stringWidth(test_line, font_name, font_size)
+
+        if text_width <= max_width:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(' '.join(current_line))
+            current_line = [word]
+
+    if current_line:
+        lines.append(' '.join(current_line))
+
+    # Desenha cada linha
+    for i, line in enumerate(lines):
+        line_y = y - (i * line_height)
+        c.drawString(x, line_y, line)
+
+    # Retorna a nova posição Y após todas as linhas
+    return y - ((len(lines) - 1) * line_height)
+
+
 def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     """
     Gera PDF A4 do ingresso de ExternalTicket.
@@ -131,8 +178,10 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 9)
         c.drawString(cx, cy, label)
-        c.setFont("Helvetica", 9)
-        c.drawString(cx, cy - 11, str(value or "—")[:32])
+
+        # Usa a função de quebra de linha para o valor
+        max_width = col_w - 2 * mm  # Margem pequena
+        _draw_wrapped_text(c, value or "—", cx, cy - 11, max_width, "Helvetica", 9, 11)
 
     start_local = None
     if ticket.event_date:
@@ -157,7 +206,13 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     # direita (participante)
     draw_pair("NOME", ticket.buyer_name or "Participante", right_col_x, top_line_y)
     draw_pair("TIPO", "ENTRADA", right_col_x, top_line_y - gap)
-    draw_pair("TICKET", ticket.external_id, right_col_x, top_line_y - 2 * gap)
+
+    # Para o TICKET ID, que pode ser longo, também usa quebra de linha
+    c.setFillColor(colors.white)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(right_col_x, top_line_y - 2 * gap + 11, "TICKET")
+    _draw_wrapped_text(c, ticket.external_id, right_col_x, top_line_y - 2 * gap,
+                       max_width=col_w - 2 * mm, font_name="Helvetica", font_size=9, line_height=11)
 
     # preço
     price_y = band_y + 12 * mm
@@ -187,9 +242,13 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
 
     terms = [
         "1. O ingresso é pessoal e válido apenas para o evento descrito.",
+        "",
         "2. O acesso ao evento depende da confirmação de pagamento e validação no check-in.",
+        "",
         "3. Guarde este PDF/QR para apresentação na entrada.",
+        "",
         "4. Em caso de cancelamento do evento, a política aplicável será comunicada pelo organizador.",
+        "",
         "5. Os dados pessoais recolhidos são usados apenas para gestão de inscrições e controlo de acesso.",
     ]
 
@@ -199,9 +258,12 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     x = 22 * mm
     y = tc_top - 10 * mm
     line_h = 5.2 * mm
+
+    # Para os termos, também podemos usar quebra de linha se necessário
+    max_term_width = W - 44 * mm  # Largura disponível para os termos
     for t in terms:
-        c.drawString(x, y, t)
-        y -= line_h
+        y = _draw_wrapped_text(c, t, x, y, max_term_width, "Helvetica", 8.5, line_h)
+        y -= line_h / 2  # Espaço extra entre parágrafos
 
     c.showPage()
     c.save()
