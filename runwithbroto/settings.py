@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -85,6 +86,11 @@ DATABASES = {
     }
 }
 
+POSTGRES_LOCALLY = False
+if not DEBUG or POSTGRES_LOCALLY:
+    DATABASES['default'] = dj_database_url.parse(
+        'postgresql://postgres:WQKNszCbpLWwdnSARMgwulCUNrXsoOpi@tramway.proxy.rlwy.net:50885/railway')
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -143,7 +149,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-
 
 
 LOGGING = {
