@@ -2,30 +2,127 @@
 <header class="sticky top-0 z-50 bg-[var(--ink)]/95 backdrop-blur border-b border-[var(--brand)]/20">
     <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         <!-- Brand -->
-        <a href="{% url 'core:home' %}" class="flex items-end ">
+        <a href="{% url 'core:home' %}" class="flex items-end">
             <img src="{% static 'img/logo.png' %}" alt="Run With Broto Logo" class="h-10 w-auto">
         </a>
 
         <!-- Desktop nav -->
         <nav class="hidden md:flex items-center gap-7 text-sm">
-
-            <a class="hover:text-[var(--brand)] transition{% if request.path|slice:':10' == '/schedule/' %}font-semibold{% endif %}"
+            <a class="hover:text-[var(--brand)] transition{% if request.path|slice:':10' == '/schedule/' %} font-semibold{% endif %}"
                href="{% url 'events:event_list' %}">Schedule</a>
 
-            <a class="hover:text-[var(--brand)] transition {% if request.path == '/our-story/' %}font-semibold{% endif %}"
+            <a class="hover:text-[var(--brand)] transition{% if request.path == '/our-story/' %} font-semibold{% endif %}"
                href="{% url 'core:our_story' %}">Our Story</a>
 
-            <a class="hover:text-[var(--brand)] transition {% if request.path == '/contact/' %}font-semibold{% endif %}"
+            <a class="hover:text-[var(--brand)] transition{% if request.path == '/contact/' %} font-semibold{% endif %}"
                href="{% url 'core:contact' %}">Contact</a>
         </nav>
+
+        <!-- Mobile menu button (hamburger) -->
+        <button class="md:hidden p-2 text-[var(--brand)] hover:bg-[var(--brand)]/10 rounded-lg transition"
+                onclick="toggleMobileMenu()"
+                aria-label="Toggle menu">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+        </button>
     </div>
 
     <!-- Mobile panel -->
-    <div class="md:hidden hidden border-t border-hairline bg-[var(--ink)]" data-nav-panel>
+    <div class="md:hidden hidden border-t border-hairline" id="mobile-menu">
         <div class="max-w-6xl mx-auto px-4 py-4 grid gap-2 text-sm">
-            <a class="py-2 hover:text-[var(--brand)]" href="{% url 'events:event_list' %}">Schedule</a>
-            <a class="py-2 hover:text-[var(--brand)]" href="{% url 'core:our_story' %}">Our Story</a>
-            <a class="py-2 hover:text-[var(--brand)]" href="{% url 'core:contact' %}">Contact</a>
+            <a class="py-2 hover:text-[var(--brand)] transition{% if request.path|slice:':10' == '/schedule/' %} font-semibold{% endif %}"
+               href="{% url 'events:event_list' %}">Schedule</a>
+            <a class="py-2 hover:text-[var(--brand)] transition{% if request.path == '/our-story/' %} font-semibold{% endif %}"
+               href="{% url 'core:our_story' %}">Our Story</a>
+            <a class="py-2 hover:text-[var(--brand)] transition{% if request.path == '/contact/' %} font-semibold{% endif %}"
+               href="{% url 'core:contact' %}">Contact</a>
         </div>
     </div>
 </header>
+
+<script>
+// Mobile menu functionality
+function toggleMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    const button = document.querySelector('button[onclick="toggleMobileMenu()"]');
+    
+    if (menu.classList.contains('hidden')) {
+        // Open menu
+        menu.classList.remove('hidden');
+        menu.style.maxHeight = '0px';
+        menu.style.overflow = 'hidden';
+        menu.style.transition = 'max-height 0.3s ease-in-out';
+        
+        // Force reflow
+        menu.offsetHeight;
+        
+        // Set max-height to content height
+        const contentHeight = menu.querySelector('div').offsetHeight;
+        menu.style.maxHeight = contentHeight + 'px';
+        
+        // Change to X icon
+        button.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        `;
+    } else {
+        // Close menu
+        menu.style.maxHeight = '0px';
+        
+        // Change back to hamburger icon after animation
+        setTimeout(() => {
+            menu.classList.add('hidden');
+            button.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+            `;
+        }, 300);
+    }
+}
+
+// Close menu when clicking on a link (optional)
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileLinks = document.querySelectorAll('#mobile-menu a');
+    mobileLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            const menu = document.getElementById('mobile-menu');
+            if (!menu.classList.contains('hidden')) {
+                toggleMobileMenu();
+            }
+        });
+    });
+});
+
+// Close menu when window is resized to desktop size
+window.addEventListener('resize', function() {
+    const menu = document.getElementById('mobile-menu');
+    const button = document.querySelector('button[onclick="toggleMobileMenu()"]');
+    
+    if (window.innerWidth >= 768) { // md breakpoint
+        menu.classList.add('hidden');
+        menu.style.maxHeight = '';
+        // Reset to hamburger icon
+        button.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+        `;
+    }
+});
+</script>
+
+<!-- Optional: Add CSS for smooth transitions -->
+<style>
+    #mobile-menu {
+        transition: max-height 0.3s ease-in-out;
+        max-height: 0;
+        overflow: hidden;
+    }
+    
+    #mobile-menu:not(.hidden) {
+        max-height: 500px; /* Will be overridden by JS, but provides a fallback */
+    }
+</style>
