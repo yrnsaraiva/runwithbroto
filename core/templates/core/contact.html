@@ -18,9 +18,9 @@
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <div class="font-medium">Email</div>
-                                <div class="muted">hello@runwithbroto.co.mz</div>
+                                <div class="muted">info@runwithbroto.com</div>
                             </div>
-                            <a class="link-u" href="mailto:hello@runwithbroto.co.mz">Open</a>
+                            <a class="link-u" href="mailto:info@runwithbroto.com" target="_blank">Open</a>
                         </div>
 
                         <div class="border-t hairline pt-4 flex items-start justify-between gap-4">
@@ -28,7 +28,15 @@
                                 <div class="font-medium">WhatsApp</div>
                                 <div class="muted">Mensagens e confirmações</div>
                             </div>
-                            <a class="link-u" href="#">Open</a>
+                            <a class="link-u" href="https://wa.me/258844723840" target="_blank">Open</a>
+                        </div>
+
+                        <div class="border-t hairline pt-4 flex items-start justify-between gap-4">
+                            <div>
+                                <div class="font-medium">WhatsApp</div>
+                                <div class="muted">suporte</div>
+                            </div>
+                            <a class="link-u" href="https://wa.me/258833059767" target="_blank">Open</a>
                         </div>
 
                         <div class="border-t hairline pt-4 flex items-start justify-between gap-4">
@@ -36,7 +44,7 @@
                                 <div class="font-medium">Instagram</div>
                                 <div class="muted">@runwithbroto</div>
                             </div>
-                            <a class="link-u" href="#">Open</a>
+                            <a class="link-u" href="https://www.instagram.com/runwithbroto_/" target="_blank">Open</a>
                         </div>
                     </div>
                 </div>
@@ -48,13 +56,9 @@
                             <div class="font-medium">Maputo</div>
                             <div class="mt-1 muted">Weekly runs • Evening</div>
                         </div>
-                        <div class="border hairline rounded-xl p-4">
-                            <div class="font-medium">Matola</div>
-                            <div class="mt-1 muted">Weekly runs • Evening</div>
-                        </div>
                     </div>
                     <div class="mt-4">
-                        <a class="link-u text-sm" href="./agenda.html">See schedule</a>
+                        <a class="link-u text-sm" href="{% url 'events:event_list' %}">See schedule</a>
                     </div>
                 </div>
             </div>
