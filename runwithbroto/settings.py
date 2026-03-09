@@ -21,7 +21,7 @@ ETICKETS_BEARER_TOKEN = os.getenv("ETICKETS_BEARER_TOKEN")  # ex: etk_live_...
 ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "15"))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -86,7 +86,7 @@ DATABASES = {
     }
 }
 
-POSTGRES_LOCALLY = False
+POSTGRES_LOCALLY = True
 if not DEBUG or POSTGRES_LOCALLY:
     DATABASES['default'] = dj_database_url.parse(
         'postgresql://postgres:WQKNszCbpLWwdnSARMgwulCUNrXsoOpi@tramway.proxy.rlwy.net:50885/railway')
