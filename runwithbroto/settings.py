@@ -86,7 +86,7 @@ DATABASES = {
     }
 }
 
-POSTGRES_LOCALLY = True
+POSTGRES_LOCALLY = False
 if not DEBUG or POSTGRES_LOCALLY:
     DATABASES['default'] = dj_database_url.parse(
         'postgresql://postgres:WQKNszCbpLWwdnSARMgwulCUNrXsoOpi@tramway.proxy.rlwy.net:50885/railway')
