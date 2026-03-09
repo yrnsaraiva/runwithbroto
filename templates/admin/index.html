@@ -1,0 +1,90 @@
+{% extends 'unfold/layouts/base_simple.html' %}
+
+{% load cache humanize i18n %}
+{% load i18n unfold %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block title %}
+    {% if subtitle %}
+        {{ subtitle }} |
+    {% endif %}
+    {{ title }} | {{ site_title|default:_('Django site admin') }}
+{% endblock %}
+
+{% block branding %}
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">
+            {{ site_header|default:_('Django administration') }}
+        </a>
+    </h1>
+{% endblock %}
+
+{% block content %}
+    {% component "unfold/components/container.html" %}
+
+        <!-- KPIs -->
+        {% component "unfold/components/flex.html" with class="gap-8 mb-8 flex-col lg:flex-row flex-wrap" %}
+            {% for card in kpis %}
+                {% component "unfold/components/card.html" with class="lg:w-1/5" %}
+                    {% component "unfold/components/text.html" %}
+                        {{ card.title }}
+                    {% endcomponent %}
+
+                    {% component "unfold/components/title.html" %}
+                        {{ card.metric }}
+                    {% endcomponent %}
+                {% endcomponent %}
+            {% endfor %}
+        {% endcomponent %}
+
+        <!-- Charts -->
+        {% component "unfold/components/flex.html" with class="gap-8 mb-8 flex-col lg:flex-row" %}
+
+            {% component "unfold/components/flex.html" with class="gap-8 flex-col lg:flex-row lg:w-1/2" %}
+                {% component "unfold/components/card.html" with class="lg:w-[100%]" %}
+                    {% component "unfold/components/title.html" with class="font-medium text-2xl text-gray-900 dark:text-gray-100" %}
+                        Tickets por Dia
+                    {% endcomponent %}
+
+                    {% component "unfold/components/text.html" with class="text-gray-500 dark:text-gray-400 mb-8" %}
+                        Últimos 7 dias
+                    {% endcomponent %}
+
+                    {% component "unfold/components/chart/line.html" with data=pedidosChartData %}{% endcomponent %}
+                {% endcomponent %}
+            {% endcomponent %}
+
+            {% component "unfold/components/flex.html" with class="gap-8 flex-col lg:flex-row lg:w-1/2" %}
+                {% component "unfold/components/card.html" with class="lg:w-[100%]" %}
+                    {% component "unfold/components/title.html" with class="font-medium text-2xl text-gray-900 dark:text-gray-100" %}
+                        Vendas por Dia
+                    {% endcomponent %}
+
+                    {% component "unfold/components/text.html" with class="text-gray-500 dark:text-gray-400 mb-8" %}
+                        Últimos 7 dias
+                    {% endcomponent %}
+
+                    {% component "unfold/components/chart/line.html" with data=vendasChartData %}{% endcomponent %}
+                {% endcomponent %}
+            {% endcomponent %}
+
+        {% endcomponent %}
+        
+
+        <!-- Tabela resumo -->
+        {% component "unfold/components/flex.html" with class="gap-8 mb-8 flex-col lg:flex-row" %}
+            {% component "unfold/components/card.html" with title="Resumo por Evento" %}
+                {% component "unfold/components/table.html" with table=table_tickets_por_evento card_included=1 striped=0 %}{% endcomponent %}
+            {% endcomponent %}
+        {% endcomponent %}
+        
+        <!-- Tabela resumo -->
+        {% component "unfold/components/flex.html" with class="gap-8 mb-8 flex-col lg:flex-row" %}
+            {% component "unfold/components/card.html" with title="Resumo por Província" %}
+                {% component "unfold/components/table.html" with table=table_tickets_por_provincia card_included=1 striped=0 %}{% endcomponent %}
+            {% endcomponent %}
+        {% endcomponent %}
+
+    {% endcomponent %}
+{% endblock %}

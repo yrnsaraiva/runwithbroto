@@ -2,6 +2,9 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import dj_database_url
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -34,7 +37,18 @@ CSRF_TRUSTED_ORIGINS = [
 # Application definition
 
 INSTALLED_APPS = [
+    "unfold",  # before django.contrib.admin
+    "unfold.contrib.filters",  # optional, if special filters are needed
+    "unfold.contrib.forms",  # optional, if special form elements are needed
+    "unfold.contrib.inlines",  # optional, if special inlines are needed
+    "unfold.contrib.import_export",  # optional, if django-import-export package is used
+    "unfold.contrib.guardian",  # optional, if django-guardian package is used
+    "unfold.contrib.simple_history",  # optional, if django-simple-history package is used
+    "unfold.contrib.location_field",  # optional, if django-location-field package is used
+    "unfold.contrib.constance",  # optional, if django-constance package is used
+
     'django.contrib.admin',
+    'django.contrib.humanize',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -160,5 +174,104 @@ LOGGING = {
     "root": {
         "handlers": ["console"],
         "level": "INFO",
+    },
+}
+
+
+UNFOLD = {
+    "SITE_TITLE": "Run With Broto",
+
+    "SITE_URL": "/",
+
+    # "SITE_LOGO": lambda request: static("logo.svg"),  # both modes, optimise for 32px height
+    "SITE_LOGO": {
+        "light": lambda request: static("img/logo.png"),  # light mode
+        "dark": lambda request: static("img/logo.png"),  # dark mode
+    },
+    "SITE_SYMBOL": "speed",  # symbol from icon set
+    "SHOW_HISTORY": True, # show/hide "History" button, default: True
+    "SHOW_VIEW_ON_SITE": True, # show/hide "View on site" button, default: True
+
+    "DASHBOARD_CALLBACK": "core.views.dashboard_callback",
+
+    "BORDER_RADIUS": "6px",
+    "COLORS": {
+        "base": {
+            "50": "oklch(99% 0 0)",
+            "100": "oklch(96% 0 0)",
+            "200": "oklch(90% 0 0)",
+            "300": "oklch(80% 0 0)",
+            "400": "oklch(70% 0 0)",
+            "500": "oklch(55% 0 0)",
+            "600": "oklch(40% 0 0)",
+            "700": "oklch(30% 0 0)",
+            "800": "oklch(20% 0 0)",
+            "900": "oklch(12% 0 0)",
+            "950": "oklch(6% 0 0)"
+        },
+
+        "primary": {
+            "50": "oklch(97% 0.05 95)",
+            "100": "oklch(93% 0.07 95)",
+            "200": "oklch(88% 0.09 95)",
+            "300": "oklch(84% 0.12 95)",
+            "400": "oklch(82% 0.15 95)",
+            "500": "oklch(80% 0.17 95)",
+            "600": "oklch(70% 0.17 95)",
+            "700": "oklch(60% 0.16 95)",
+            "800": "oklch(50% 0.14 95)",
+            "900": "oklch(40% 0.12 95)",
+            "950": "oklch(30% 0.10 95)"
+        },
+
+        "font": {
+            "subtle-light": "var(--color-base-400)",
+            "subtle-dark": "var(--color-base-500)",
+
+            "default-light": "var(--color-base-700)",
+            "default-dark": "var(--color-base-300)",
+
+            "important-light": "var(--color-base-950)",
+            "important-dark": "var(--color-base-100)",
+
+            "brand-light": "var(--color-primary-600)",
+            "brand-dark": "var(--color-primary-400)"
+        }
+    },
+    "EXTENSIONS": {
+        "modeltranslation": {
+            "flags": {
+                "en": "🇬🇧",
+            },
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,  # Search in applications and models names
+        "show_all_applications": True,  # Dropdown with all applications and models
+        "navigation": [
+            {
+                "separator": False,  # Top border
+                "collapsible": False,  # Collapsible group of links
+                "items": [
+                    {
+                        "title": _("Dashboard"),
+                        "icon": "dashboard",  # Supported icon set: https://fonts.google.com/icons
+                        "link": reverse_lazy("admin:index"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": _("Users"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                    },
+                    {
+                        "title": _("Tickets"),
+                        "icon": "mobile_ticket",
+                        "link": reverse_lazy("admin:events_externalticket_changelist"),
+                    },
+
+                ],
+            },
+        ],
     },
 }
