@@ -7,10 +7,11 @@ from django.utils import timezone
 import json
 from django.db.models import Count, Sum, Q, Avg
 from datetime import timedelta
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 
 from .models import ExternalTicket, Provincia
 from .pdfs_external_checkin import build_external_checkin_list_pdf
+from .pdf import build_external_ticket_pdf
 
 from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
@@ -23,6 +24,7 @@ from unfold.admin import ModelAdmin
 
 admin.site.unregister(Group)
 admin.site.unregister(User)
+
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin, ModelAdmin):
@@ -69,6 +71,7 @@ class ExternalTicketAdmin(ModelAdmin):
         "buyer_phone",
         "price_amount",
         "payment_status",
+        "download_ticket_link",
     )
 
     search_fields = (
@@ -268,6 +271,16 @@ class ExternalTicketAdmin(ModelAdmin):
 
     export_selected_pdf.short_description = "Exportar selecionados (PDF)"
 
+    def download_ticket_pdf_view(self, request, ticket_id):
+        ticket = get_object_or_404(ExternalTicket, pk=ticket_id)
+
+        pdf_bytes = build_external_ticket_pdf(ticket)
+
+        filename = f"ticket-{ticket.external_id}.pdf"
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
@@ -276,6 +289,11 @@ class ExternalTicketAdmin(ModelAdmin):
                 "dashboard/",
                 self.admin_site.admin_view(self.dashboard_view),
                 name="externalticket_dashboard",
+            ),
+            path(
+                "<int:ticket_id>/download-ticket-pdf/",
+                self.admin_site.admin_view(self.download_ticket_pdf_view),
+                name="externalticket_download_ticket_pdf",
             ),
         ]
         return custom_urls + urls
@@ -312,3 +330,8 @@ class ExternalTicketAdmin(ModelAdmin):
         }
 
         return render(request, 'admin/events/externalticket/dashboard.html', context)
+
+    @admin.display(description="Ticket PDF")
+    def download_ticket_link(self, obj):
+        url = reverse("admin:externalticket_download_ticket_pdf", args=[obj.pk])
+        return format_html('<a class="button" href="{}">Baixar PDF</a>', url)
