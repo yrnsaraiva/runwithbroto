@@ -27,11 +27,13 @@ ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "15"))
 DEBUG = False
 
 ALLOWED_HOSTS = [
-    'https://*.railway.app',
-    'https://www.runwithbroto.com/',
-    'https://runwithbroto.com/'
+    'localhost',
+    '127.0.0.1',
+    'runwithbroto.com',
+    'www.runwithbroto.com',
+    'nqhgstr.up.railway.app',  # domínio do Railway
+    '.railway.app',  # permite qualquer subdomínio do Railway
 ]
-
 
 CSRF_TRUSTED_ORIGINS = [
     'https://*.railway.app',  # Para todos os subdomínios do Railway
