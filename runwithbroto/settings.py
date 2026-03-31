@@ -26,7 +26,8 @@ ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "15"))
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['https://www.runwithbroto.com/',
+                 'https://runwithbroto.com/']
 
 
 CSRF_TRUSTED_ORIGINS = [
