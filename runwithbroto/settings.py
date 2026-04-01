@@ -36,9 +36,11 @@ ALLOWED_HOSTS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://*.railway.app',  # Para todos os subdomínios do Railway
-    'https://www.runwithbroto.com/',
-    'https://runwithbroto.com/',
+    'https://*.railway.app',
+    'https://runwithbroto.com',
+    'https://www.runwithbroto.com',
+    'http://localhost',
+    'http://127.0.0.1',
 ]
 
 
