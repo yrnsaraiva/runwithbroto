@@ -21,6 +21,8 @@ from django.contrib.auth.models import User, Group
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from unfold.admin import ModelAdmin
 
+from import_export.admin import ImportExportModelAdmin
+
 
 admin.site.unregister(Group)
 admin.site.unregister(User)
@@ -62,7 +64,7 @@ class CustomAdminSite(AdminSite):
 # admin_site = CustomAdminSite(name='myadmin')
 
 
-@admin.register(ExternalTicket)
+@admin.register(ExternalTicket, ImportExportModelAdmin)
 class ExternalTicketAdmin(ModelAdmin):
     list_display = (
         "external_id",

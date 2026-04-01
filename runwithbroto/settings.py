@@ -5,6 +5,10 @@ import dj_database_url
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
+from import_export.formats.base_formats import CSV, XLSX
+
+
+IMPORT_FORMATS = [CSV, XLSX]
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -64,6 +68,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'import_export',
+
     "core.apps.CoreConfig",
     "events.apps.EventsConfig",
 ]
