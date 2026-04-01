@@ -64,8 +64,8 @@ class CustomAdminSite(AdminSite):
 # admin_site = CustomAdminSite(name='myadmin')
 
 
-@admin.register(ExternalTicket, ImportExportModelAdmin)
-class ExternalTicketAdmin(ModelAdmin):
+@admin.register(ExternalTicket)
+class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
     list_display = (
         "external_id",
         "event_name",
