@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+    <main>
+        <!-- HERO with countdown & next event spotlight -->
+        <section class="max-w-6xl mx-auto px-4 pt-12 pb-8 min-h-[calc(100dvh-19dvh)] flex items-center">
+            <div class="grid lg:grid-cols-2 gap-10 items-center">
+                <div>
+                    <div class="text-[11px] muted label">broto.st // next stop</div>
+                    <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[1.1] tracking-tight">
+                        {{ next_event.title }}
+                    </h1>
+                    <div class="mt-4 flex flex-wrap gap-4 items-center">
+                        <div class="flex items-center gap-2 text-sm">
+                            <span>📍 {{ next_event.meeting_point }}</span>
+                            <span class="w-1 h-1 rounded-full bg-muted"></span>
+                            <span>⏱️ {{ next_event.start_at|time:"H:i" }}</span>
+                        </div>
+                        <div class="text-[11px] muted label bg-neutral-50 px-3 py-1 rounded-full">{{ next_event.event_type }}</div>
+                    </div>
+                    <p class="mt-4 muted leading-relaxed max-w-md">
+                        {{ next_event.description|truncatewords:31 }}
+                    </p>
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <a class="btn-solid" href="{% url 'events:event_detail' next_event.event_id %}">Reservar vaga
+                            →</a>
+                        <a class="btn" href="{% url 'events:event_list' %}">Ver agenda</a>
+                    </div>
+                </div>
+                <!-- Countdown block -->
+                <div class="border hairline rounded-2xl p-6 md:p-8 bg-white shadow-sm">
+                    <div class="text-[11px] muted label text-center md:text-left">faltam apenas</div>
+                    <div class="mt-2 grid grid-cols-4 gap-2 text-center">
+                        <div>
+                            <div class="countdown-number font-display text-4xl" id="days">00</div>
+                            <div class="text-[10px] muted uppercase mt-1 tracking-wide">Dias</div>
+                        </div>
+                        <div>
+                            <div class="countdown-number font-display text-4xl" id="hours">00</div>
+                            <div class="text-[10px] muted uppercase mt-1 tracking-wide">Horas</div>
+                        </div>
+                        <div>
+                            <div class="countdown-number font-display text-4xl" id="minutes">00</div>
+                            <div class="text-[10px] muted uppercase mt-1 tracking-wide">Min</div>
+                        </div>
+                        <div>
+                            <div class="countdown-number font-display text-4xl" id="seconds">00</div>
+                            <div class="text-[10px] muted uppercase mt-1 tracking-wide">Seg</div>
+                        </div>
+                    </div>
+                    <div class="mt-6 border-t hairline pt-5 flex items-center justify-between">
+                        <span class="text-sm font-medium">{{ next_event.start_at|date:"l, d M" }} • {{ next_event.start_at|time:"H:i" }}</span>
+                        <span class="text-xs muted label">#RunWithBroto</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MEMBERSHIP PACKAGES SECTION -->
+        <section class="max-w-6xl mx-auto px-4 py-16">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <div class="text-[11px] muted label">broto.st // join</div>
+                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[1.1]">Membership plans</h2>
+                <p class="mt-3 muted">Escolhe o teu ritmo. Acesso a runs, eventos especiais e recompensas.</p>
+            </div>
+
+            <div class="mt-8 border border-dashed rounded-xl p-4 text-center bg-gray-50">
+                <p class="text-sm font-medium">
+                    🚀 Os planos de membership serão anunciados na próxima corrida.
+                </p>
+                <p class="text-xs muted mt-1">
+                    Junta-te a nós e descobre todos os benefícios ao vivo.
+                </p>
+            </div>
+
+        </section>
+
+        <!-- GALLERY SECTION (clean grid, running vibe) -->
+        <section class="max-w-6xl mx-auto px-4 py-12 ">
+            <div class="text-center max-w-2xl mx-auto mb-8">
+                <div class="text-[11px] muted label">momentos • rua • comunidade</div>
+                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[1.1]">Galeria</h2>
+                <p class="mt-3 muted">Os melhores momentos das nossas corridas em Maputo e Matola.</p>
+            </div>
+
+            <!-- Galeria com altura responsiva reduzida -->
+            <div class="relative w-full overflow-hidden">
+                <div class="relative w-full" style="height: 500px;">
+                    <iframe
+                            src="https://coresvivas62.pixieset.com/run/"
+                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
+                            allowfullscreen
+                            loading="lazy">
+                    </iframe>
+                </div>
+            </div>
+        </section>
+
+        <!-- PARTNERS SECTION -->
+        <section class="max-w-6xl mx-auto px-4 py-16 border-t hairline">
+            <div class="text-center max-w-2xl mx-auto mb-10">
+                <div class="text-[11px] muted label">apoiam a cena</div>
+                <h2 class="mt-3 font-display text-4xl leading-[1.1]">Parceiros & Patrocínios</h2>
+                <p class="mt-3 muted">Marcas e instituições que acreditam no poder da RWB.</p>
+            </div>
+
+            <!-- Marquee Container -->
+            <div class="relative overflow-hidden" id="marqueeContainer">
+                <div class="marquee-track-js" id="marqueeTrack">
+                    <div class="flex gap-8 items-center">
+
+                        <div class="border hairline rounded-2xl p-5 text-center bg-white opacity-80 hover:opacity-100 transition min-w-[200px]">
+                            <div class="font-display text-xl tracking-tight">RUN SHOP MZ</div>
+                            <div class="text-[9px] muted label">equipamento</div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .marquee-track-js {
+                    display: flex;
+                    will-change: transform;
+                }
+
+                /* Gradientes nas bordas */
+                .relative.overflow-hidden::before,
+                .relative.overflow-hidden::after {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    width: 50px;
+                    z-index: 2;
+                    pointer-events: none;
+                }
+
+                .relative.overflow-hidden::before {
+                    left: 0;
+                    background: linear-gradient(to right, white, transparent);
+                }
+
+                .relative.overflow-hidden::after {
+                    right: 0;
+                    background: linear-gradient(to left, white, transparent);
+                }
+            </style>
+
+            <script>
+                (function () {
+                    const track = document.getElementById('marqueeTrack');
+                    const container = document.getElementById('marqueeContainer');
+
+                    if (!track || !container) return;
+
+                    // Duplica o conteúdo para efeito infinito
+                    const originalContent = track.innerHTML;
+                    track.innerHTML = originalContent + originalContent + originalContent; // Triplicado para transição suave
+
+                    let position = 0;
+                    let speed = 1; // pixels por frame
+                    let animationId = null;
+                    let isPlaying = true;
+
+                    function getTrackWidth() {
+                        return track.scrollWidth / 3; // Largura original (1/3 do total)
+                    }
+
+                    function animate() {
+                        if (!isPlaying) {
+                            animationId = requestAnimationFrame(animate);
+                            return;
+                        }
+
+                        position -= speed;
+                        const trackWidth = getTrackWidth();
+
+                        // Reset suave quando chegar ao final
+                        if (Math.abs(position) >= trackWidth) {
+                            position = 0;
+                        }
+
+                        track.style.transform = `translateX(${position}px)`;
+                        animationId = requestAnimationFrame(animate);
+                    }
+
+                    // Pausa ao passar o mouse
+                    container.addEventListener('mouseenter', () => {
+                        isPlaying = false;
+                    });
+
+                    container.addEventListener('mouseleave', () => {
+                        isPlaying = true;
+                    });
+
+                    // Botões de controle
+                    const pauseBtn = document.getElementById('pauseBtn');
+                    const playBtn = document.getElementById('playBtn');
+
+                    if (pauseBtn) {
+                        pauseBtn.addEventListener('click', () => {
+                            isPlaying = false;
+                        });
+                    }
+
+                    if (playBtn) {
+                        playBtn.addEventListener('click', () => {
+                            isPlaying = true;
+                        });
+                    }
+
+                    // Iniciar animação
+                    animate();
+
+                    // Ajustar position se a janela for redimensionada
+                    let resizeTimeout;
+                    window.addEventListener('resize', () => {
+                        clearTimeout(resizeTimeout);
+                        resizeTimeout = setTimeout(() => {
+                            position = 0;
+                            track.style.transform = `translateX(0px)`;
+                        }, 250);
+                    });
+                })();
+            </script>
+        </section>
+
+    </main>
+
+    <script>
+
+        // Se preferir formato ISO (mais simples)
+        const eventDateFromDjango = new Date("{{ next_event.start_at|date:'c' }}");
+
+        console.log("Data do evento:", eventDateFromDjango);
+
+        function getNextEventDate() {
+            const eventDate = eventDateFromDjango;
+            const now = new Date();
+
+            if (now > eventDate) {
+                const nextSat = new Date();
+                nextSat.setDate(now.getDate() + ((6 - now.getDay() + 7) % 7));
+                nextSat.setHours(eventDate.getHours(), eventDate.getMinutes(), eventDate.getSeconds(), 0);
+                return nextSat;
+            }
+            return eventDate;
+        }
+
+        function updateCountdown() {
+            const target = getNextEventDate();
+            const now = new Date();
+            const diff = target - now;
+
+            if (diff <= 0) {
+                document.getElementById("days").innerText = "00";
+                document.getElementById("hours").innerText = "00";
+                document.getElementById("minutes").innerText = "00";
+                document.getElementById("seconds").innerText = "00";
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (86400000)) / (3600000));
+            const minutes = Math.floor((diff % 3600000) / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+
+            document.getElementById("days").innerText = days < 10 ? "0" + days : days;
+            document.getElementById("hours").innerText = hours < 10 ? "0" + hours : hours;
+            document.getElementById("minutes").innerText = minutes < 10 ? "0" + minutes : minutes;
+            document.getElementById("seconds").innerText = seconds < 10 ? "0" + seconds : seconds;
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+    </script>
+
+
+{% endblock %}
+

@@ -1,13 +1,90 @@
 import json
-
+import requests
+from datetime import datetime
 from django.shortcuts import render
 from decimal import Decimal
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
+from datetime import timezone as dt_timezone
 from datetime import timedelta
 from django.db.models.functions import TruncDate
+import logging
 
 from events.models import ExternalTicket
+
+logger = logging.getLogger(__name__)
+
+
+def home(request):
+    url = "https://eticketsmz.site/back/borrow/external/events"
+
+    headers = {
+        "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
+    }
+
+    events = []
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        data = response.json()
+
+        for e in data.get("data", []):
+
+            start_at = None
+            if e.get("date"):
+                try:
+                    start_at = datetime.fromisoformat(
+                        e["date"].replace("Z", "+00:00")
+                    )
+                except Exception:
+                    pass
+
+            events.append({
+                "event_id": e.get("id"),
+                "title": e.get("name"),
+                "description": e.get("description") or "",
+                "slug": e.get("id"),
+                "city": e.get("location", {}).get("province"),
+                "meeting_point": e.get("location", {}).get("details"),
+                "event_type": e.get("category"),
+                "confirmed_count": e.get("totalTicketsPurchased", 0),
+                "start_at": start_at,
+                "image": e.get("imageUrl")
+            })
+
+    except Exception as e:
+        logger.error(f"Erro ao carregar eventos: {e}")
+        events = []
+
+    # 🔍 DEBUG (podes remover depois)
+    logger.warning(f"TOTAL EVENTS: {len(events)}")
+    for ev in events:
+        logger.warning(f"{ev['title']} | {ev['start_at']}")
+
+    # filtrar eventos futuros
+    now = timezone.now().astimezone(dt_timezone.utc)
+
+    future_events = [
+        e for e in events
+        if e["start_at"]
+        and e["start_at"].astimezone(dt_timezone.utc) >= now
+    ]
+
+    logger.warning(f"FUTURE EVENTS: {len(future_events)}")
+
+    # obter o evento mais próximo
+    next_event = min(
+        future_events,
+        key=lambda x: x["start_at"],
+        default=None
+    )
+
+    return render(request, "core/index.html", {
+        "events": events,
+        "next_event": next_event,
+    })
 
 
 def contact(request):

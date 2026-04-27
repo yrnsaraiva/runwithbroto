@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @require_http_methods(["GET"])
 def event_list(request):
 
-    url = "https://eticketsmz.site/borrow/external/events"
+    url = "https://eticketsmz.site/back/borrow/external/events"
 
     headers = {
         "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
@@ -70,7 +70,7 @@ def event_list(request):
 
 @require_http_methods(["GET"])
 def event_detail(request, event_id):
-    url = f"https://eticketsmz.site/borrow/external/events/{event_id}"
+    url = f"https://eticketsmz.site/back/borrow/external/events/{event_id}"
 
     headers = {
         "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
@@ -124,7 +124,7 @@ def event_detail(request, event_id):
 
 
 def _external_get_event(event_id: str) -> dict:
-    url = "https://eticketsmz.site/borrow/external/events"
+    url = "https://eticketsmz.site/back/borrow/external/events"
 
     headers = {
         "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
@@ -198,8 +198,8 @@ TIMEOUT = 120
 
 @require_http_methods(["GET", "POST"])
 def register_form(request, event_id: str):
-    event_url = f"{ETK_BASE}/borrow/external/events/{event_id}"
-    ticket_url = f"{ETK_BASE}/borrow/external/tickets"
+    event_url = f"{ETK_BASE}/back/borrow/external/events/{event_id}"
+    ticket_url = f"{ETK_BASE}/back/borrow/external/tickets"
     auth_headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
 
     # 1) Buscar evento para renderizar o formulário e obter priceId

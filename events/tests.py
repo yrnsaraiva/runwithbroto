@@ -1,24 +1,21 @@
 from django.test import TestCase
 import requests
 
-url = "https://eticketsmz.site/borrow/external/tickets"
-
-payload = {
-    "priceId": "PRC17727248575767",
-    "eventId": "EVNT17727200000001",
-    "phone": "258847766556",
-    "email": "yrnsaraiva.office@gmail.com",
-    "fullname": "Yuran saraiva",
-}
+url = "https://eticketsmz.site/back/borrow/external/events"
 
 headers = {
-    "Content-Type": "application/json",
     "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
 }
 
-r = requests.post(url, json=payload, headers=headers)
 
-print(r.status_code)
-print(r.json())
+r = requests.get(url, headers=headers, timeout=10)
 
+print(f"Status: {r.status_code}")
+
+try:
+    data = r.json()
+    print(data)
+except ValueError:
+    print("Resposta não é JSON:")
+    print(r.text[:500])  # evita print gigante
 

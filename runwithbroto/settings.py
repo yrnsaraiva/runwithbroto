@@ -37,6 +37,7 @@ ALLOWED_HOSTS = [
     'www.runwithbroto.com',
     'nqhgstr.up.railway.app',  # domínio do Railway
     '.railway.app',  # permite qualquer subdomínio do Railway
+    '*'
 ]
 
 CSRF_TRUSTED_ORIGINS = [
