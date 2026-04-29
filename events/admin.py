@@ -115,7 +115,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
                 "buyer_name",
                 "buyer_phone",
                 "buyer_email",
-                "buyer_province",
+                "tamanho_camisete",
             )
         }),
         ("Event", {
@@ -310,25 +310,12 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
             payment_status__iexact='paid'
         ).aggregate(total=Sum('price_amount'))['total'] or 0
 
-        # 3. PESSOAS POR PROVÍNCIA
-        provincia_stats = []
-        for codigo, nome in Provincia.choices:
-            count = ExternalTicket.objects.filter(buyer_province=codigo).count()
-            if count > 0:
-                provincia_stats.append({
-                    'nome': nome,
-                    'quantidade': count
-                })
-
-        # Ordenar por quantidade (maior para menor)
-        provincia_stats.sort(key=lambda x: x['quantidade'], reverse=True)
 
         context = {
             'title': 'Dashboard',
             'total_compradores': total_compradores,
             'total_tickets': total_tickets,
             'receita_total': receita_total,
-            'provincia_stats': provincia_stats,
         }
 
         return render(request, 'admin/events/externalticket/dashboard.html', context)

@@ -8,7 +8,7 @@ from django.http import Http404, HttpResponse
 from types import SimpleNamespace
 import logging
 import re
-from .models import ExternalTicket, Provincia
+from .models import ExternalTicket, TamanhoCamisete
 from django.shortcuts import get_object_or_404
 from .pdf import build_external_ticket_pdf
 
@@ -252,7 +252,7 @@ def register_form(request, event_id: str):
 
     category = e.get("category") or ""
     event_type_display = category.replace("_", " ").title() if category else "—"
-    provincias = Provincia.choices
+    tamanhos = TamanhoCamisete.choices
 
     event = {
         "id": e.get("id"),
@@ -273,13 +273,13 @@ def register_form(request, event_id: str):
 
     # GET: só renderiza o formulário
     if request.method == "GET":
-        return render(request, "events/register.html", {"event": event, "provincias": provincias})
+        return render(request, "events/register.html", {"event": event, "tamanhos": tamanhos})
 
     # POST: validar e enviar compra
     phone = (request.POST.get("phone") or "").strip()
     full_name = (request.POST.get("full_name") or "").strip()
     buyer_email = (request.POST.get("email") or "").strip()
-    buyer_province = (request.POST.get("buyer_province") or "").strip()
+    tamanho_camisete = (request.POST.get("tamanho_camisete") or "").strip()
     payment = (request.POST.get("payment") or "").strip()
 
     # normalizar telefone: remover tudo que não for dígito
@@ -390,7 +390,7 @@ def register_form(request, event_id: str):
                     "buyer_phone": phone,
                     "buyer_name": full_name,
                     "buyer_email": buyer_email,
-                    "buyer_province": buyer_province,
+                    "tamanho_camisete": tamanho_camisete,
 
                     "external_created_at": created_at,
                     "external_updated_at": updated_at,

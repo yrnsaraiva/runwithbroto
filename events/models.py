@@ -15,6 +15,13 @@ class Provincia(models.TextChoices):
     NIASSA = "NIASSA", "Niassa"
 
 
+class TamanhoCamisete(models.TextChoices):
+    S = "S", "Pequeno (S)"
+    M = "M", "Médio (M)"
+    L = "L", "Grande (L)"
+    XL = "XL", "Extra Grande (XL)"
+
+
 class ExternalTicket(models.Model):
     external_id = models.CharField(max_length=50, unique=True)
 
@@ -37,7 +44,7 @@ class ExternalTicket(models.Model):
     buyer_phone = models.CharField(max_length=20, blank=True)
     buyer_name = models.CharField(max_length=255, blank=True)
     buyer_email = models.EmailField(blank=True)
-    buyer_province = models.CharField(max_length=20, choices=Provincia.choices, blank=True)
+    tamanho_camisete = models.CharField(max_length=3, choices=TamanhoCamisete.choices, default=TamanhoCamisete.M, blank=True)
 
     external_created_at = models.DateTimeField(null=True, blank=True)
     external_updated_at = models.DateTimeField(null=True, blank=True)
