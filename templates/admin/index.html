@@ -79,12 +79,6 @@
             {% endcomponent %}
         {% endcomponent %}
         
-        <!-- Tabela resumo -->
-        {% component "unfold/components/flex.html" with class="gap-8 mb-8 flex-col lg:flex-row" %}
-            {% component "unfold/components/card.html" with title="Resumo por Província" %}
-                {% component "unfold/components/table.html" with table=table_tickets_por_provincia card_included=1 striped=0 %}{% endcomponent %}
-            {% endcomponent %}
-        {% endcomponent %}
 
     {% endcomponent %}
 {% endblock %}

@@ -183,26 +183,6 @@ def dashboard_callback(request, context):
         }
     )
 
-    # Tickets por província do comprador
-    mapa_provincias = dict(ExternalTicket._meta.get_field("buyer_province").choices)
-
-    tickets_por_provincia_qs = (
-        tickets.exclude(buyer_province="")
-        .values("buyer_province")
-        .annotate(total=Count("id"),
-                  receita=Sum("price_amount", filter=Q(payment_status="paid")),
-                  )
-        .order_by("-total")
-    )
-
-    tickets_por_provincia = [
-        {
-            "provincia": mapa_provincias.get(item["buyer_province"], item["buyer_province"]),
-            "total": item["total"],
-            "receita": item["receita"] or Decimal("0.00"),
-        }
-        for item in tickets_por_provincia_qs
-    ]
 
     # Tickets por evento
     tickets_por_evento = list(
@@ -228,17 +208,6 @@ def dashboard_callback(request, context):
             for item in tickets_por_evento
         ],
     }
-    table_tickets_por_provincia = {
-        "headers": ["Província", "Tickets Pagos", "Receita"],
-        "rows": [
-            [
-                item["provincia"],
-                item["total"],
-                f'{item["receita"] or Decimal("0.00"):.2f} MZN',
-            ]
-            for item in tickets_por_provincia
-        ],
-    }
 
     context.update({
         "kpis": [
@@ -249,7 +218,6 @@ def dashboard_callback(request, context):
         "pedidosChartData": pedidosChartData,
         "vendasChartData": vendasChartData,
         "table_tickets_por_evento": table_tickets_por_evento,
-        "table_tickets_por_provincia": table_tickets_por_provincia,
     })
 
     return context
