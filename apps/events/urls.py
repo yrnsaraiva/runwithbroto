@@ -8,5 +8,5 @@ urlpatterns = [
     path("event/<str:event_id>/", views.event_detail, name="event_detail"),
     path("events/<str:event_id>/inscrever/", views.register_form, name="register"),
     path("<str:event_id>/success/", views.register_success, name="registration_success"),
-    path("tickets/<int:ticket_id>/download/", views.download_external_ticket_pdf, name="download_external_ticket_pdf",)
+    path("tickets/<int:ticket_id>/download/", views.download_external_ticket_pdf, name="download_external_ticket_pdf", )
 ]

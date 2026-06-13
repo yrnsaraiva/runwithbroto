@@ -28,7 +28,7 @@ ETICKETS_BEARER_TOKEN = os.getenv("ETICKETS_BEARER_TOKEN")  # ex: etk_live_...
 ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "15"))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -73,8 +73,9 @@ INSTALLED_APPS = [
 
     'import_export',
 
-    "core.apps.CoreConfig",
-    "events.apps.EventsConfig",
+    "apps.core.apps.CoreConfig",
+    "apps.events.apps.EventsConfig",
+    "apps.members.apps.MembersConfig"
 ]
 
 MIDDLEWARE = [
@@ -211,7 +212,7 @@ UNFOLD = {
     "SHOW_HISTORY": True, # show/hide "History" button, default: True
     "SHOW_VIEW_ON_SITE": True, # show/hide "View on site" button, default: True
 
-    "DASHBOARD_CALLBACK": "core.views.dashboard_callback",
+    "DASHBOARD_CALLBACK": "apps.core.views.dashboard_callback",
 
     "BORDER_RADIUS": "6px",
     "COLORS": {
@@ -286,6 +287,16 @@ UNFOLD = {
                         "title": _("Tickets"),
                         "icon": "mobile_ticket",
                         "link": reverse_lazy("admin:events_externalticket_changelist"),
+                    },
+                    {
+                        "title": _("Membership Plans"),
+                        "icon": "crown",
+                        "link": reverse_lazy("admin:members_plano_changelist"),
+                    },
+                    {
+                        "title": _("Membership"),
+                        "icon": "card_membership",
+                        "link": reverse_lazy("admin:members_assinatura_changelist"),
                     },
 
                 ],

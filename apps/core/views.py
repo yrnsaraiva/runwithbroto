@@ -10,7 +10,7 @@ from datetime import timedelta
 from django.db.models.functions import TruncDate
 import logging
 
-from events.models import ExternalTicket
+from apps.events.models import ExternalTicket
 
 logger = logging.getLogger(__name__)
 

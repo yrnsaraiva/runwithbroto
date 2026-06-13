@@ -14,31 +14,9 @@ from .pdfs_external_checkin import build_external_checkin_list_pdf
 from .pdf import build_external_ticket_pdf
 
 from django.contrib.admin import AdminSite
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
-from django.contrib.auth.models import User, Group
-
-from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from unfold.admin import ModelAdmin
 
 from import_export.admin import ImportExportModelAdmin
-
-
-admin.site.unregister(Group)
-admin.site.unregister(User)
-
-
-@admin.register(User)
-class UserAdmin(BaseUserAdmin, ModelAdmin):
-    # Forms loaded from `unfold.forms`
-    form = UserChangeForm
-    add_form = UserCreationForm
-    change_password_form = AdminPasswordChangeForm
-
-
-@admin.register(Group)
-class GroupAdmin(BaseGroupAdmin, ModelAdmin):
-    pass
 
 
 class CustomAdminSite(AdminSite):
