@@ -24,7 +24,7 @@
                         {{ next_event.description|truncatewords:31 }}
                     </p>
                     <div class="mt-6 flex flex-wrap gap-3">
-                        <a class="btn-solid" href="{% url 'events:event_detail' next_event.event_id %}">Reservar vaga
+                        <a class="btn-solid" href="{% url 'events:event_detail' next_event.event_id %}">Ver detalhes
                             →</a>
                         <a class="btn" href="{% url 'events:event_list' %}">Ver agenda</a>
                     </div>
