@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def home(request):
-    url = "https://eticketsmz.site/back/borrow/external/events"
+    url = "https://eticketsmz.site/borrow/external/events"
 
     headers = {
         "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
@@ -27,11 +27,17 @@ def home(request):
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-
         data = response.json()
 
         for e in data.get("data", []):
 
+            event_id = e.get("id")
+
+            # ❌ elimina eventos sem ID (causa do teu erro)
+            if not event_id:
+                continue
+
+            # parse da data
             start_at = None
             if e.get("date"):
                 try:
@@ -39,15 +45,15 @@ def home(request):
                         e["date"].replace("Z", "+00:00")
                     )
                 except Exception:
-                    pass
+                    start_at = None
 
             events.append({
-                "event_id": e.get("id"),
+                "event_id": event_id,
                 "title": e.get("name"),
                 "description": e.get("description") or "",
-                "slug": e.get("id"),
-                "city": e.get("location", {}).get("province"),
-                "meeting_point": e.get("location", {}).get("details"),
+                "slug": event_id,
+                "city": (e.get("location") or {}).get("province"),
+                "meeting_point": (e.get("location") or {}).get("details"),
                 "event_type": e.get("category"),
                 "confirmed_count": e.get("totalTicketsPurchased", 0),
                 "start_at": start_at,
@@ -58,23 +64,24 @@ def home(request):
         logger.error(f"Erro ao carregar eventos: {e}")
         events = []
 
-    # 🔍 DEBUG (podes remover depois)
+    # DEBUG (podes remover em produção)
     logger.warning(f"TOTAL EVENTS: {len(events)}")
     for ev in events:
-        logger.warning(f"{ev['title']} | {ev['start_at']}")
+        logger.warning(f"{ev['title']} | {ev['event_id']} | {ev['start_at']}")
 
-    # filtrar eventos futuros
     now = timezone.now().astimezone(dt_timezone.utc)
 
+    # filtrar apenas eventos futuros válidos
     future_events = [
         e for e in events
-        if e["start_at"]
+        if e.get("event_id")
+        and e.get("start_at")
         and e["start_at"].astimezone(dt_timezone.utc) >= now
     ]
 
     logger.warning(f"FUTURE EVENTS: {len(future_events)}")
 
-    # obter o evento mais próximo
+    # evento mais próximo
     next_event = min(
         future_events,
         key=lambda x: x["start_at"],

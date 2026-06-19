@@ -5,58 +5,114 @@
 
     <main>
         <!-- HERO with countdown & next event spotlight -->
-        <section class="max-w-6xl mx-auto px-4 pt-12 pb-8 min-h-[calc(100dvh-19dvh)] flex items-center">
-            <div class="grid lg:grid-cols-2 gap-10 items-center">
-                <div>
-                    <div class="text-[11px] muted label">broto.st // next stop</div>
-                    <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[1.1] tracking-tight">
-                        {{ next_event.title }}
-                    </h1>
-                    <div class="mt-4 flex flex-wrap gap-4 items-center">
-                        <div class="flex items-center gap-2 text-sm">
-                            <span>📍 {{ next_event.meeting_point }}</span>
-                            <span class="w-1 h-1 rounded-full bg-muted"></span>
-                            <span>⏱️ {{ next_event.start_at|time:"H:i" }}</span>
+        {% if next_event and next_event.event_id %}
+
+            <!-- HERO NORMAL -->
+            <section class="max-w-6xl mx-auto px-4 pt-12 pb-8 min-h-[calc(100dvh-19dvh)] flex items-center">
+                <div class="grid lg:grid-cols-2 gap-10 items-center">
+
+                    <div>
+                        <div class="text-[11px] muted label">broto.st // next stop</div>
+
+                        <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[1.1] tracking-tight">
+                            {{ next_event.title }}
+                        </h1>
+
+                        <div class="mt-4 flex flex-wrap gap-4 items-center">
+                            <div class="flex items-center gap-2 text-sm">
+                                <span>📍 {{ next_event.meeting_point|default:"A definir" }}</span>
+                                <span class="w-1 h-1 rounded-full bg-muted"></span>
+                                <span>⏱️ {{ next_event.start_at|time:"H:i"|default:"--:--" }}</span>
+                            </div>
+
+                            <div class="text-[11px] muted label bg-neutral-50 px-3 py-1 rounded-full">
+                                {{ next_event.event_type|default:"Evento" }}
+                            </div>
                         </div>
-                        <div class="text-[11px] muted label bg-neutral-50 px-3 py-1 rounded-full">{{ next_event.event_type }}</div>
+
+                        <p class="mt-4 muted leading-relaxed max-w-md">
+                            {{ next_event.description|default:"Sem descrição disponível."|truncatewords:31 }}
+                        </p>
+
+                        <div class="mt-6 flex flex-wrap gap-3">
+
+                            <a class="btn-solid"
+                               href="{% url 'events:event_detail' next_event.event_id %}">
+                                Ver detalhes →
+                            </a>
+
+                            <a class="btn" href="{% url 'events:event_list' %}">
+                                Ver agenda
+                            </a>
+
+                        </div>
                     </div>
-                    <p class="mt-4 muted leading-relaxed max-w-md">
-                        {{ next_event.description|truncatewords:31 }}
+
+                    <!-- COUNTDOWN -->
+                    <div class="border hairline rounded-2xl p-6 md:p-8 bg-white shadow-sm">
+                        <div class="text-[11px] muted label text-center md:text-left">
+                            faltam apenas
+                        </div>
+
+                        <div class="mt-2 grid grid-cols-4 gap-2 text-center">
+                            <div>
+                                <div class="countdown-number font-display text-4xl" id="days">00</div>
+                                <div class="text-[10px] muted uppercase mt-1 tracking-wide">Dias</div>
+                            </div>
+                            <div>
+                                <div class="countdown-number font-display text-4xl" id="hours">00</div>
+                                <div class="text-[10px] muted uppercase mt-1 tracking-wide">Horas</div>
+                            </div>
+                            <div>
+                                <div class="countdown-number font-display text-4xl" id="minutes">00</div>
+                                <div class="text-[10px] muted uppercase mt-1 tracking-wide">Min</div>
+                            </div>
+                            <div>
+                                <div class="countdown-number font-display text-4xl" id="seconds">00</div>
+                                <div class="text-[10px] muted uppercase mt-1 tracking-wide">Seg</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 border-t hairline pt-5 flex items-center justify-between">
+                <span class="text-sm font-medium">
+                    {{ next_event.start_at|date:"l, d M"|default:"Data por definir" }}
+                    •
+                    {{ next_event.start_at|time:"H:i"|default:"--:--" }}
+                </span>
+                            <span class="text-xs muted label">#RunWithBroto</span>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        {% else %}
+
+            <!-- FALLBACK LIMPO (sem evento válido) -->
+            <section class="max-w-6xl mx-auto px-4 pt-12 pb-8 min-h-[70vh] flex items-center justify-center">
+                <div class="text-center max-w-lg">
+
+                    <div class="text-5xl mb-4">🏃🏾‍♂️</div>
+
+                    <h2 class="font-display text-4xl">
+                        Próxima corrida em breve
+                    </h2>
+
+                    <p class="mt-4 muted leading-relaxed">
+                        Ainda estamos a preparar o próximo evento Run With Broto.
+                        Volte em breve para novidades.
                     </p>
-                    <div class="mt-6 flex flex-wrap gap-3">
-                        <a class="btn-solid" href="{% url 'events:event_detail' next_event.event_id %}">Ver detalhes
-                            →</a>
-                        <a class="btn" href="{% url 'events:event_list' %}">Ver agenda</a>
+
+                    <div class="mt-6 flex gap-3 justify-center">
+                        <a class="btn" href="{% url 'events:event_list' %}">
+                            Ver agenda
+                        </a>
                     </div>
+
                 </div>
-                <!-- Countdown block -->
-                <div class="border hairline rounded-2xl p-6 md:p-8 bg-white shadow-sm">
-                    <div class="text-[11px] muted label text-center md:text-left">faltam apenas</div>
-                    <div class="mt-2 grid grid-cols-4 gap-2 text-center">
-                        <div>
-                            <div class="countdown-number font-display text-4xl" id="days">00</div>
-                            <div class="text-[10px] muted uppercase mt-1 tracking-wide">Dias</div>
-                        </div>
-                        <div>
-                            <div class="countdown-number font-display text-4xl" id="hours">00</div>
-                            <div class="text-[10px] muted uppercase mt-1 tracking-wide">Horas</div>
-                        </div>
-                        <div>
-                            <div class="countdown-number font-display text-4xl" id="minutes">00</div>
-                            <div class="text-[10px] muted uppercase mt-1 tracking-wide">Min</div>
-                        </div>
-                        <div>
-                            <div class="countdown-number font-display text-4xl" id="seconds">00</div>
-                            <div class="text-[10px] muted uppercase mt-1 tracking-wide">Seg</div>
-                        </div>
-                    </div>
-                    <div class="mt-6 border-t hairline pt-5 flex items-center justify-between">
-                        <span class="text-sm font-medium">{{ next_event.start_at|date:"l, d M" }} • {{ next_event.start_at|time:"H:i" }}</span>
-                        <span class="text-xs muted label">#RunWithBroto</span>
-                    </div>
-                </div>
-            </div>
-        </section>
+            </section>
+
+        {% endif %}
 
         <!-- MEMBERSHIP PACKAGES SECTION -->
         <section class="max-w-6xl mx-auto px-4 py-16">
@@ -112,7 +168,8 @@
                     <div class="flex gap-8 items-center">
 
                         <div class="px-5 min-w-[160px] flex items-center justify-center">
-                            <img src="{% static 'img/patrocinadores/AMS_LOGO_RED_page-0001-removebg-preview.png' %}" alt="AMS"
+                            <img src="{% static 'img/patrocinadores/AMS_LOGO_RED_page-0001-removebg-preview.png' %}"
+                                 alt="AMS"
                                  class="h-15 object-contain"/>
                         </div>
 
@@ -132,7 +189,8 @@
                         </div>
 
                         <div class="px-5 min-w-[160px] flex items-center justify-center">
-                            <img src="{% static 'img/patrocinadores/Logo_Batamba_s_Coffee-removebg-preview.png' %}" alt="Batamba's Coffee"
+                            <img src="{% static 'img/patrocinadores/Logo_Batamba_s_Coffee-removebg-preview.png' %}"
+                                 alt="Batamba's Coffee"
                                  class="h-15 object-contain"/>
                         </div>
 
@@ -142,12 +200,14 @@
                         </div>
 
                         <div class="px-5 min-w-[160px] flex items-center justify-center">
-                            <img src="{% static 'img/patrocinadores/Palma_Seguros_-_Logo_Vermelho_page-0001-removebg-preview.png' %}" alt="Palma Seguros"
+                            <img src="{% static 'img/patrocinadores/Palma_Seguros_-_Logo_Vermelho_page-0001-removebg-preview.png' %}"
+                                 alt="Palma Seguros"
                                  class="h-15 object-contain"/>
                         </div>
 
                         <div class="px-5 min-w-[160px] flex items-center justify-center">
-                            <img src="{% static 'img/patrocinadores/Safanet_Logopito_page-0001__1_-removebg-preview.png' %}" alt="Safanet"
+                            <img src="{% static 'img/patrocinadores/Safanet_Logopito_page-0001__1_-removebg-preview.png' %}"
+                                 alt="Safanet"
                                  class="h-15 object-contain"/>
                         </div>
 
