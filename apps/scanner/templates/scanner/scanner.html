@@ -680,8 +680,9 @@
 <!-- APP HEADER -->
 <header class="app-header">
     <div class="app-brand">
-        <span class="material-symbols-outlined" style="font-size:28px;color:var(--brand)">run_circle</span>
-        Run<span>WithBroto</span>
+        <a href="{% url 'core:home' %}" class="flex items-end">
+            <img src="{% static 'img/logo.png' %}" alt="Run With Broto Logo" class="h-10 w-auto">
+        </a>
     </div>
     <div class="app-actions">
         <span class="user-badge">{{ request.user.username }}</span>
