@@ -15,6 +15,7 @@ urlpatterns = [
     path("", include("apps.core.urls")),
     path("events/", include("apps.events.urls")),
     path("member/", include("apps.members.urls")),
+    path("scanner/", include("apps.scanner.urls")),
     path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}),
 ]

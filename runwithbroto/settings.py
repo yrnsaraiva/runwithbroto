@@ -28,7 +28,7 @@ ETICKETS_BEARER_TOKEN = os.getenv("ETICKETS_BEARER_TOKEN")  # ex: etk_live_...
 ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "15"))
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -75,7 +75,8 @@ INSTALLED_APPS = [
 
     "apps.core.apps.CoreConfig",
     "apps.events.apps.EventsConfig",
-    "apps.members.apps.MembersConfig"
+    "apps.members.apps.MembersConfig",
+    "apps.scanner.apps.ScannerConfig"
 ]
 
 MIDDLEWARE = [
