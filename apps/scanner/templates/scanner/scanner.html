@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <title>Scanner - Run With Broto</title>
+    <title>Scanner — Run With Broto</title>
     <link rel="shortcut icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
 
-    <!-- Tailwind (apenas para utilidades, mas o estilo principal é custom) -->
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Google Fonts -->
@@ -26,21 +26,14 @@
             --muted: #6B6B6B;
             --line: #E7E7E7;
             --paper: #FFFFFF;
-
-            /* BRAND */
             --brand: #FABB00;
             --brand-dark: #E1A800;
 
-            /* Cores de estado */
+            /* Cores de estado (mantidas) */
             --green: #16A34A;
             --red: #DC2626;
             --yellow: #D97706;
             --blue: #2563EB;
-
-            /* Tema escuro para o app */
-            --dark-bg: var(--ink);
-            --surface: #1A1A1A;
-            --border: #2A2A2A;
         }
 
         * {
@@ -51,12 +44,10 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--dark-bg);
+            background: var(--ink);
             color: #fff;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            /* removido flex/overflow para não forçar altura */
         }
 
         /* ── APP HEADER ── */
@@ -65,9 +56,8 @@
             align-items: center;
             justify-content: space-between;
             padding: 14px 20px;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
+            background: #1a1a1a;
+            border-bottom: 1px solid #2a2a2a;
         }
 
         .app-brand {
@@ -124,7 +114,6 @@
             background: #000;
             overflow: hidden;
             border-radius: 16px;
-            flex-shrink: 0;
         }
 
         #camera-video {
@@ -228,9 +217,8 @@
             display: flex;
             gap: 10px;
             padding: 12px 20px;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
+            background: #1a1a1a;
+            border-bottom: 1px solid #2a2a2a;
         }
 
         .btn {
@@ -274,9 +262,8 @@
         /* ── MANUAL ── */
         .manual-area {
             padding: 10px 20px;
-            background: var(--surface);
+            background: #1a1a1a;
             display: none;
-            flex-shrink: 0;
         }
 
         .manual-area.open {
@@ -291,7 +278,7 @@
         .manual-input {
             flex: 1;
             padding: 10px 14px;
-            background: #1a1a1a;
+            background: #0b0b0b;
             border: 1px solid #333;
             border-radius: 10px;
             color: #fff;
@@ -310,9 +297,8 @@
         /* ── TABS ── */
         .tabs {
             display: flex;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
+            background: #1a1a1a;
+            border-bottom: 1px solid #2a2a2a;
         }
 
         .tab {
@@ -339,20 +325,16 @@
         /* ── PANELS ── */
         .panel {
             display: none;
-            flex: 1;
-            overflow-y: auto;
             padding: 16px 20px;
-            background: var(--dark-bg);
+            background: var(--ink);
         }
 
         .panel.active {
-            display: flex;
-            flex-direction: column;
+            display: block;
         }
 
         /* ── RESULT IDLE ── */
         .result-idle {
-            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -360,6 +342,7 @@
             gap: 12px;
             color: #555;
             text-align: center;
+            padding: 40px 0;
         }
 
         .result-idle p {
@@ -371,7 +354,8 @@
             border-radius: 12px;
             overflow: hidden;
             display: none;
-            background: var(--surface);
+            background: #1a1a1a;
+            margin-top: 8px;
         }
 
         .result-card.visible {
@@ -551,7 +535,7 @@
         }
 
         .modal {
-            background: var(--surface);
+            background: #1a1a1a;
             border-radius: 20px 20px 0 0;
             width: 100%;
             max-width: 480px;
@@ -659,25 +643,11 @@
                 box-shadow: 0 0 0 8px rgba(220, 38, 38, .4);
             }
         }
-
-        /* ── SCROLLBAR ── */
-        .panel::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .panel::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .panel::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 4px;
-        }
     </style>
 </head>
 <body>
 
-<!-- APP HEADER -->
+<!-- APP HEADER (sem navbar/footer) -->
 <header class="app-header">
     <div class="app-brand">
         <a href="{% url 'core:home' %}" class="flex items-end">
@@ -813,7 +783,7 @@
                 requestAnimationFrame(scanFrame);
             });
         } catch {
-            document.getElementById("camStatus").textContent = "Câmera indisponível use o modo manual";
+            document.getElementById("camStatus").textContent = "Câmera indisponível — use o modo manual";
         }
     }
 
