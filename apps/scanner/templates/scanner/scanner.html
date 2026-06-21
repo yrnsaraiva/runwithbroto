@@ -1,514 +1,763 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Scanner — Check-in</title>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --brand:   #C98B56;
-      --green:   #16A34A;
-      --red:     #DC2626;
-      --yellow:  #D97706;
-      --blue:    #2563EB;
-      --dark:    #0B0B0B;
-      --muted:   #6B7280;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--dark);
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+{% extends 'base.html' %}
+{% load static %}
 
-    /* HEADER */
-    .header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 16px;
-      background: #111;
-      border-bottom: 1px solid #222;
-    }
-    .header-title { font-size: 17px; font-weight: 700; color: var(--brand); }
-    .header-actions { display: flex; gap: 8px; align-items: center; }
-    .header-user { font-size: 12px; color: var(--muted); }
-    .btn-ghost {
-      background: none; border: 1px solid #333; color: var(--muted);
-      border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer;
-    }
-    .btn-ghost:hover { border-color: var(--brand); color: var(--brand); }
+{% block title %}Scanner — Check-in{% endblock %}
 
-    /* TABS */
-    .tabs {
-      display: flex; background: #111; border-bottom: 1px solid #1a1a1a;
-    }
-    .tab {
-      flex: 1; padding: 11px 4px; text-align: center; font-size: 13px;
-      font-weight: 600; color: var(--muted); cursor: pointer;
-      border-bottom: 2px solid transparent; transition: all .2s;
-    }
-    .tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+{% block extra_head %}
+    <style>
+        /* ── Estilos específicos para a câmera e animações ── */
 
-    /* CAMERA */
-    .camera-wrap {
-      position: relative; width: 100%; max-width: 480px;
-      margin: 0 auto; aspect-ratio: 1/1; background: #000; overflow: hidden;
-    }
-    #camera-video { width: 100%; height: 100%; object-fit: cover; display: block; }
-    #camera-canvas { display: none; }
+        .camera-wrap {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
+            aspect-ratio: 1/1;
+            background: #000;
+            overflow: hidden;
+            border-radius: 1rem;
+        }
 
-    .viewfinder { position: absolute; inset: 0; pointer-events: none; }
-    .viewfinder::before {
-      content: ""; position: absolute; inset: 0;
-      background: rgba(0,0,0,.5);
-      clip-path: polygon(0% 0%,100% 0%,100% 100%,0% 100%,0% 0%,20% 20%,20% 80%,80% 80%,80% 20%,20% 20%);
-    }
-    .corner { position: absolute; width: 36px; height: 36px; border-color: var(--brand); border-style: solid; }
-    .corner-tl { top:20%; left:20%; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-    .corner-tr { top:20%; right:20%; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
-    .corner-bl { bottom:20%; left:20%; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-    .corner-br { bottom:20%; right:20%; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
-    .scan-line {
-      position: absolute; left:20%; width:60%; height:2px;
-      background: linear-gradient(90deg,transparent,var(--brand),transparent);
-      top:20%; animation: scanMove 2s ease-in-out infinite;
-    }
-    @keyframes scanMove {
-      0%,54%  { top:20%; } 48% { top:78%; }
-      50%,52% { opacity:0; } 0%,54%,100% { opacity:1; }
-    }
-    .cam-status {
-      position: absolute; bottom:10px; left:0; right:0;
-      text-align:center; font-size:12px; color:rgba(255,255,255,.5);
-    }
+        #camera-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
 
-    /* CONTROLS */
-    .controls {
-      display: flex; gap: 8px; padding: 10px 16px;
-      background: #111; border-bottom: 1px solid #1a1a1a;
-    }
-    .btn {
-      flex:1; padding:10px; border:none; border-radius:8px;
-      font-size:13px; font-weight:600; cursor:pointer;
-      transition: opacity .15s, transform .1s;
-    }
-    .btn:active { transform: scale(.97); }
-    .btn-primary { background: var(--brand); color:#fff; }
-    .btn-secondary { background:#1e1e1e; color:var(--muted); border:1px solid #333; }
+        #camera-canvas {
+            display: none;
+        }
 
-    /* MANUAL */
-    .manual-area { padding:10px 16px; background:#111; border-bottom:1px solid #1a1a1a; display:none; }
-    .manual-area.open { display:block; }
-    .manual-row { display:flex; gap:8px; }
-    .manual-input {
-      flex:1; padding:10px 12px; background:#1a1a1a; border:1px solid #333;
-      border-radius:8px; color:#fff; font-size:14px; outline:none;
-    }
-    .manual-input:focus { border-color:var(--brand); }
-    .manual-input::placeholder { color:#555; }
+        .viewfinder {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
 
-    /* PANELS */
-    .panel { display:none; flex:1; overflow-y:auto; }
-    .panel.active { display:flex; flex-direction:column; }
+        .viewfinder::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+            clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 20% 20%, 20% 80%, 80% 80%, 80% 20%, 20% 20%);
+        }
 
-    /* RESULT PANEL */
-    .result-idle {
-      flex:1; display:flex; flex-direction:column;
-      align-items:center; justify-content:center;
-      gap:10px; color:#444; text-align:center; padding:24px;
-    }
-    .result-idle p { font-size:13px; }
+        .corner {
+            position: absolute;
+            width: 36px;
+            height: 36px;
+            border-color: var(--brand);
+            border-style: solid;
+        }
 
-    .result-card { border-radius:12px; overflow:hidden; margin:16px; display:none; }
-    .result-card.visible { display:block; }
+        .corner-tl {
+            top: 20%;
+            left: 20%;
+            border-width: 3px 0 0 3px;
+            border-radius: 4px 0 0 0;
+        }
 
-    .result-header { padding:16px; display:flex; align-items:center; gap:12px; }
-    .result-icon {
-      width:44px; height:44px; border-radius:50%;
-      display:flex; align-items:center; justify-content:center;
-      font-size:22px; flex-shrink:0; font-weight:700;
-    }
-    .result-title { font-size:17px; font-weight:700; }
-    .result-sub { font-size:13px; opacity:.75; margin-top:2px; }
+        .corner-tr {
+            top: 20%;
+            right: 20%;
+            border-width: 3px 3px 0 0;
+            border-radius: 0 4px 0 0;
+        }
 
-    .state-ok       .result-header { background:#14532d; }
-    .state-ok       .result-icon   { background:var(--green); }
-    .state-already  .result-header { background:#1e3a5f; }
-    .state-already  .result-icon   { background:var(--blue); }
-    .state-not-paid .result-header { background:#451a03; }
-    .state-not-paid .result-icon   { background:var(--yellow); }
-    .state-error    .result-header { background:#450a0a; }
-    .state-error    .result-icon   { background:var(--red); }
+        .corner-bl {
+            bottom: 20%;
+            left: 20%;
+            border-width: 0 0 3px 3px;
+            border-radius: 0 0 0 4px;
+        }
 
-    .result-body { background:#161616; padding:14px 16px; }
-    .info-row {
-      display:flex; justify-content:space-between; align-items:flex-start;
-      padding:8px 0; border-bottom:1px solid #222; gap:8px;
-    }
-    .info-row:last-child { border-bottom:none; }
-    .info-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; flex-shrink:0; }
-    .info-value { font-size:14px; font-weight:500; text-align:right; word-break:break-word; }
+        .corner-br {
+            bottom: 20%;
+            right: 20%;
+            border-width: 0 3px 3px 0;
+            border-radius: 0 0 4px 0;
+        }
 
-    /* LOG PANEL */
-    .log-panel { padding:12px 16px; }
-    .log-header { font-size:12px; color:var(--muted); margin-bottom:10px; }
-    .log-item {
-      display:flex; align-items:center; gap:10px;
-      padding:8px 10px; border-radius:8px; background:#161616;
-      margin-bottom:6px; font-size:13px;
-    }
-    .log-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-    .log-dot.ok            { background:var(--green); }
-    .log-dot.already_entered { background:var(--blue); }
-    .log-dot.not_paid      { background:var(--yellow); }
-    .log-dot.not_found, .log-dot.invalid_qr { background:var(--red); }
-    .log-id { color:#aaa; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .log-time { font-size:11px; color:#555; flex-shrink:0; }
+        .scan-line {
+            position: absolute;
+            left: 20%;
+            width: 60%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--brand), transparent);
+            top: 20%;
+            animation: scanMove 2s ease-in-out infinite;
+        }
 
-    /* STATS MODAL */
-    .modal-overlay {
-      position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100;
-      display:none; align-items:flex-end; justify-content:center;
-    }
-    .modal-overlay.open { display:flex; }
-    .modal { background:#1a1a1a; border-radius:16px 16px 0 0; width:100%; max-width:480px; padding:20px 20px 32px; }
-    .modal-handle { width:40px; height:4px; background:#333; border-radius:2px; margin:0 auto 16px; }
-    .modal-title { font-size:16px; font-weight:700; color:var(--brand); margin-bottom:16px; }
-    .stat-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #262626; font-size:14px; }
-    .stat-row:last-child { border-bottom:none; }
-    .stat-num { font-weight:700; font-size:18px; }
-    .stat-num.green  { color:var(--green); }
-    .stat-num.yellow { color:var(--yellow); }
-    .event-filter { margin-top:14px; }
-    .event-filter label { font-size:11px; color:var(--muted); display:block; margin-bottom:6px; }
-    .event-select { width:100%; padding:9px 12px; background:#111; border:1px solid #333; border-radius:8px; color:#fff; font-size:13px; }
+        @keyframes scanMove {
+            0%, 54% {
+                top: 20%;
+            }
+            48% {
+                top: 78%;
+            }
+            50%, 52% {
+                opacity: 0;
+            }
+            0%, 54%, 100% {
+                opacity: 1;
+            }
+        }
 
-    .spinner {
-      width:20px; height:20px; border:2px solid #333;
-      border-top-color:var(--brand); border-radius:50%;
-      animation:spin .6s linear infinite; margin:16px auto;
-    }
-    @keyframes spin { to { transform:rotate(360deg); } }
+        .flash-ok {
+            animation: fok .4s ease-out;
+        }
 
-    .flash-ok    { animation:fok .4s ease-out; }
-    .flash-error { animation:ferr .4s ease-out; }
-    @keyframes fok  { 50%{box-shadow:0 0 0 8px rgba(22,163,74,.4)} }
-    @keyframes ferr { 50%{box-shadow:0 0 0 8px rgba(220,38,38,.4)} }
-  </style>
-</head>
-<body>
+        .flash-error {
+            animation: ferr .4s ease-out;
+        }
 
-<!-- HEADER -->
-<header class="header">
-  <span class="header-title">📷 Check-in Scanner</span>
-  <div class="header-actions">
-    <span class="header-user">{{ request.user.username }}</span>
-    <button class="btn-ghost" onclick="openStats()">📊 Stats</button>
-  </div>
-</header>
+        @keyframes fok {
+            50% {
+                box-shadow: 0 0 0 8px rgba(22, 163, 74, .4);
+            }
+        }
 
-<!-- CAMERA -->
-<div class="camera-wrap" id="cameraWrap">
-  <video id="camera-video" autoplay muted playsinline></video>
-  <canvas id="camera-canvas"></canvas>
-  <div class="viewfinder">
-    <div class="corner corner-tl"></div>
-    <div class="corner corner-tr"></div>
-    <div class="corner corner-bl"></div>
-    <div class="corner corner-br"></div>
-    <div class="scan-line"></div>
-  </div>
-  <div class="cam-status" id="camStatus">A inicializar câmera…</div>
-</div>
+        @keyframes ferr {
+            50% {
+                box-shadow: 0 0 0 8px rgba(220, 38, 38, .4);
+            }
+        }
 
-<!-- CONTROLS -->
-<div class="controls">
-  <button class="btn btn-primary" id="btnCam" onclick="toggleCamera()">⏸ Pausar</button>
-  <button class="btn btn-secondary" onclick="toggleManual()">✏️ Manual</button>
-</div>
+        /* ── Modal de estatísticas ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .6);
+            z-index: 100;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+        }
 
-<!-- MANUAL INPUT -->
-<div class="manual-area" id="manualArea">
-  <div class="manual-row">
-    <input class="manual-input" id="manualInput" type="text"
-      placeholder="ID do bilhete (ex: TKT-123) ou QR completo"
-      autocomplete="off" autocorrect="off" spellcheck="false"/>
-    <button class="btn btn-primary" style="flex:0;padding:10px 16px" onclick="submitManual()">OK</button>
-  </div>
-</div>
+        .modal-overlay.open {
+            display: flex;
+        }
 
-<!-- TABS -->
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('result')">Resultado</div>
-  <div class="tab" onclick="switchTab('log')">Histórico</div>
-</div>
+        .modal {
+            background: #fff;
+            border-radius: 1.5rem 1.5rem 0 0;
+            width: 100%;
+            max-width: 480px;
+            padding: 1.5rem 1.5rem 2rem;
+        }
 
-<!-- RESULT PANEL -->
-<div class="panel active" id="panel-result">
-  <div class="result-idle" id="resultIdle">
-    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-      <rect x="4" y="4" width="18" height="18" rx="2" stroke="#444" stroke-width="2"/>
-      <rect x="34" y="4" width="18" height="18" rx="2" stroke="#444" stroke-width="2"/>
-      <rect x="4" y="34" width="18" height="18" rx="2" stroke="#444" stroke-width="2"/>
-      <rect x="8" y="8" width="10" height="10" rx="1" fill="#444"/>
-      <rect x="38" y="8" width="10" height="10" rx="1" fill="#444"/>
-      <rect x="8" y="38" width="10" height="10" rx="1" fill="#444"/>
-      <rect x="34" y="34" width="5" height="5" fill="#444"/>
-      <rect x="43" y="34" width="5" height="5" fill="#444"/>
-      <rect x="34" y="43" width="5" height="5" fill="#444"/>
-      <rect x="43" y="43" width="5" height="5" fill="#444"/>
-    </svg>
-    <p>Aponte a câmera para o QR do bilhete</p>
-  </div>
-  <div class="result-card" id="resultCard">
-    <div class="result-header" id="resultHeader">
-      <div class="result-icon" id="resultIcon"></div>
-      <div>
-        <div class="result-title" id="resultTitle"></div>
-        <div class="result-sub" id="resultSub"></div>
-      </div>
+        .modal-handle {
+            width: 40px;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            margin: 0 auto 1rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--brand);
+            margin-bottom: 1rem;
+        }
+
+        /* ── Spinner ── */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-top-color: var(--brand);
+            border-radius: 50%;
+            animation: spin .6s linear infinite;
+            margin: 1rem auto;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── Resultados ── */
+        .result-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .state-ok .result-header {
+            background: #dcfce7;
+        }
+
+        .state-ok .result-icon {
+            background: #16a34a;
+            color: #fff;
+        }
+
+        .state-already .result-header {
+            background: #dbeafe;
+        }
+
+        .state-already .result-icon {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .state-not-paid .result-header {
+            background: #fef3c7;
+        }
+
+        .state-not-paid .result-icon {
+            background: #d97706;
+            color: #fff;
+        }
+
+        .state-error .result-header {
+            background: #fee2e2;
+        }
+
+        .state-error .result-icon {
+            background: #dc2626;
+            color: #fff;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f3f4f6;
+            gap: 0.5rem;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #6b7280;
+            flex-shrink: 0;
+        }
+
+        .info-value {
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        .log-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+            margin-bottom: 0.375rem;
+            font-size: 0.875rem;
+        }
+
+        .log-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .log-dot.ok {
+            background: #16a34a;
+        }
+
+        .log-dot.already_entered {
+            background: #2563eb;
+        }
+
+        .log-dot.not_paid {
+            background: #d97706;
+        }
+
+        .log-dot.not_found,
+        .log-dot.invalid_qr {
+            background: #dc2626;
+        }
+
+        .log-id {
+            color: #111827;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .log-time {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            flex-shrink: 0;
+        }
+
+        .event-select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            background: #fff;
+            font-size: 0.875rem;
+            color: #111827;
+        }
+
+        .event-select:focus {
+            outline: none;
+            border-color: var(--brand);
+            ring: 2px solid var(--brand);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+
+    <div class="max-w-2xl mx-auto px-4 py-6">
+
+        <!-- TÍTULO E CABEÇALHO -->
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <span class="text-[11px] muted label">broto.st // scanner</span>
+                <h1 class="font-display text-3xl md:text-4xl leading-[0.92]">Check-in</h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-gray-500">{{ request.user.username }}</span>
+                <button onclick="openStats()" class="text-sm text-brand hover:underline focus:outline-none">
+                    📊 Estatísticas
+                </button>
+            </div>
+        </div>
+
+        <!-- CÂMERA -->
+        <div class="camera-wrap" id="cameraWrap">
+            <video id="camera-video" autoplay muted playsinline></video>
+            <canvas id="camera-canvas"></canvas>
+            <div class="viewfinder">
+                <div class="corner corner-tl"></div>
+                <div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div>
+                <div class="corner corner-br"></div>
+                <div class="scan-line"></div>
+            </div>
+            <div class="absolute bottom-3 left-0 right-0 text-center text-xs text-white/60" id="camStatus">
+                A inicializar câmera…
+            </div>
+        </div>
+
+        <!-- CONTROLES -->
+        <div class="flex gap-2 mt-3">
+            <button class="btn btn-primary flex-1" id="btnCam" onclick="toggleCamera()">
+                ⏸ Pausar
+            </button>
+            <button class="btn btn-secondary" onclick="toggleManual()">
+                ✏️ Manual
+            </button>
+        </div>
+
+        <!-- MANUAL -->
+        <div class="mt-3 hidden" id="manualArea">
+            <div class="flex gap-2">
+                <input id="manualInput" type="text"
+                       placeholder="ID do bilhete (ex: TKT-123) ou QR completo"
+                       class="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand/50 text-sm"
+                       autocomplete="off" autocorrect="off" spellcheck="false"/>
+                <button onclick="submitManual()" class="btn btn-primary">
+                    OK
+                </button>
+            </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="flex border-b border-gray-200 mt-6">
+            <button class="tab flex-1 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent active:border-brand active:text-brand transition"
+                    data-tab="result" onclick="switchTab('result')">
+                Resultado
+            </button>
+            <button class="tab flex-1 py-2 text-sm font-semibold text-gray-500 border-b-2 border-transparent active:border-brand active:text-brand transition"
+                    data-tab="log" onclick="switchTab('log')">
+                Histórico
+            </button>
+        </div>
+
+        <!-- PAINEL RESULTADO -->
+        <div class="tab-panel mt-4" id="panel-result">
+            <div class="text-center py-12 text-gray-400" id="resultIdle">
+                <svg class="mx-auto mb-3" width="56" height="56" viewBox="0 0 56 56" fill="none">
+                    <rect x="4" y="4" width="18" height="18" rx="2" stroke="#d1d5db" stroke-width="2"/>
+                    <rect x="34" y="4" width="18" height="18" rx="2" stroke="#d1d5db" stroke-width="2"/>
+                    <rect x="4" y="34" width="18" height="18" rx="2" stroke="#d1d5db" stroke-width="2"/>
+                    <rect x="8" y="8" width="10" height="10" rx="1" fill="#d1d5db"/>
+                    <rect x="38" y="8" width="10" height="10" rx="1" fill="#d1d5db"/>
+                    <rect x="8" y="38" width="10" height="10" rx="1" fill="#d1d5db"/>
+                    <rect x="34" y="34" width="5" height="5" fill="#d1d5db"/>
+                    <rect x="43" y="34" width="5" height="5" fill="#d1d5db"/>
+                    <rect x="34" y="43" width="5" height="5" fill="#d1d5db"/>
+                    <rect x="43" y="43" width="5" height="5" fill="#d1d5db"/>
+                </svg>
+                <p class="text-sm">Aponte a câmera para o QR do bilhete</p>
+            </div>
+            <div class="hidden rounded-xl overflow-hidden border border-gray-200" id="resultCard">
+                <div class="result-header px-4 py-3 flex items-center gap-3" id="resultHeader">
+                    <div class="result-icon" id="resultIcon"></div>
+                    <div>
+                        <div class="font-bold text-lg" id="resultTitle"></div>
+                        <div class="text-sm opacity-75" id="resultSub"></div>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50" id="resultBody"></div>
+            </div>
+        </div>
+
+        <!-- PAINEL LOG -->
+        <div class="tab-panel hidden mt-4" id="panel-log">
+            <div class="text-xs text-gray-400 mb-2">Últimas 50 leituras</div>
+            <div id="logList">
+                <div class="spinner"></div>
+            </div>
+        </div>
     </div>
-    <div class="result-body" id="resultBody"></div>
-  </div>
-</div>
 
-<!-- LOG PANEL -->
-<div class="panel" id="panel-log">
-  <div class="log-panel">
-    <div class="log-header">Últimas 50 leituras</div>
-    <div id="logList"><div class="spinner"></div></div>
-  </div>
-</div>
-
-<!-- STATS MODAL -->
-<div class="modal-overlay" id="statsModal" onclick="closeStats(event)">
-  <div class="modal">
-    <div class="modal-handle"></div>
-    <div class="modal-title">📊 Estatísticas</div>
-    <div id="statsContent"><div class="spinner"></div></div>
-    <div class="event-filter" id="eventFilterWrap" style="display:none">
-      <label>Filtrar por evento</label>
-      <select class="event-select" id="eventSelect" onchange="loadStats()">
-        <option value="">Todos os eventos</option>
-      </select>
+    <!-- MODAL ESTATÍSTICAS -->
+    <div class="modal-overlay" id="statsModal" onclick="closeStats(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-handle"></div>
+            <div class="modal-title">📊 Estatísticas</div>
+            <div id="statsContent">
+                <div class="spinner"></div>
+            </div>
+            <div class="mt-4 hidden" id="eventFilterWrap">
+                <label class="text-xs text-gray-500 block mb-1">Filtrar por evento</label>
+                <select class="event-select" id="eventSelect" onchange="loadStats()">
+                    <option value="">Todos os eventos</option>
+                </select>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
-<script>
-  const VALIDATE_URL = "{% url 'scanner:validate' %}";
-  const STATS_URL    = "{% url 'scanner:stats' %}";
-  const LOG_URL      = "{% url 'scanner:log' %}";
-  const CSRF         = "{{ csrf_token }}";
+    <style>
+        /* ── Ajustes específicos para botões e tabs (Tailwind complementar) ── */
+        .btn {
+            padding: 0.625rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: opacity .15s, transform .1s;
+        }
 
-  // ── Câmera ──────────────────────────────────────────────────────────────────
-  const video  = document.getElementById("camera-video");
-  const canvas = document.getElementById("camera-canvas");
-  const ctx    = canvas.getContext("2d", { willReadFrequently: true });
-  let scanning = true, stream = null, lastQR = "", lastQRTime = 0;
-  const COOLDOWN = 3000;
+        .btn:active {
+            transform: scale(.97);
+        }
 
-  async function startCamera() {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width:{ideal:1280}, height:{ideal:720} },
-        audio: false,
-      });
-      video.srcObject = stream;
-      video.addEventListener("loadedmetadata", () => {
-        video.play();
-        document.getElementById("camStatus").textContent = "Pronto para escanear";
-        requestAnimationFrame(scanFrame);
-      });
-    } catch {
-      document.getElementById("camStatus").textContent = "Câmera indisponível — use o modo manual";
-    }
-  }
+        .btn-primary {
+            background: var(--brand);
+            color: #fff;
+        }
 
-  function toggleCamera() {
-    const btn = document.getElementById("btnCam");
-    scanning = !scanning;
-    btn.textContent = scanning ? "⏸ Pausar" : "▶ Retomar";
-    btn.className   = scanning ? "btn btn-primary" : "btn btn-secondary";
-    if (scanning) requestAnimationFrame(scanFrame);
-  }
+        .btn-primary:hover {
+            opacity: .9;
+        }
 
-  function scanFrame() {
-    if (!scanning) return;
-    if (video.readyState !== video.HAVE_ENOUGH_DATA) { requestAnimationFrame(scanFrame); return; }
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
-    if (code?.data) {
-      const now = Date.now();
-      if (code.data !== lastQR || now - lastQRTime > COOLDOWN) {
-        lastQR = code.data; lastQRTime = now;
-        handleQR(code.data);
-      }
-    }
-    requestAnimationFrame(scanFrame);
-  }
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
 
-  // ── Validação ────────────────────────────────────────────────────────────────
-  function handleQR(raw) {
-    const qr = raw.startsWith("RWB|") ? raw : `RWB|${raw}`;
-    doValidate(qr);
-  }
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
 
-  function toggleManual() {
-    const a = document.getElementById("manualArea");
-    a.classList.toggle("open");
-    if (a.classList.contains("open")) document.getElementById("manualInput").focus();
-  }
+        .tab.active {
+            border-bottom-color: var(--brand);
+            color: var(--brand);
+        }
 
-  function submitManual() {
-    const v = document.getElementById("manualInput").value.trim();
-    if (v) { handleQR(v); document.getElementById("manualInput").value = ""; }
-  }
-  document.getElementById("manualInput").addEventListener("keydown", e => { if (e.key==="Enter") submitManual(); });
+        .tab-panel.active {
+            display: block;
+        }
 
-  async function doValidate(qr) {
-    switchTab("result");
-    showLoading();
-    try {
-      const r = await fetch(VALIDATE_URL, {
-        method: "POST",
-        headers: { "Content-Type":"application/json", "X-CSRFToken": CSRF },
-        body: JSON.stringify({ qr_value: qr }),
-      });
-      showResult(await r.json());
-    } catch {
-      showResult({ status:"error", message:"Erro de ligação." });
-    }
-    // Actualizar log em background
-    if (document.getElementById("panel-log").classList.contains("active")) loadLog();
-  }
+        .tab-panel:not(.active) {
+            display: none;
+        }
 
-  // ── UI resultado ─────────────────────────────────────────────────────────────
-  const STATE = {
-    ok:             { icon:"✓", title:"ENTRADA AUTORIZADA",    cls:"state-ok",       flash:"flash-ok" },
-    already_entered:{ icon:"↩", title:"JÁ ENTROU",             cls:"state-already",  flash:"flash-error" },
-    not_paid:       { icon:"!",  title:"PAGAMENTO PENDENTE",    cls:"state-not-paid", flash:"flash-error" },
-    not_found:      { icon:"✕", title:"NÃO ENCONTRADO",        cls:"state-error",    flash:"flash-error" },
-    invalid_qr:     { icon:"✕", title:"QR INVÁLIDO",           cls:"state-error",    flash:"flash-error" },
-    error:          { icon:"✕", title:"ERRO",                  cls:"state-error",    flash:"flash-error" },
-  };
+        #manualArea.open {
+            display: block;
+        }
 
-  function showLoading() {
-    document.getElementById("resultIdle").style.display = "none";
-    const c = document.getElementById("resultCard");
-    c.className = "result-card visible state-ok";
-    document.getElementById("resultIcon").textContent  = "";
-    document.getElementById("resultTitle").textContent = "A validar…";
-    document.getElementById("resultSub").textContent   = "";
-    document.getElementById("resultBody").innerHTML    = '<div class="spinner"></div>';
-  }
+        #resultCard.visible {
+            display: block;
+        }
 
-  function showResult(data) {
-    const cfg = STATE[data.status] || STATE.error;
-    document.getElementById("resultIdle").style.display = "none";
-    const card = document.getElementById("resultCard");
-    card.className = `result-card visible ${cfg.cls}`;
-    document.getElementById("resultIcon").textContent  = cfg.icon;
-    document.getElementById("resultTitle").textContent = cfg.title;
-    document.getElementById("resultSub").textContent   = data.message || "";
+        #resultCard:not(.visible) {
+            display: none;
+        }
+    </style>
 
-    const body = document.getElementById("resultBody");
-    if (data.ticket) {
-      const t = data.ticket;
-      body.innerHTML = `
-        ${row("Nome",     t.buyer_name)}
+    <script>
+        // ── URLs e CSRF ──
+        const VALIDATE_URL = "{% url 'scanner:validate' %}";
+        const STATS_URL = "{% url 'scanner:stats' %}";
+        const LOG_URL = "{% url 'scanner:log' %}";
+        const CSRF = "{{ csrf_token }}";
+
+        // ── Câmera ──────────────────────────────────────────────
+        const video = document.getElementById("camera-video");
+        const canvas = document.getElementById("camera-canvas");
+        const ctx = canvas.getContext("2d", {willReadFrequently: true});
+        let scanning = true, stream = null, lastQR = "", lastQRTime = 0;
+        const COOLDOWN = 3000;
+
+        async function startCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {facingMode: "environment", width: {ideal: 1280}, height: {ideal: 720}},
+                    audio: false,
+                });
+                video.srcObject = stream;
+                video.addEventListener("loadedmetadata", () => {
+                    video.play();
+                    document.getElementById("camStatus").textContent = "Pronto para escanear";
+                    requestAnimationFrame(scanFrame);
+                });
+            } catch {
+                document.getElementById("camStatus").textContent = "Câmera indisponível — use o modo manual";
+            }
+        }
+
+        function toggleCamera() {
+            const btn = document.getElementById("btnCam");
+            scanning = !scanning;
+            btn.textContent = scanning ? "⏸ Pausar" : "▶ Retomar";
+            btn.className = scanning ? "btn btn-primary" : "btn btn-secondary";
+            if (scanning) requestAnimationFrame(scanFrame);
+        }
+
+        function scanFrame() {
+            if (!scanning) return;
+            if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+                requestAnimationFrame(scanFrame);
+                return;
+            }
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(img.data, img.width, img.height, {inversionAttempts: "dontInvert"});
+            if (code?.data) {
+                const now = Date.now();
+                if (code.data !== lastQR || now - lastQRTime > COOLDOWN) {
+                    lastQR = code.data;
+                    lastQRTime = now;
+                    handleQR(code.data);
+                }
+            }
+            requestAnimationFrame(scanFrame);
+        }
+
+        // ── Validação ──────────────────────────────────────────
+        function handleQR(raw) {
+            const qr = raw.startsWith("RWB|") ? raw : `RWB|${raw}`;
+            doValidate(qr);
+        }
+
+        function toggleManual() {
+            document.getElementById("manualArea").classList.toggle("open");
+            if (document.getElementById("manualArea").classList.contains("open")) {
+                document.getElementById("manualInput").focus();
+            }
+        }
+
+        function submitManual() {
+            const v = document.getElementById("manualInput").value.trim();
+            if (v) {
+                handleQR(v);
+                document.getElementById("manualInput").value = "";
+            }
+        }
+
+        document.getElementById("manualInput").addEventListener("keydown", e => {
+            if (e.key === "Enter") submitManual();
+        });
+
+        async function doValidate(qr) {
+            switchTab("result");
+            showLoading();
+            try {
+                const r = await fetch(VALIDATE_URL, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json", "X-CSRFToken": CSRF},
+                    body: JSON.stringify({qr_value: qr}),
+                });
+                showResult(await r.json());
+            } catch {
+                showResult({status: "error", message: "Erro de ligação."});
+            }
+            if (document.getElementById("panel-log").classList.contains("active")) loadLog();
+        }
+
+        // ── UI Resultado ──────────────────────────────────────
+        const STATE = {
+            ok: {icon: "✓", title: "ENTRADA AUTORIZADA", cls: "state-ok", flash: "flash-ok"},
+            already_entered: {icon: "↩", title: "JÁ ENTROU", cls: "state-already", flash: "flash-error"},
+            not_paid: {icon: "!", title: "PAGAMENTO PENDENTE", cls: "state-not-paid", flash: "flash-error"},
+            not_found: {icon: "✕", title: "NÃO ENCONTRADO", cls: "state-error", flash: "flash-error"},
+            invalid_qr: {icon: "✕", title: "QR INVÁLIDO", cls: "state-error", flash: "flash-error"},
+            error: {icon: "✕", title: "ERRO", cls: "state-error", flash: "flash-error"},
+        };
+
+        function showLoading() {
+            document.getElementById("resultIdle").style.display = "none";
+            const card = document.getElementById("resultCard");
+            card.className = "visible rounded-xl overflow-hidden border border-gray-200 state-ok";
+            document.getElementById("resultIcon").textContent = "";
+            document.getElementById("resultTitle").textContent = "A validar…";
+            document.getElementById("resultSub").textContent = "";
+            document.getElementById("resultBody").innerHTML = '<div class="spinner"></div>';
+        }
+
+        function showResult(data) {
+            const cfg = STATE[data.status] || STATE.error;
+            document.getElementById("resultIdle").style.display = "none";
+            const card = document.getElementById("resultCard");
+            card.className = `visible rounded-xl overflow-hidden border border-gray-200 ${cfg.cls}`;
+            document.getElementById("resultIcon").textContent = cfg.icon;
+            document.getElementById("resultTitle").textContent = cfg.title;
+            document.getElementById("resultSub").textContent = data.message || "";
+
+            const body = document.getElementById("resultBody");
+            if (data.ticket) {
+                const t = data.ticket;
+                body.innerHTML = `
+        ${row("Nome", t.buyer_name)}
         ${row("Telefone", t.buyer_phone)}
-        ${row("Evento",   t.event_name)}
-        ${row("Data",     t.event_date)}
+        ${row("Evento", t.event_name)}
+        ${row("Data", t.event_date)}
         ${row("Pagamento", badge(t.payment_status))}
         ${t.tamanho_camisete && t.tamanho_camisete !== "—" ? row("T-shirt", t.tamanho_camisete) : ""}
-        ${row("Ticket ID", `<span style="font-size:12px;color:#888">${t.external_id}</span>`)}
+        ${row("Ticket ID", `<span class="text-xs text-gray-400">${t.external_id}</span>`)}
       `;
-    } else {
-      body.innerHTML = `<p style="font-size:13px;color:#666;padding:12px 0;text-align:center">${data.message||""}</p>`;
-    }
+            } else {
+                body.innerHTML = `<p class="text-sm text-gray-500 text-center py-3">${data.message || ""}</p>`;
+            }
 
-    const wrap = document.getElementById("cameraWrap");
-    wrap.classList.remove("flash-ok","flash-error");
-    void wrap.offsetWidth;
-    wrap.classList.add(cfg.flash);
-    if (navigator.vibrate) navigator.vibrate(data.status==="ok" ? [100] : [80,60,80]);
-  }
+            const wrap = document.getElementById("cameraWrap");
+            wrap.classList.remove("flash-ok", "flash-error");
+            void wrap.offsetWidth;
+            wrap.classList.add(cfg.flash);
+            if (navigator.vibrate) navigator.vibrate(data.status === "ok" ? [100] : [80, 60, 80]);
+        }
 
-  function row(label, value) {
-    return `<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${value||"—"}</span></div>`;
-  }
-  function badge(s) {
-    const m = { paid:["var(--green)","PAGO"], pending:["var(--yellow)","PENDENTE"] };
-    const [c, l] = m[(s||"").toLowerCase()] || ["var(--muted)", s||"—"];
-    return `<span style="color:${c};font-weight:700">${l}</span>`;
-  }
+        function row(label, value) {
+            return `<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${value || "—"}</span></div>`;
+        }
 
-  // ── TABS ─────────────────────────────────────────────────────────────────────
-  function switchTab(name) {
-    document.querySelectorAll(".tab").forEach((t,i) => {
-      const n = ["result","log"][i];
-      t.classList.toggle("active", n===name);
-      document.getElementById(`panel-${n}`).classList.toggle("active", n===name);
-    });
-    if (name==="log") loadLog();
-  }
+        function badge(s) {
+            const m = {paid: ["#16a34a", "PAGO"], pending: ["#d97706", "PENDENTE"]};
+            const [c, l] = m[(s || "").toLowerCase()] || ["#6b7280", s || "—"];
+            return `<span style="color:${c};font-weight:700">${l}</span>`;
+        }
 
-  // ── LOG ──────────────────────────────────────────────────────────────────────
-  async function loadLog() {
-    const sel   = document.getElementById("eventSelect");
-    const param = sel?.value ? `?event_name=${encodeURIComponent(sel.value)}` : "";
-    try {
-      const data = await (await fetch(LOG_URL + param)).json();
-      const list = document.getElementById("logList");
-      if (!data.logs.length) { list.innerHTML = '<p style="color:#555;font-size:13px;text-align:center;padding:16px">Sem registos</p>'; return; }
-      list.innerHTML = data.logs.map(l => `
+        // ── Tabs ──────────────────────────────────────────────
+        function switchTab(name) {
+            document.querySelectorAll(".tab").forEach(el => {
+                el.classList.toggle("active", el.dataset.tab === name);
+            });
+            document.querySelectorAll(".tab-panel").forEach(el => {
+                el.classList.toggle("active", el.id === `panel-${name}`);
+            });
+            if (name === "log") loadLog();
+        }
+
+        // ── Log ───────────────────────────────────────────────
+        async function loadLog() {
+            const sel = document.getElementById("eventSelect");
+            const param = sel?.value ? `?event_name=${encodeURIComponent(sel.value)}` : "";
+            try {
+                const data = await (await fetch(LOG_URL + param)).json();
+                const list = document.getElementById("logList");
+                if (!data.logs.length) {
+                    list.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Sem registos</p>';
+                    return;
+                }
+                list.innerHTML = data.logs.map(l => `
         <div class="log-item">
           <div class="log-dot ${l.result}"></div>
           <span class="log-id">${l.ticket_id || "—"}</span>
-          <span style="font-size:12px;color:#888">${l.result_display}</span>
+          <span class="text-xs text-gray-500">${l.result_display}</span>
           <span class="log-time">${l.scanned_at}</span>
         </div>
       `).join("");
-    } catch {
-      document.getElementById("logList").innerHTML = '<p style="color:#555;font-size:13px;text-align:center;padding:16px">Erro ao carregar</p>';
-    }
-  }
+            } catch {
+                document.getElementById("logList").innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Erro ao carregar</p>';
+            }
+        }
 
-  // ── STATS ────────────────────────────────────────────────────────────────────
-  function openStats() { document.getElementById("statsModal").classList.add("open"); loadStats(); }
-  function closeStats(e) { if (e.target===document.getElementById("statsModal")) document.getElementById("statsModal").classList.remove("open"); }
+        // ── Stats ─────────────────────────────────────────────
+        function openStats() {
+            document.getElementById("statsModal").classList.add("open");
+            loadStats();
+        }
 
-  async function loadStats() {
-    const sel   = document.getElementById("eventSelect");
-    const param = sel?.value ? `?event_name=${encodeURIComponent(sel.value)}` : "";
-    document.getElementById("statsContent").innerHTML = '<div class="spinner"></div>';
-    try {
-      const data = await (await fetch(STATS_URL + param)).json();
-      if (data.events?.length > 1) {
-        document.getElementById("eventFilterWrap").style.display = "block";
-        const cur = sel.value;
-        sel.innerHTML = '<option value="">Todos os eventos</option>' +
-          data.events.map(e => `<option value="${e}" ${e===cur?"selected":""}>${e}</option>`).join("");
-      }
-      const pct = data.total_paid > 0 ? Math.round(data.total_entered/data.total_paid*100) : 0;
-      document.getElementById("statsContent").innerHTML = `
-        <div class="stat-row"><span>Total com pagamento</span><span class="stat-num">${data.total_paid}</span></div>
-        <div class="stat-row"><span>Já entraram</span><span class="stat-num green">${data.total_entered}</span></div>
-        <div class="stat-row"><span>Ainda por entrar</span><span class="stat-num yellow">${data.total_pending}</span></div>
-        <div class="stat-row"><span>Taxa de presença</span><span class="stat-num">${pct}%</span></div>
+        function closeStats(e) {
+            if (e.target === document.getElementById("statsModal")) {
+                document.getElementById("statsModal").classList.remove("open");
+            }
+        }
+
+        async function loadStats() {
+            const sel = document.getElementById("eventSelect");
+            const param = sel?.value ? `?event_name=${encodeURIComponent(sel.value)}` : "";
+            document.getElementById("statsContent").innerHTML = '<div class="spinner"></div>';
+            try {
+                const data = await (await fetch(STATS_URL + param)).json();
+                if (data.events?.length > 1) {
+                    document.getElementById("eventFilterWrap").style.display = "block";
+                    const cur = sel.value;
+                    sel.innerHTML = '<option value="">Todos os eventos</option>' +
+                        data.events.map(e => `<option value="${e}" ${e === cur ? "selected" : ""}>${e}</option>`).join("");
+                }
+                const pct = data.total_paid > 0 ? Math.round(data.total_entered / data.total_paid * 100) : 0;
+                document.getElementById("statsContent").innerHTML = `
+        <div class="stat-row flex justify-between py-2 border-b border-gray-100 text-sm">
+          <span>Total com pagamento</span>
+          <span class="font-bold text-lg">${data.total_paid}</span>
+        </div>
+        <div class="stat-row flex justify-between py-2 border-b border-gray-100 text-sm">
+          <span>Já entraram</span>
+          <span class="font-bold text-lg text-green-600">${data.total_entered}</span>
+        </div>
+        <div class="stat-row flex justify-between py-2 border-b border-gray-100 text-sm">
+          <span>Ainda por entrar</span>
+          <span class="font-bold text-lg text-yellow-600">${data.total_pending}</span>
+        </div>
+        <div class="stat-row flex justify-between py-2 text-sm">
+          <span>Taxa de presença</span>
+          <span class="font-bold text-lg">${pct}%</span>
+        </div>
       `;
-    } catch {
-      document.getElementById("statsContent").innerHTML = '<p style="color:#666;font-size:13px;text-align:center">Erro ao carregar</p>';
-    }
-  }
+            } catch {
+                document.getElementById("statsContent").innerHTML = '<p class="text-sm text-gray-500 text-center">Erro ao carregar</p>';
+            }
+        }
 
-  startCamera();
-</script>
-</body>
-</html>
+        // ── Inicialização ─────────────────────────────────────
+        startCamera();
+        // Inicializa a tab "resultado" como ativa
+        switchTab('result');
+    </script>
+{% endblock %}
