@@ -4,13 +4,19 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-    <title>Scanner — Run With Broto</title>
+    <title>scanner - RWB</title>
     <link rel="shortcut icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
     <link rel="icon" type="image/png" href="{% static 'img/favicon-96x96.png' %}" sizes="96x96"/>
     <link rel="icon" type="image/svg+xml" href="{% static 'img/favicon.svg' %} "/>
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'img/apple-touch-icon.png' %}"/>
     <meta name="apple-mobile-web-app-title" content="MyWebSite"/>
     <link rel="manifest" href="{% static 'img/site.webmanifest' %}"/>
+
+    <!-- Ativa o modo "app" (sem barra de navegação do Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <!-- Cor da barra de status (pode ser default, black, black-translucent) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -788,7 +794,7 @@
                 requestAnimationFrame(scanFrame);
             });
         } catch {
-            document.getElementById("camStatus").textContent = "Câmera indisponível — use o modo manual";
+            document.getElementById("camStatus").textContent = "Câmera indisponível use o modo manual";
         }
     }
 
