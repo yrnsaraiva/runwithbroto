@@ -306,6 +306,6 @@ UNFOLD = {
     },
 }
 
-SESSION_COOKIE_AGE = 60  # 30 minutos
+SESSION_COOKIE_AGE = 1800  # 30 minutos
 
 SESSION_SAVE_EVERY_REQUEST = True
