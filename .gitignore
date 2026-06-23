@@ -27,3 +27,4 @@ db.sqlite3
 enviar_bilhetes.py
 teste_unitario_envio_tickets.py
 reenviar_erros.py
+enviar_aviso_camisetes.py
