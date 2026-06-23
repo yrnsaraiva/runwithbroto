@@ -3,6 +3,9 @@
 
 {% block content %}
 
+    <!-- Google Material Icons (recomendado adicionar no base.html) -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
     <main>
 
         <!-- HERO -->
@@ -25,7 +28,8 @@
 
                     <div class="mt-6 flex flex-wrap gap-3">
                         <a class="btn-solid" href="#form">
-                            Quero inscrever-me ↓
+                            Quero inscrever-me
+                            <span class="material-icons text-base">arrow_downward</span>
                         </a>
                         <a class="btn" href="#benefits">
                             Ver benefícios
@@ -51,8 +55,9 @@
                     </div>
 
                     <div class="mt-6 border-t hairline pt-5 flex items-center justify-between">
-                        <span class="text-sm font-medium">
-                            ⚡ Benefícios exclusivos
+                        <span class="text-sm font-medium flex items-center gap-1">
+                            <span class="material-icons text-yellow-500 text-base">bolt</span>
+                            Benefícios exclusivos
                         </span>
                         <span class="text-xs muted label">#RunWithBroto</span>
                     </div>
@@ -202,6 +207,7 @@
                     </button>
                     <p class="mt-4 text-center text-xs text-muted-light">
                         Os teus dados serão usados apenas para gestão da comunidade RUNWITHBROTO.
+                        Consulta a nossa <a href="#" class="text-black font-medium underline-offset-2 hover:underline">política de privacidade</a>.
                     </p>
                 </div>
             </form>
@@ -217,42 +223,42 @@
 
             <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
-                    <span class="text-yellow-500 text-xl">🏃</span>
+                    <span class="text-yellow-500 material-icons text-2xl">directions_run</span>
                     <div>
                         <h4 class="font-bold">Prioridade nas inscrições</h4>
                         <p class="text-sm muted">Garante vaga em todos os eventos.</p>
                     </div>
                 </div>
                 <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
-                    <span class="text-yellow-500 text-xl">💰</span>
+                    <span class="text-yellow-500 material-icons text-2xl">attach_money</span>
                     <div>
                         <h4 class="font-bold">Descontos em eventos</h4>
                         <p class="text-sm muted">Condições especiais em corridas e workshops.</p>
                     </div>
                 </div>
                 <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
-                    <span class="text-yellow-500 text-xl">☕</span>
+                    <span class="text-yellow-500 material-icons text-2xl">coffee</span>
                     <div>
                         <h4 class="font-bold">Coffee Runs exclusivos</h4>
                         <p class="text-sm muted">Encontros mensais com a comunidade.</p>
                     </div>
                 </div>
                 <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
-                    <span class="text-yellow-500 text-xl">🤝</span>
+                    <span class="text-yellow-500 material-icons text-2xl">handshake</span>
                     <div>
                         <h4 class="font-bold">Parceiros com benefícios</h4>
                         <p class="text-sm muted">Acesso a ofertas especiais de marcas parceiras.</p>
                     </div>
                 </div>
                 <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
-                    <span class="text-yellow-500 text-xl">👕</span>
+                    <span class="text-yellow-500 material-icons text-2xl">checkroom</span>
                     <div>
                         <h4 class="font-bold">Merchandising exclusivo</h4>
                         <p class="text-sm muted">Kit de boas-vindas com itens limitados.</p>
                     </div>
                 </div>
                 <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
-                    <span class="text-yellow-500 text-xl">🔒</span>
+                    <span class="text-yellow-500 material-icons text-2xl">lock</span>
                     <div>
                         <h4 class="font-bold">Grupo VIP</h4>
                         <p class="text-sm muted">Acesso a conteúdos e novidades em primeira mão.</p>
@@ -265,7 +271,7 @@
 
     <!-- TOAST (mesmo do original) -->
     <div class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-20 bg-black text-white py-3 px-6 rounded-xl font-semibold text-sm shadow-xl opacity-0 invisible transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-50 flex items-center gap-3 max-w-md w-[calc(100%-2rem)]" id="toast">
-        <span class="text-xl">✓</span>
+        <span class="material-icons text-xl">check</span>
         <span id="toastMsg">Inscrição submetida com sucesso!</span>
     </div>
 
@@ -412,6 +418,17 @@
         /* Ajustes para o progresso */
         .step-active {
             color: #0B0B0B !important;
+        }
+
+        /* Material Icons alinhados */
+        .material-icons {
+            font-size: inherit;
+            vertical-align: middle;
+        }
+        .btn .material-icons,
+        .btn-solid .material-icons {
+            font-size: 1.2em;
+            line-height: 1;
         }
     </style>
 
