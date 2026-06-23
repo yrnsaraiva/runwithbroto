@@ -290,7 +290,7 @@ UNFOLD = {
                         "link": reverse_lazy("admin:events_externalticket_changelist"),
                     },
                     {
-                        "title": _("Interesse Membros Fundadores"),
+                        "title": _("Pré-inscrições"),
                         "icon": "assignment",
                         "link": reverse_lazy("admin:members_interessemembrofundador_changelist"),
                     },
