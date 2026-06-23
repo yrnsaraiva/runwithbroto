@@ -1,929 +1,450 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 
+    <main>
+
+        <!-- HERO -->
+        <section class="max-w-6xl mx-auto px-4 pt-12 pb-8 min-h-[calc(100dvh-19dvh)] flex items-center">
+            <div class="grid lg:grid-cols-2 gap-10 items-center w-full">
+
+                <div>
+                    <div class="text-[11px] muted label">broto.st // membro fundador</div>
+
+                    <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[1.1] tracking-tight">
+                        Torna-te um <br>
+                        <span class="text-yellow-500">Membro Fundador</span>
+                    </h1>
+
+                    <p class="mt-4 muted leading-relaxed max-w-md">
+                        Estamos a construir a próxima fase da RUNWITHBROTO.
+                        Junta-te desde o início e ajuda-nos a criar uma
+                        comunidade ainda mais forte.
+                    </p>
+
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <a class="btn-solid" href="#form">
+                            Quero inscrever-me ↓
+                        </a>
+                        <a class="btn" href="#benefits">
+                            Ver benefícios
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Card com progresso e resumo -->
+                <div class="border hairline rounded-2xl p-6 md:p-8 bg-white shadow-sm">
+                    <div class="text-[11px] muted label text-center md:text-left">
+                        Inscrição • 3 passos
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="flex justify-between text-[11px] font-medium">
+                            <span class="text-[#0B0B0B]" data-step="1">Informação</span>
+                            <span class="text-muted" data-step="2">Comunidade</span>
+                            <span class="text-muted" data-step="3">Confirmação</span>
+                        </div>
+                        <div class="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-yellow-500 rounded-full transition-all duration-500" id="progressBar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 border-t hairline pt-5 flex items-center justify-between">
+                        <span class="text-sm font-medium">
+                            ⚡ Benefícios exclusivos
+                        </span>
+                        <span class="text-xs muted label">#RunWithBroto</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- FORMULÁRIO -->
+        <section id="form" class="max-w-4xl mx-auto px-4 py-12 scroll-mt-20">
+            <div class="text-center max-w-2xl mx-auto mb-10">
+                <div class="text-[11px] muted label">broto.st // inscrição</div>
+                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[1.1]">Preenche os teus dados</h2>
+                <p class="mt-3 muted">Todos os campos com * são obrigatórios.</p>
+            </div>
+
+            <form method="POST" class="bg-white border hairline rounded-2xl shadow-sm overflow-hidden" id="signupForm" novalidate>
+                {% csrf_token %}
+
+                <!-- STEP 1 -->
+                <div class="p-6 md:p-8 border-b hairline" data-section="1">
+                    <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted font-semibold">
+                        <span class="inline-flex items-center justify-center bg-yellow-500 text-black text-[10px] font-extrabold w-5 h-5 rounded-full">1</span>
+                        01 • Informação básica
+                    </div>
+                    <h3 class="mt-2 text-2xl font-bold">Quem és?</h3>
+
+                    <div class="mt-5 grid md:grid-cols-2 gap-4">
+                        <div class="field">
+                            <label class="text-sm font-medium flex items-center gap-1">
+                                Nome completo <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.nome }}
+                            <span class="text-xs text-muted-light">Como gostas de ser chamado</span>
+                            <span class="text-xs text-red-500 hidden error-msg">Por favor, preenche o teu nome.</span>
+                        </div>
+
+                        <div class="field">
+                            <label class="text-sm font-medium flex items-center gap-1">
+                                Telefone <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.telefone }}
+                            <span class="text-xs text-muted-light">Ex: 912 345 678</span>
+                            <span class="text-xs text-red-500 hidden error-msg">Por favor, insere um telefone válido.</span>
+                        </div>
+
+                        <div class="field">
+                            <label class="text-sm font-medium flex items-center gap-1">
+                                Email <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.email }}
+                            <span class="text-xs text-muted-light">Usaremos para te contactar</span>
+                            <span class="text-xs text-red-500 hidden error-msg">Por favor, insere um email válido.</span>
+                        </div>
+
+                        <div class="field">
+                            <label class="text-sm font-medium flex items-center gap-1">
+                                Data de nascimento <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.data_nascimento }}
+                            <span class="text-xs text-muted-light">DD/MM/AAAA</span>
+                            <span class="text-xs text-red-500 hidden error-msg">Por favor, insere uma data válida.</span>
+                        </div>
+
+                        <div class="field">
+                            <label class="text-sm font-medium flex items-center gap-1">
+                                Género <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.genero }}
+                            <span class="text-xs text-red-500 hidden error-msg">Seleciona uma opção.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STEP 2 -->
+                <div class="p-6 md:p-8 border-b hairline" data-section="2">
+                    <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted font-semibold">
+                        <span class="inline-flex items-center justify-center bg-yellow-500 text-black text-[10px] font-extrabold w-5 h-5 rounded-full">2</span>
+                        02 • Comunidade
+                    </div>
+                    <h3 class="mt-2 text-2xl font-bold">Conta-nos mais.</h3>
+
+                    <div class="mt-5 grid md:grid-cols-2 gap-4">
+                        <div class="field">
+                            <label class="text-sm font-medium">Empresa</label>
+                            {{ form.empresa }}
+                            <span class="text-xs text-muted-light">Onde trabalhas (opcional)</span>
+                        </div>
+
+                        <div class="field">
+                            <label class="text-sm font-medium">Cargo</label>
+                            {{ form.cargo }}
+                            <span class="text-xs text-muted-light">A tua função (opcional)</span>
+                        </div>
+
+                        <div class="field">
+                            <label class="text-sm font-medium flex items-center gap-1">
+                                Bairro <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.bairro }}
+                            <span class="text-xs text-muted-light">Onde vives / treinas</span>
+                            <span class="text-xs text-red-500 hidden error-msg">Por favor, indica o teu bairro.</span>
+                        </div>
+
+                        <div class="field">
+                            <label class="text-sm font-medium flex items-center gap-1">
+                                Distância média (km) <span class="text-red-500">*</span>
+                            </label>
+                            {{ form.distancia_media }}
+                            <span class="text-xs text-muted-light">Quantos km corres por treino?</span>
+                            <span class="text-xs text-red-500 hidden error-msg">Insere um número válido.</span>
+                        </div>
+                    </div>
+
+                    <div class="field mt-4">
+                        <label class="text-sm font-medium flex items-center gap-1">
+                            Interesse principal <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.interesse_principal }}
+                        <span class="text-xs text-red-500 hidden error-msg">Seleciona uma opção.</span>
+                    </div>
+                </div>
+
+                <!-- STEP 3 -->
+                <div class="p-6 md:p-8" data-section="3">
+                    <div class="bg-gray-50 rounded-xl p-6 border hairline focus-within:border-yellow-500 focus-within:shadow-[0_0_0_3px_rgba(250,187,0,0.15)] transition">
+                        <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted font-semibold">
+                            <span class="inline-flex items-center justify-center bg-yellow-500 text-black text-[10px] font-extrabold w-5 h-5 rounded-full">3</span>
+                            03 • Pergunta principal
+                        </div>
+                        <h3 class="mt-2 text-xl font-bold">
+                            Gostarias de ser <span class="text-yellow-500">Membro Fundador</span> a partir de 1 de Agosto?
+                        </h3>
+
+                        <div class="field mt-4">
+                            {{ form.membro_fundador }}
+                            <span class="text-xs text-red-500 hidden error-msg">Por favor, seleciona uma opção.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUBMIT -->
+                <div class="p-6 md:p-8 bg-gray-50 border-t hairline">
+                    <button class="btn-solid w-full justify-center text-base h-14" type="submit" id="submitBtn">
+                        <span class="btn-text">Submeter inscrição</span>
+                        <span class="hidden spinner w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin ml-2"></span>
+                    </button>
+                    <p class="mt-4 text-center text-xs text-muted-light">
+                        Os teus dados serão usados apenas para gestão da comunidade RUNWITHBROTO.
+                    </p>
+                </div>
+            </form>
+        </section>
+
+        <!-- BENEFÍCIOS -->
+        <section id="benefits" class="max-w-4xl mx-auto px-4 py-12 scroll-mt-20">
+            <div class="text-center max-w-2xl mx-auto mb-10">
+                <div class="text-[11px] muted label">broto.st // vantagens</div>
+                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[1.1]">Benefícios de Membro Fundador</h2>
+                <p class="mt-3 muted">Ao entrares agora, garantes condições especiais para sempre.</p>
+            </div>
+
+            <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
+                    <span class="text-yellow-500 text-xl">🏃</span>
+                    <div>
+                        <h4 class="font-bold">Prioridade nas inscrições</h4>
+                        <p class="text-sm muted">Garante vaga em todos os eventos.</p>
+                    </div>
+                </div>
+                <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
+                    <span class="text-yellow-500 text-xl">💰</span>
+                    <div>
+                        <h4 class="font-bold">Descontos em eventos</h4>
+                        <p class="text-sm muted">Condições especiais em corridas e workshops.</p>
+                    </div>
+                </div>
+                <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
+                    <span class="text-yellow-500 text-xl">☕</span>
+                    <div>
+                        <h4 class="font-bold">Coffee Runs exclusivos</h4>
+                        <p class="text-sm muted">Encontros mensais com a comunidade.</p>
+                    </div>
+                </div>
+                <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
+                    <span class="text-yellow-500 text-xl">🤝</span>
+                    <div>
+                        <h4 class="font-bold">Parceiros com benefícios</h4>
+                        <p class="text-sm muted">Acesso a ofertas especiais de marcas parceiras.</p>
+                    </div>
+                </div>
+                <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
+                    <span class="text-yellow-500 text-xl">👕</span>
+                    <div>
+                        <h4 class="font-bold">Merchandising exclusivo</h4>
+                        <p class="text-sm muted">Kit de boas-vindas com itens limitados.</p>
+                    </div>
+                </div>
+                <div class="bg-white border hairline rounded-xl p-5 flex items-start gap-3 hover:shadow-sm transition">
+                    <span class="text-yellow-500 text-xl">🔒</span>
+                    <div>
+                        <h4 class="font-bold">Grupo VIP</h4>
+                        <p class="text-sm muted">Acesso a conteúdos e novidades em primeira mão.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- TOAST (mesmo do original) -->
+    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 translate-y-20 bg-black text-white py-3 px-6 rounded-xl font-semibold text-sm shadow-xl opacity-0 invisible transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-50 flex items-center gap-3 max-w-md w-[calc(100%-2rem)]" id="toast">
+        <span class="text-xl">✓</span>
+        <span id="toastMsg">Inscrição submetida com sucesso!</span>
+    </div>
+
+    <!-- Estilos e scripts (adaptados) -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        /* Classes utilitárias do template base (caso não existam) */
+        .muted { color: #6B6B6B; }
+        .muted-light { color: #9A9A9A; }
+        .label { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+        .hairline { border-color: #E7E7E7; }
 
-        :root {
-            --ink: #0B0B0B;
-            --muted: #6B6B6B;
-            --muted-light: #9A9A9A;
-            --line: #E7E7E7;
-            --line-focus: #D0D0D0;
-            --paper: #FFFFFF;
-            --bg-soft: #FAFAFA;
-
-            --brand: #FABB00;
-            --brand-dark: #E1A800;
-            --brand-light: rgba(250, 187, 0, 0.12);
-            --brand-glow: rgba(250, 187, 0, 0.25);
-
-            --radius: 20px;
-            --radius-sm: 14px;
-            --radius-full: 999px;
-
-            --shadow-card: 0 8px 40px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.02);
-            --shadow-focus: 0 0 0 4px rgba(250, 187, 0, 0.18);
-            --shadow-btn: 0 4px 16px rgba(11, 11, 11, 0.10);
-
-            --transition: 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-            --transition-bounce: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .rwb {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--paper);
-            color: var(--ink);
-            min-height: 100vh;
-            padding: 40px 20px 80px;
-        }
-
-        .rwb-container {
-            max-width: 840px;
-            margin: 0 auto;
-        }
-
-        /* ─── Hero ─── */
-        .hero {
-            margin-bottom: 48px;
-            text-align: center;
-        }
-
-        .hero .tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 16px 6px 12px;
-            border: 1px solid var(--line);
-            border-radius: var(--radius-full);
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.10em;
-            text-transform: uppercase;
-            color: var(--muted);
-            background: var(--bg-soft);
-        }
-
-        .hero .tag::before {
-            content: '';
-            display: block;
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--brand);
-            animation: pulse-dot 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%,
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.5;
-                transform: scale(0.8);
-            }
-        }
-
-        .hero h1 {
-            font-size: clamp(44px, 7vw, 74px);
-            line-height: 0.94;
-            margin: 20px 0 16px;
-            font-weight: 900;
-            letter-spacing: -0.02em;
-        }
-
-        .hero h1 .brand {
-            color: var(--brand);
-            background: linear-gradient(145deg, var(--brand), var(--brand-dark));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero p {
-            max-width: 560px;
-            margin: 0 auto;
-            color: var(--muted);
-            font-size: 17px;
-            line-height: 1.7;
-            font-weight: 400;
-        }
-
-        /* ─── Progress ─── */
-        .progress-wrap {
-            margin-bottom: 36px;
-        }
-
-        .progress-steps {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            padding: 0 2px;
-        }
-
-        .progress-steps span {
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--muted-light);
-            transition: color var(--transition);
-        }
-
-        .progress-steps span.active {
-            color: var(--ink);
-        }
-
-        .progress-track {
-            height: 6px;
-            border-radius: var(--radius-full);
-            background: #F0F0F0;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, var(--brand), var(--brand-dark));
-            border-radius: var(--radius-full);
-            transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        /* ─── Card ─── */
-        .card {
-            background: #fff;
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            overflow: hidden;
-            box-shadow: var(--shadow-card);
-            transition: box-shadow var(--transition);
-        }
-
-        .card:hover {
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.02);
-        }
-
-        .section {
-            padding: 32px 36px;
-            transition: background var(--transition);
-        }
-
-        .section:not(:last-child) {
-            border-bottom: 1px solid var(--line);
-        }
-
-        .section-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.12em;
-            color: var(--muted);
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-
-        .section-label .badge {
+        .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: var(--brand);
-            color: var(--ink);
-            font-size: 9px;
-            font-weight: 800;
-            padding: 0 10px;
-            height: 20px;
-            border-radius: var(--radius-full);
-            letter-spacing: 0.04em;
-        }
-
-        .section h2 {
-            font-size: 26px;
-            font-weight: 700;
-            letter-spacing: -0.01em;
-            margin: 0 0 22px 0;
-            line-height: 1.2;
-        }
-
-        .section h2 .brand {
-            color: var(--brand);
-        }
-
-        /* ─── Grid ─── */
-        .grid2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px 20px;
-        }
-
-        /* ─── Fields ─── */
-        .field {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .field label {
-            font-size: 13px;
+            gap: 0.5rem;
+            padding: 0.6rem 1.5rem;
+            border: 1.5px solid #E7E7E7;
+            border-radius: 9999px;
             font-weight: 600;
-            color: var(--ink);
-            display: flex;
+            font-size: 0.875rem;
+            background: white;
+            color: #0B0B0B;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn:hover {
+            background: #FAFAFA;
+            border-color: #D0D0D0;
+        }
+        .btn-solid {
+            display: inline-flex;
             align-items: center;
-            gap: 4px;
-        }
-
-        .field label .required {
-            color: #E5484D;
-            font-size: 14px;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.8rem;
+            border: none;
+            border-radius: 9999px;
             font-weight: 700;
-            margin-left: 2px;
+            font-size: 0.875rem;
+            background: #0B0B0B;
+            color: white;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn-solid:hover {
+            background: #FABB00;
+            color: #0B0B0B;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(250,187,0,0.3);
         }
 
-        .field .helper {
-            font-size: 12px;
-            color: var(--muted-light);
-            font-weight: 400;
-            margin-top: -2px;
-        }
-
-        .field input,
-        .field select {
+        .field input, .field select {
             width: 100%;
-            height: 54px;
-            border: 1.5px solid var(--line);
-            border-radius: var(--radius-sm);
-            padding: 0 16px;
+            height: 48px;
+            border: 1.5px solid #E7E7E7;
+            border-radius: 12px;
+            padding: 0 14px;
             font-size: 15px;
             font-family: 'Inter', sans-serif;
             font-weight: 500;
-            color: var(--ink);
-            background: var(--paper);
+            color: #0B0B0B;
+            background: white;
             outline: none;
-            transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
-            appearance: none;
-            -webkit-appearance: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
-
-        .field input::placeholder {
-            color: var(--muted-light);
-            font-weight: 400;
-            font-size: 14px;
+        .field input:focus, .field select:focus {
+            border-color: #FABB00;
+            box-shadow: 0 0 0 3px rgba(250,187,0,0.15);
         }
-
-        .field input:hover,
-        .field select:hover {
-            border-color: var(--line-focus);
-            background: var(--bg-soft);
-        }
-
-        .field input:focus,
-        .field select:focus {
-            border-color: var(--brand);
-            box-shadow: var(--shadow-focus);
-            background: var(--paper);
-        }
-
-        .field input.error,
-        .field select.error {
+        .field input.error, .field select.error {
             border-color: #E5484D;
-            box-shadow: 0 0 0 4px rgba(229, 72, 77, 0.12);
+            box-shadow: 0 0 0 3px rgba(229,72,77,0.12);
         }
-
-        .field .error-msg {
-            font-size: 12px;
-            font-weight: 500;
-            color: #E5484D;
-            margin-top: 2px;
-            display: none;
-        }
-
-        .field .error-msg.show {
-            display: block;
-        }
-
-        /* Custom select arrow */
         .field select {
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B6B6B' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 16px center;
-            padding-right: 44px;
+            background-position: right 14px center;
+            padding-right: 40px;
+            appearance: none;
         }
 
-        .field select option {
-            font-weight: 400;
-            padding: 6px;
-        }
-
-        /* ─── Benefits ─── */
-        .benefits {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px 20px;
-            margin-top: 4px;
-        }
-
-        .benefit {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 500;
-            font-size: 15px;
-            padding: 4px 0;
-        }
-
-        .benefit .dot {
-            flex-shrink: 0;
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: var(--brand);
-            transition: transform var(--transition-bounce);
-        }
-
-        .benefit:hover .dot {
-            transform: scale(1.3);
-        }
-
-        /* ─── Question Box ─── */
-        .question-box {
-            background: var(--bg-soft);
-            border-radius: var(--radius-sm);
-            padding: 28px 32px;
-            border: 1px solid var(--line);
-            transition: border-color var(--transition), box-shadow var(--transition);
-        }
-
-        .question-box:focus-within {
-            border-color: var(--brand);
-            box-shadow: var(--shadow-focus);
-        }
-
-        .question-box .section-label {
-            margin-bottom: 4px;
-        }
-
-        .question-box h2 {
-            font-size: 24px;
-            margin-bottom: 18px;
-        }
-
-        /* Radio / Select styling for membro_fundador */
-        .field .radio-group {
+        /* Radio group custom */
+        .radio-group {
             display: flex;
             gap: 12px;
             flex-wrap: wrap;
-            margin-top: 2px;
         }
-
-        .field .radio-group .radio-option {
-            position: relative;
+        .radio-group .radio-option {
             flex: 1;
             min-width: 120px;
         }
-
-        .field .radio-group .radio-option input {
+        .radio-group .radio-option input {
             position: absolute;
             opacity: 0;
             width: 0;
             height: 0;
         }
-
-        .field .radio-group .radio-option label {
+        .radio-group .radio-option label {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            padding: 14px 20px;
-            border: 1.5px solid var(--line);
-            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            border: 1.5px solid #E7E7E7;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: 600;
             font-size: 15px;
-            color: var(--muted);
-            background: var(--paper);
-            transition: all var(--transition);
-            min-height: 54px;
+            color: #6B6B6B;
+            background: white;
+            transition: all 0.2s;
+            min-height: 48px;
             user-select: none;
         }
-
-        .field .radio-group .radio-option label .emoji {
+        .radio-group .radio-option label .emoji {
             font-size: 20px;
-            line-height: 1;
+        }
+        .radio-group .radio-option input:checked + label {
+            background: rgba(250,187,0,0.10);
+            border-color: #FABB00;
+            color: #0B0B0B;
+        }
+        .radio-group .radio-option label:hover {
+            border-color: #FABB00;
+            background: #FAFAFA;
         }
 
-        .field .radio-group .radio-option input:checked+label {
-            background: var(--brand-light);
-            border-color: var(--brand);
-            color: var(--ink);
-            box-shadow: 0 0 0 3px rgba(250, 187, 0, 0.10);
-        }
-
-        .field .radio-group .radio-option label:hover {
-            border-color: var(--brand);
-            background: var(--bg-soft);
-        }
-
-        .field .radio-group .radio-option input:checked+label:hover {
-            background: var(--brand-light);
-        }
-
-        /* ─── Submit ─── */
-        .btn-submit {
-            width: 100%;
-            height: 60px;
-            border: none;
-            border-radius: var(--radius-sm);
-            background: var(--ink);
-            color: #fff;
-            font-size: 17px;
-            font-weight: 800;
-            font-family: 'Inter', sans-serif;
-            letter-spacing: 0.02em;
-            cursor: pointer;
-            transition: all var(--transition);
-            box-shadow: var(--shadow-btn);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-submit:hover {
-            background: var(--brand);
-            color: var(--ink);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 28px rgba(250, 187, 0, 0.30);
-        }
-
-        .btn-submit:active {
-            transform: translateY(0px);
-            box-shadow: var(--shadow-btn);
-        }
-
-        .btn-submit:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        .btn-submit .spinner {
-            display: none;
-            width: 22px;
-            height: 22px;
-            border: 2.5px solid rgba(255, 255, 255, 0.2);
-            border-top-color: currentColor;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-        }
-
-        .btn-submit.loading .spinner {
-            display: block;
-        }
-
-        .btn-submit.loading .btn-text {
-            opacity: 0.7;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .legal {
-            margin-top: 16px;
-            text-align: center;
-            color: var(--muted-light);
-            font-size: 12px;
-            font-weight: 400;
-            line-height: 1.6;
-        }
-
-        .legal a {
-            color: var(--ink);
-            font-weight: 600;
-            text-decoration: none;
-            border-bottom: 1px solid var(--line);
-            transition: border-color var(--transition);
-        }
-
-        .legal a:hover {
-            border-color: var(--brand);
-        }
-
-        /* ─── Toast / Success ─── */
-        .toast {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%) translateY(80px);
-            background: var(--ink);
-            color: #fff;
-            padding: 16px 32px;
-            border-radius: var(--radius-sm);
-            font-weight: 600;
-            font-size: 15px;
-            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.20);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .toast.show {
+        /* Toast */
+        #toast.show {
             opacity: 1;
             visibility: visible;
             transform: translateX(-50%) translateY(0);
         }
 
-        .toast .toast-icon {
-            font-size: 22px;
+        /* Spinner no botão */
+        #submitBtn.loading .spinner {
+            display: inline-block;
+        }
+        #submitBtn.loading .btn-text {
+            opacity: 0.7;
         }
 
-        /* ─── Responsive ─── */
-        @media (max-width: 768px) {
-            .rwb {
-                padding: 24px 16px 60px;
-            }
-
-            .hero h1 {
-                font-size: 40px;
-            }
-            .hero p {
-                font-size: 15px;
-            }
-
-            .section {
-                padding: 24px 20px;
-            }
-
-            .grid2 {
-                grid-template-columns: 1fr;
-                gap: 14px;
-            }
-
-            .benefits {
-                grid-template-columns: 1fr;
-                gap: 6px;
-            }
-
-            .question-box {
-                padding: 20px;
-            }
-            .question-box h2 {
-                font-size: 20px;
-            }
-
-            .field .radio-group {
-                flex-direction: column;
-            }
-            .field .radio-group .radio-option {
-                min-width: unset;
-            }
-
-            .btn-submit {
-                height: 54px;
-                font-size: 15px;
-            }
-
-            .toast {
-                width: calc(100% - 32px);
-                padding: 14px 20px;
-                font-size: 14px;
-                bottom: 20px;
-            }
-
-            .progress-steps span {
-                font-size: 9px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .hero h1 {
-                font-size: 32px;
-            }
-            .section h2 {
-                font-size: 20px;
-            }
-            .section {
-                padding: 20px 16px;
-            }
-            .field input,
-            .field select {
-                height: 48px;
-                font-size: 14px;
-            }
-            .field .radio-group .radio-option label {
-                min-height: 48px;
-                font-size: 14px;
-                padding: 10px 16px;
-            }
-        }
-
-        /* ─── Utility ─── */
-        .mt-1 {
-            margin-top: 6px;
-        }
-        .mb-1 {
-            margin-bottom: 6px;
-        }
-        .gap-1 {
-            gap: 6px;
-        }
-
-        /* ─── Animations ─── */
-        .fade-in {
-            animation: fadeIn 0.6s ease-out forwards;
-        }
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .section {
-            animation: fadeIn 0.5s ease-out both;
-        }
-        .section:nth-child(2) {
-            animation-delay: 0.05s;
-        }
-        .section:nth-child(3) {
-            animation-delay: 0.10s;
-        }
-        .section:nth-child(4) {
-            animation-delay: 0.15s;
-        }
-        .section:nth-child(5) {
-            animation-delay: 0.20s;
+        /* Ajustes para o progresso */
+        .step-active {
+            color: #0B0B0B !important;
         }
     </style>
 
-    <div class="rwb">
-        <div class="rwb-container">
-
-            <!-- ─── Hero ─── -->
-            <div class="hero fade-in">
-                <div class="tag">RUNWITHBROTO • MEMBRO FUNDADOR</div>
-                <h1>
-                    Torna-te um
-                    <span class="brand">Membro Fundador</span>
-                </h1>
-                <p>
-                    Estamos a construir a próxima fase da RUNWITHBROTO.
-                    Junta-te desde o início e ajuda-nos a criar uma
-                    comunidade ainda mais forte.
-                </p>
-            </div>
-
-            <!-- ─── Progress ─── -->
-            <div class="progress-wrap">
-                <div class="progress-steps">
-                    <span class="active" data-step="1">Informação</span>
-                    <span data-step="2">Comunidade</span>
-                    <span data-step="3">Confirmação</span>
-                </div>
-                <div class="progress-track">
-                    <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
-                </div>
-            </div>
-
-            <!-- ─── Form ─── -->
-            <form method="POST" class="card" id="signupForm" novalidate>
-                {% csrf_token %}
-
-                <!-- Step 1: Informação básica -->
-                <div class="section" data-section="1">
-                    <div class="section-label">
-                        <span class="badge">1</span>
-                        01 • Informação básica
-                    </div>
-                    <h2>Quem és?</h2>
-
-                    <div class="grid2">
-                        <div class="field">
-                            <label>
-                                Nome completo
-                                <span class="required">*</span>
-                            </label>
-                            {{ form.nome }}
-                            <span class="helper">Como gostas de ser chamado</span>
-                            <span class="error-msg">Por favor, preenche o teu nome.</span>
-                        </div>
-
-                        <div class="field">
-                            <label>
-                                Telefone
-                                <span class="required">*</span>
-                            </label>
-                            {{ form.telefone }}
-                            <span class="helper">Ex: 912 345 678</span>
-                            <span class="error-msg">Por favor, insere um telefone válido.</span>
-                        </div>
-
-                        <div class="field">
-                            <label>
-                                Email
-                                <span class="required">*</span>
-                            </label>
-                            {{ form.email }}
-                            <span class="helper">Usaremos este email para te contactar</span>
-                            <span class="error-msg">Por favor, insere um email válido.</span>
-                        </div>
-
-                        <div class="field">
-                            <label>
-                                Data de nascimento
-                                <span class="required">*</span>
-                            </label>
-                            {{ form.data_nascimento }}
-                            <span class="helper">DD/MM/AAAA</span>
-                            <span class="error-msg">Por favor, insere uma data válida.</span>
-                        </div>
-
-                        <div class="field">
-                            <label>
-                                Género
-                                <span class="required">*</span>
-                            </label>
-                            {{ form.genero }}
-                            <span class="error-msg">Seleciona uma opção.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 2: Comunidade -->
-                <div class="section" data-section="2">
-                    <div class="section-label">
-                        <span class="badge">2</span>
-                        02 • Comunidade
-                    </div>
-                    <h2>Conta-nos mais.</h2>
-
-                    <div class="grid2">
-                        <div class="field">
-                            <label>Empresa</label>
-                            {{ form.empresa }}
-                            <span class="helper">Onde trabalhas (opcional)</span>
-                        </div>
-
-                        <div class="field">
-                            <label>Cargo</label>
-                            {{ form.cargo }}
-                            <span class="helper">A tua função (opcional)</span>
-                        </div>
-
-                        <div class="field">
-                            <label>
-                                Bairro
-                                <span class="required">*</span>
-                            </label>
-                            {{ form.bairro }}
-                            <span class="helper">Onde vives / treinas</span>
-                            <span class="error-msg">Por favor, indica o teu bairro.</span>
-                        </div>
-
-                        <div class="field">
-                            <label>
-                                Distância média (km)
-                                <span class="required">*</span>
-                            </label>
-                            {{ form.distancia_media }}
-                            <span class="helper">Quantos km corres por treino?</span>
-                            <span class="error-msg">Insere um número válido.</span>
-                        </div>
-                    </div>
-
-                    <div class="field">
-                        <label>
-                            Interesse principal
-                            <span class="required">*</span>
-                        </label>
-                        {{ form.interesse_principal }}
-                        <span class="error-msg">Seleciona uma opção.</span>
-                    </div>
-                </div>
-
-                <!-- Step 3: Pergunta principal -->
-                <div class="section" data-section="3">
-                    <div class="question-box">
-                        <div class="section-label">
-                            <span class="badge">3</span>
-                            03 • Pergunta principal
-                        </div>
-                        <h2>
-                            Gostarias de ser
-                            <span class="brand">Membro Fundador</span>
-                            a partir de 1 de Agosto?
-                        </h2>
-
-                        <div class="field">
-                            {{ form.membro_fundador }}
-                            <span class="error-msg">Por favor, seleciona uma opção.</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ─── Submit ─── -->
-                <div class="section" style="border-bottom: none; background: var(--bg-soft);">
-                    <button class="btn-submit" type="submit" id="submitBtn">
-                        <span class="btn-text">SUBMETER INSCRIÇÃO</span>
-                        <span class="spinner"></span>
-                    </button>
-                    <p class="legal">
-                        Os teus dados serão usados apenas para gestão da comunidade RUNWITHBROTO.
-                        Consulta a nossa
-                        <a href="#">política de privacidade</a>.
-                    </p>
-                </div>
-            </form>
-
-            <!-- ─── Benefícios (independente) ─── -->
-            <div style="margin-top: 40px; padding: 24px 28px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-soft);">
-                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 700; margin-bottom: 12px;">
-                    ⚡ Benefícios de Membro Fundador
-                </div>
-                <div class="benefits">
-                    <div class="benefit"><span class="dot"></span>Prioridade nas inscrições</div>
-                    <div class="benefit"><span class="dot"></span>Descontos em eventos</div>
-                    <div class="benefit"><span class="dot"></span>Coffee Runs exclusivos</div>
-                    <div class="benefit"><span class="dot"></span>Parceiros com benefícios especiais</div>
-                    <div class="benefit"><span class="dot"></span>Merchandising exclusivo</div>
-                    <div class="benefit"><span class="dot"></span>Acesso antecipado a novidades</div>
-                    <div class="benefit"><span class="dot"></span>Grupo VIP</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ─── Toast ─── -->
-    <div class="toast" id="toast">
-        <span class="toast-icon">✓</span>
-        <span id="toastMsg">Inscrição submetida com sucesso!</span>
-    </div>
-
-    <!-- ─── JavaScript ─── -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
 
             const form = document.getElementById('signupForm');
             const submitBtn = document.getElementById('submitBtn');
             const progressBar = document.getElementById('progressBar');
-            const stepLabels = document.querySelectorAll('.progress-steps span');
-            const sections = document.querySelectorAll('[data-section]');
+            const stepLabels = document.querySelectorAll('[data-step]');
             const toast = document.getElementById('toast');
             const toastMsg = document.getElementById('toastMsg');
 
-            // ─── Track which fields are required ───
             const requiredFields = form.querySelectorAll('[required]');
-            const fieldGroups = document.querySelectorAll('.field');
 
-            // ─── Update progress ───
             function updateProgress() {
                 let filled = 0;
                 const total = requiredFields.length;
 
                 requiredFields.forEach(field => {
-                    if (field.value && field.value.trim() !== '') {
-                        filled++;
-                    }
-                    // handle selects
-                    if (field.tagName === 'SELECT' && field.value && field.value !== '') {
-                        filled++;
-                    }
+                    if (field.value && field.value.trim() !== '') filled++;
+                    if (field.tagName === 'SELECT' && field.value && field.value !== '') filled++;
                 });
-
-                // avoid double-counting for selects that are also in requiredFields
-                // we already count them above
 
                 const pct = Math.min(100, Math.round((filled / total) * 100));
                 progressBar.style.width = pct + '%';
 
-                // update step labels
                 const step = pct < 33 ? 1 : pct < 66 ? 2 : 3;
                 stepLabels.forEach((el, idx) => {
-                    el.classList.toggle('active', idx + 1 === step);
+                    el.classList.toggle('step-active', idx + 1 === step);
                 });
-
-                return pct;
             }
 
-            // ─── Real-time validation ───
             function validateField(field) {
                 const wrapper = field.closest('.field');
                 if (!wrapper) return true;
@@ -934,11 +455,7 @@
                     const val = field.value.trim();
                     let isValid = true;
 
-                    if (!val || val === '') {
-                        isValid = false;
-                    }
-
-                    // email validation
+                    if (!val || val === '') isValid = false;
                     if (field.type === 'email' && val) {
                         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                         if (!emailRegex.test(val)) isValid = false;
@@ -946,18 +463,17 @@
 
                     if (!isValid) {
                         field.classList.add('error');
-                        if (errorMsg) errorMsg.classList.add('show');
+                        if (errorMsg) errorMsg.classList.remove('hidden');
                         return false;
                     } else {
                         field.classList.remove('error');
-                        if (errorMsg) errorMsg.classList.remove('show');
+                        if (errorMsg) errorMsg.classList.add('hidden');
                         return true;
                     }
                 }
                 return true;
             }
 
-            // ─── Attach validation events ───
             const allInputs = form.querySelectorAll('input, select');
             allInputs.forEach(input => {
                 input.addEventListener('blur', function() {
@@ -965,9 +481,7 @@
                     updateProgress();
                 });
                 input.addEventListener('input', function() {
-                    if (this.classList.contains('error')) {
-                        validateField(this);
-                    }
+                    if (this.classList.contains('error')) validateField(this);
                     updateProgress();
                 });
                 input.addEventListener('change', function() {
@@ -976,20 +490,15 @@
                 });
             });
 
-            // ─── Submit ───
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
 
-                // validate all required
                 let allValid = true;
                 requiredFields.forEach(field => {
-                    if (!validateField(field)) {
-                        allValid = false;
-                    }
+                    if (!validateField(field)) allValid = false;
                 });
 
                 if (!allValid) {
-                    // scroll to first error
                     const firstError = form.querySelector('.error');
                     if (firstError) {
                         firstError.focus();
@@ -998,46 +507,35 @@
                     return;
                 }
 
-                // loading state
                 submitBtn.classList.add('loading');
                 submitBtn.disabled = true;
-                submitBtn.querySelector('.btn-text').textContent = 'A PROCESSAR…';
+                submitBtn.querySelector('.btn-text').textContent = 'A processar…';
 
-                // Simulate submission
-                setTimeout(function() {
+                setTimeout(() => {
                     submitBtn.classList.remove('loading');
                     submitBtn.disabled = false;
-                    submitBtn.querySelector('.btn-text').textContent = 'SUBMETER INSCRIÇÃO';
+                    submitBtn.querySelector('.btn-text').textContent = 'Submeter inscrição';
 
-                    // show toast
                     toastMsg.textContent = 'Inscrição submetida com sucesso! 🎉';
                     toast.classList.add('show');
+                    setTimeout(() => toast.classList.remove('show'), 4000);
 
-                    setTimeout(() => {
-                        toast.classList.remove('show');
-                    }, 4000);
-
-                    // Optionally, submit the form for real
-                    // form.submit();
-
+                    // form.submit(); // descomentar para produção
                 }, 1800);
             });
 
-            // ─── Toast auto-hide on click ───
             toast.addEventListener('click', function() {
                 this.classList.remove('show');
             });
 
-            // ─── Initial progress ───
             updateProgress();
 
-            // ─── Enhance radio/select for membro_fundador ───
+            // Transformar o select "membro_fundador" em radio buttons
             const membroField = document.querySelector('[name="membro_fundador"]');
             if (membroField) {
                 const wrapper = membroField.closest('.field');
                 if (wrapper) {
                     const select = membroField;
-                    // wrap in a nicer radio-like UI
                     const options = select.querySelectorAll('option');
                     if (options.length > 0) {
                         const radioGroup = document.createElement('div');
@@ -1057,10 +555,8 @@
 
                             const label = document.createElement('label');
                             label.htmlFor = radio.id;
-
-                            // add emoji
                             const emoji = opt.value.toLowerCase().includes('sim') ? '🙌' :
-                                opt.value.toLowerCase().includes('não') ? '💪' : '✨';
+                                          opt.value.toLowerCase().includes('não') ? '💪' : '✨';
                             label.innerHTML = `<span class="emoji">${emoji}</span> ${opt.textContent}`;
 
                             if (opt.selected) {
@@ -1070,7 +566,6 @@
 
                             radio.addEventListener('change', function() {
                                 select.value = this.value;
-                                // trigger change event
                                 const evt = new Event('change', { bubbles: true });
                                 select.dispatchEvent(evt);
                                 validateField(select);
@@ -1082,11 +577,9 @@
                             radioGroup.appendChild(radioWrapper);
                         });
 
-                        // hide original select
                         select.style.display = 'none';
                         wrapper.insertBefore(radioGroup, select.nextSibling);
 
-                        // if no selected, select first
                         if (!hasSelected) {
                             const firstRadio = radioGroup.querySelector('input[type="radio"]');
                             if (firstRadio) {
@@ -1095,24 +588,19 @@
                             }
                         }
 
-                        // sync on form reset
+                        // Sincroniza mudanças no select original
                         const observer = new MutationObserver(() => {
                             const currentVal = select.value;
                             const radios = radioGroup.querySelectorAll('input[type="radio"]');
-                            radios.forEach(r => {
-                                r.checked = (r.value === currentVal);
-                            });
+                            radios.forEach(r => r.checked = (r.value === currentVal));
                         });
                         observer.observe(select, { attributes: true, attributeFilter: ['value'] });
                     }
                 }
             }
 
-            // ─── Keyboard shortcut: Escape to close toast ───
             document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    toast.classList.remove('show');
-                }
+                if (e.key === 'Escape') toast.classList.remove('show');
             });
 
         });
