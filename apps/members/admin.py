@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import User, Group
 from django.db import models
-from apps.members.models import User, Perfil, Assinatura, Pagamento, Plano
+from apps.members.models import User, Perfil, Assinatura, Pagamento, Plano, InteresseMembroFundador
 
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from unfold.admin import ModelAdmin
@@ -77,3 +77,86 @@ class PagamentoAdmin(admin.ModelAdmin):
     search_fields = ("assinatura__usuario__nome", "referencia_externa")
     ordering = ("-created_at",)
     readonly_fields = ("pago_em", "created_at")
+
+
+@admin.register(InteresseMembroFundador)
+class InteresseMembroFundadorAdmin(admin.ModelAdmin):
+    list_display = (
+        'nome',
+        'telefone',
+        'email',
+        'data_nascimento',
+        'genero',
+        'bairro',
+        'interesse_principal',
+        'membro_fundador',
+        'criado_em',
+    )
+    list_filter = (
+        'genero',
+        'interesse_principal',
+        'membro_fundador',
+        'criado_em',
+    )
+    search_fields = (
+        'nome',
+        'telefone',
+        'email',
+        'bairro',
+        'empresa',
+        'cargo',
+    )
+    ordering = ('-criado_em',)
+    readonly_fields = ('criado_em',)
+    fieldsets = (
+        ('Dados Pessoais', {
+            'fields': (
+                'nome',
+                'telefone',
+                'email',
+                'data_nascimento',
+                'genero',
+            )
+        }),
+        ('Contexto Profissional', {
+            'fields': (
+                'empresa',
+                'cargo',
+            ),
+            'classes': ('collapse',),
+        }),
+        ('Localização e Interesses', {
+            'fields': (
+                'bairro',
+                'distancia_media',
+                'interesse_principal',
+            )
+        }),
+        ('Membro Fundador', {
+            'fields': (
+                'membro_fundador',
+            )
+        }),
+        ('Registo', {
+            'fields': ('criado_em',),
+            'classes': ('collapse',),
+        }),
+    )
+
+    # Opcional: exibir idade calculada
+    def idade(self, obj):
+        from datetime import date
+        today = date.today()
+        return today.year - obj.data_nascimento.year - (
+            (today.month, today.day) < (obj.data_nascimento.month, obj.data_nascimento.day)
+        )
+    idade.short_description = 'Idade'
+    # Adicione 'idade' ao list_display se quiser
+
+    # Ações personalizadas (exemplo)
+    actions = ['marcar_como_interessado']
+
+    def marcar_como_interessado(self, request, queryset):
+        queryset.update(membro_fundador='mais_info')
+        self.message_user(request, f'{queryset.count()} registos atualizados para "Quero saber mais".')
+    marcar_como_interessado.short_description = 'Marcar como "Quero saber mais"'
