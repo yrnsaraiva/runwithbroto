@@ -12,7 +12,7 @@
                 <div class="grid lg:grid-cols-2 gap-10 items-center">
 
                     <div>
-                        <div class="text-[11px] muted label">broto.st // next stop</div>
+                        <div class="text-[11px] muted label">broto.st // próxima paragem</div>
 
                         <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[1.1] tracking-tight">
                             {{ next_event.title }}
@@ -87,28 +87,17 @@
             </section>
 
         {% else %}
+            <section class="max-w-6xl mx-auto px-4 pt-10 pb-6">
+                <div class="text-[11px] muted label">broto.st // próxima paragem</div>
+                <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[0.92]">Weekly runs & meet-ups.</h1>
+            </section>
 
             <!-- FALLBACK LIMPO (sem evento válido) -->
-            <section class="max-w-6xl mx-auto px-4 pt-12 pb-8 min-h-[70vh] flex items-center justify-center">
-                <div class="text-center max-w-lg">
-
-                    <div class="text-5xl mb-4">🏃🏾‍♂️</div>
-
-                    <h2 class="font-display text-4xl">
-                        Próxima corrida em breve
-                    </h2>
-
-                    <p class="mt-4 muted leading-relaxed">
-                        Ainda estamos a preparar o próximo evento Run With Broto.
-                        Volte em breve para novidades.
-                    </p>
-
-                    <div class="mt-6 flex gap-3 justify-center">
-                        <a class="btn" href="{% url 'events:event_list' %}">
-                            Ver agenda
-                        </a>
-                    </div>
-
+            <section class="max-w-6xl mx-auto min-h-[45vh] px-4 pb-16">
+                <div class="mt-10 border hairline rounded-2xl p-8" id="emptyState">
+                    <div class="text-[11px] muted label">Sem resultados</div>
+                    <div class="mt-3 font-display text-3xl leading-[0.95]">Não existem corridas agendadas para os próximos dias.</div>
+                    <p class="mt-3 muted">Acompanha as nossas redes sociais para ficares a par das novidades.</p>
                 </div>
             </section>
 
