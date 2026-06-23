@@ -10,12 +10,12 @@
 
         <!-- HERO -->
         <section class="max-w-6xl mx-auto px-4 pt-12 pb-8 min-h-[calc(100dvh-19dvh)] flex items-center">
-            <div class="grid lg:grid-cols-2 gap-8 lg:gap-10 items-center w-full">
+            <div class="grid lg:grid-cols-2 gap-10 items-center w-full">
 
                 <div>
                     <div class="text-[11px] muted label">broto.st // membro fundador</div>
 
-                    <h1 class="mt-3 font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.1] tracking-tight">
+                    <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[1.1] tracking-tight">
                         Torna-te um <br>
                         <span class="text-yellow-500">Membro Fundador</span>
                     </h1>
@@ -26,7 +26,7 @@
                         comunidade ainda mais forte.
                     </p>
 
-                    <div class="mt-6 flex flex-col xs:flex-row flex-wrap gap-3">
+                    <div class="mt-6 flex flex-wrap gap-3">
                         <a class="btn-solid" href="#form">
                             Quero inscrever-me
                             <span class="material-icons text-base">arrow_downward</span>
@@ -44,7 +44,7 @@
                     </div>
 
                     <div class="mt-4">
-                        <div class="flex justify-between text-[10px] sm:text-[11px] font-medium gap-1">
+                        <div class="flex justify-between text-[11px] font-medium">
                             <span class="text-[#0B0B0B]" data-step="1">Informação</span>
                             <span class="text-muted" data-step="2">Comunidade</span>
                             <span class="text-muted" data-step="3">Confirmação</span>
@@ -54,7 +54,7 @@
                         </div>
                     </div>
 
-                    <div class="mt-6 border-t hairline pt-5 flex flex-wrap items-center justify-between gap-2">
+                    <div class="mt-6 border-t hairline pt-5 flex items-center justify-between">
                         <span class="text-sm font-medium flex items-center gap-1">
                             <span class="material-icons text-yellow-500 text-base">bolt</span>
                             Benefícios exclusivos
@@ -70,7 +70,7 @@
         <section id="form" class="max-w-4xl mx-auto px-4 py-12 scroll-mt-20">
             <div class="text-center max-w-2xl mx-auto mb-10">
                 <div class="text-[11px] muted label">broto.st // inscrição</div>
-                <h2 class="mt-3 font-display text-3xl sm:text-4xl md:text-5xl leading-[1.1]">Preenche os teus dados</h2>
+                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[1.1]">Preenche os teus dados</h2>
                 <p class="mt-3 muted">Todos os campos com * são obrigatórios.</p>
             </div>
 
@@ -216,7 +216,7 @@
         <section id="benefits" class="max-w-4xl mx-auto px-4 py-12 scroll-mt-20">
             <div class="text-center max-w-2xl mx-auto mb-10">
                 <div class="text-[11px] muted label">broto.st // vantagens</div>
-                <h2 class="mt-3 font-display text-3xl sm:text-4xl md:text-5xl leading-[1.1]">Benefícios de Membro Fundador</h2>
+                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[1.1]">Benefícios de Membro Fundador</h2>
                 <p class="mt-3 muted">Ao entrares agora, garantes condições especiais para sempre.</p>
             </div>
 
@@ -321,24 +321,6 @@
             color: #0B0B0B;
             transform: translateY(-1px);
             box-shadow: 0 8px 20px rgba(250,187,0,0.3);
-        }
-
-        /* Label e hint text spacing */
-        .field label {
-            display: block;
-            margin-bottom: 6px;
-        }
-        .field > span {
-            display: block;
-            margin-top: 5px;
-        }
-
-        /* Botões full-width em mobile */
-        @media (max-width: 480px) {
-            .btn, .btn-solid {
-                width: 100%;
-                justify-content: center;
-            }
         }
 
         .field input, .field select {
@@ -545,17 +527,51 @@
                 submitBtn.disabled = true;
                 submitBtn.querySelector('.btn-text').textContent = 'A processar…';
 
-                setTimeout(() => {
+                fetch(form.action || window.location.pathname, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
                     submitBtn.classList.remove('loading');
                     submitBtn.disabled = false;
                     submitBtn.querySelector('.btn-text').textContent = 'Submeter inscrição';
 
-                    toastMsg.textContent = 'Inscrição submetida com sucesso! 🎉';
+                    if (data.success) {
+                        toastMsg.textContent = data.message || 'Inscrição submetida com sucesso! 🎉';
+                        toast.classList.add('show');
+                        setTimeout(() => toast.classList.remove('show'), 4000);
+                        form.reset();
+                        updateProgress();
+                    } else if (data.errors) {
+                        // Mostrar erros do servidor nos campos correspondentes
+                        Object.entries(data.errors).forEach(([field, errs]) => {
+                            const input = form.querySelector(`[name="${field}"]`);
+                            if (!input) return;
+                            input.classList.add('error');
+                            const wrapper = input.closest('.field');
+                            if (wrapper) {
+                                const errMsg = wrapper.querySelector('.error-msg');
+                                if (errMsg) {
+                                    errMsg.textContent = errs[0];
+                                    errMsg.classList.remove('hidden');
+                                }
+                            }
+                        });
+                        // Scroll para o primeiro erro
+                        const firstError = form.querySelector('.error');
+                        if (firstError) firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                })
+                .catch(() => {
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                    submitBtn.querySelector('.btn-text').textContent = 'Submeter inscrição';
+                    toastMsg.textContent = 'Erro de ligação. Tenta novamente.';
                     toast.classList.add('show');
                     setTimeout(() => toast.classList.remove('show'), 4000);
-
-                    // form.submit(); // descomentar para produção
-                }, 1800);
+                });
             });
 
             toast.addEventListener('click', function() {

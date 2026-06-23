@@ -151,7 +151,7 @@ class InteresseMembroFundador(models.Model):
     empresa = models.CharField(max_length=150, blank=True)
     cargo = models.CharField(max_length=150, blank=True)
     bairro = models.CharField(max_length=100)
-    distancia_media = models.CharField(max_length=50)
+    distancia_media = models.DecimalField(max_digits=6, decimal_places=2)
     interesse_principal = models.CharField(max_length=20, choices=INTERESSES)
     membro_fundador = models.CharField(max_length=20, choices=RESPOSTA_MEMBRO)
     criado_em = models.DateTimeField(auto_now_add=True)
