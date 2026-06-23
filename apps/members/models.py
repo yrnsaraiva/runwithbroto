@@ -130,7 +130,6 @@ class InteresseMembroFundador(models.Model):
         ('F', 'Feminino'),
         ('O', 'Outro'),
     ]
-
     INTERESSES = [
         ('corrida', 'Corrida'),
         ('networking', 'Networking'),
@@ -139,34 +138,22 @@ class InteresseMembroFundador(models.Model):
         ('eventos', 'Eventos sociais'),
         ('outros', 'Outros'),
     ]
-
     RESPOSTA_MEMBRO = [
         ('sim', 'Sim'),
         ('mais_info', 'Quero saber mais'),
     ]
 
     nome = models.CharField(max_length=150)
-
     telefone = models.CharField(max_length=30)
-
     email = models.EmailField()
-
     data_nascimento = models.DateField()
-
     genero = models.CharField(max_length=1, choices=GENEROS)
-
     empresa = models.CharField(max_length=150, blank=True)
-
     cargo = models.CharField(max_length=150, blank=True)
-
     bairro = models.CharField(max_length=100)
-
     distancia_media = models.CharField(max_length=50)
-
     interesse_principal = models.CharField(max_length=20, choices=INTERESSES)
-
     membro_fundador = models.CharField(max_length=20, choices=RESPOSTA_MEMBRO)
-
     criado_em = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
