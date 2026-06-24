@@ -99,8 +99,7 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
         Paragraph("<b>#</b>", cell_center),
         Paragraph("<b>Ticket</b>", cell_style),
         Paragraph("<b>Nome</b>", cell_style),
-        Paragraph("<b>Telefone</b>", cell_style),
-        Paragraph("<b>Email</b>", cell_style),
+        Paragraph("<b>T-shirt</b>", cell_style),
         Paragraph("<b>Confirm.</b>", cell_center),
     ]]
 
@@ -109,8 +108,7 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
             Paragraph(str(i), cell_center),
             Paragraph(t.external_id or "—", cell_style),
             Paragraph(t.buyer_name or "—", cell_style),
-            Paragraph(t.buyer_phone or "—", cell_style),
-            Paragraph(t.buyer_email or "—", cell_style),
+            Paragraph(t.tamanho_camisete or "—", cell_style),
             Paragraph(" ", cell_center),
         ])
 
