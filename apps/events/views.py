@@ -17,7 +17,7 @@ from .pdf import build_external_ticket_pdf
 logger = logging.getLogger(__name__)
 
 ETK_BASE = "https://eticketsmz.site"
-ETK_TOKEN = os.environ.get("ETK_TOKEN", "etk_live_3SZPEA7FNCZAdqjIaBIIbI7j")
+ETK_TOKEN = os.environ.get("ETK_TOKEN", "")
 TIMEOUT_READ = 10
 TIMEOUT_WRITE = 30
 CACHE_EVENTS_KEY = "events:list"
