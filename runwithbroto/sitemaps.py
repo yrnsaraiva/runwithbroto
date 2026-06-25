@@ -14,8 +14,6 @@ class MeuSitemap(Sitemap):
         # Usando o namespace do app
         return [
             'core:home',  # Namespace:home
-            'core:about',
-            'core:contact',
         ]
 
     def location(self, item):
