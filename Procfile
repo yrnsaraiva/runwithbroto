@@ -1,1 +1,1 @@
-web: python manage.py collectstatic --noinput && gunicorn runwithbroto.wsgi:application --log-file - --workers 3 --threads 2 --timeout 200
+gunicorn runwithbroto.wsgi --workers 2 --threads 4 --timeout 60 --worker-class gthread

@@ -56,3 +56,11 @@ class ExternalTicket(models.Model):
 
     def __str__(self):
         return f"{self.external_id} - {self.event_name} - {self.buyer_name}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["payment_status"]),
+            models.Index(fields=["event_id_external"]),
+            models.Index(fields=["external_created_at"]),
+            models.Index(fields=["event_name"]),
+        ]
