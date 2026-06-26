@@ -56,7 +56,6 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
 
     search_fields = (
         "external_id",
-        "event_name",
         "buyer_phone",
     )
 
@@ -64,6 +63,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "payment_status",
         "status",
         "event_name",
+        "entered"
     )
 
     ordering = ("-external_created_at",)
