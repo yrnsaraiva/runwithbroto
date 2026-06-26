@@ -107,7 +107,6 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
     for i, t in enumerate(tickets, start=1):
         data.append([
             Paragraph(str(i), cell_center),
-            Paragraph(t.external_id or "—", cell_style),
             Paragraph(t.buyer_name or "—", cell_style),
             Paragraph(t.buyer_phone or "—", cell_style),
             Paragraph(t.buyer_email or "—", cell_style),
