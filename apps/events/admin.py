@@ -66,6 +66,8 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "entered"
     )
 
+    list_per_page = None
+
     ordering = ("-external_created_at",)
 
     readonly_fields = (
