@@ -66,7 +66,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "entered"
     )
 
-    list_per_page = None
+    list_per_page = 500
 
     ordering = ("-external_created_at",)
 
