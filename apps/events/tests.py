@@ -1,7 +1,7 @@
 from django.test import TestCase
 import requests
 
-url = "https://eticketsmz.site/borrow/external/events"
+url = "https://eticketsmz.site/back/borrow/external/events"
 
 headers = {
     "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
