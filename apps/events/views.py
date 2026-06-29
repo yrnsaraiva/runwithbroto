@@ -16,7 +16,7 @@ from .pdf import build_external_ticket_pdf
 #
 logger = logging.getLogger(__name__)
 
-
+#EVNT17827193458075
 @require_http_methods(["GET"])
 def event_list(request):
 
@@ -198,8 +198,8 @@ TIMEOUT = 120
 
 @require_http_methods(["GET", "POST"])
 def register_form(request, event_id: str):
-    event_url = f"{ETK_BASE}/borrow/external/events/{event_id}"
-    ticket_url = f"{ETK_BASE}/borrow/external/tickets"
+    event_url = f"{ETK_BASE}/back/borrow/external/events/{event_id}"
+    ticket_url = f"{ETK_BASE}/back/borrow/external/tickets"
     auth_headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
 
     # 1) Buscar evento para renderizar o formulário e obter priceId
