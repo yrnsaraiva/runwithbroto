@@ -69,7 +69,7 @@ def event_list(request):
 
 
 @require_http_methods(["GET"])
-def event_detail(request, event_id='EVNT17772834386503'):
+def event_detail(request, event_id):
     url = f"https://eticketsmz.site/borrow/external/events/{event_id}"
 
     headers = {
