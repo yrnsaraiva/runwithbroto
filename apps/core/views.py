@@ -105,7 +105,7 @@ def dashboard_callback(request, context):
     hoje = timezone.now()
     ultimos_7_dias = hoje - timedelta(days=6)
 
-    tickets_pagos = tickets.filter(payment_status="paid").count()
+    tickets_pagos = tickets.filter(payment_status="paid", entered=False).count()
     total_eventos = tickets.values("event_id_external").distinct().count()
     receita_total = (
         tickets.filter(payment_status="paid")
