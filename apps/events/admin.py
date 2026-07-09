@@ -59,6 +59,8 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "buyer_phone",
     )
 
+    list_filter_submit = True
+
     list_filter = (
         "payment_status",
         "status",
