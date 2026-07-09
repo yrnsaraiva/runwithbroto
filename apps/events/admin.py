@@ -63,7 +63,8 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "payment_status",
         "status",
         "event_name",
-        "entered"
+        "entered",
+        "created_at"
     )
 
     list_per_page = 500
