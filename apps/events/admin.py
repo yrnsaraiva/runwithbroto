@@ -15,6 +15,7 @@ from .pdf import build_external_ticket_pdf
 
 from django.contrib.admin import AdminSite
 from unfold.admin import ModelAdmin
+from unfold.contrib.filters.admin import RangeDateFilter, RangeDateTimeFilter
 
 from import_export.admin import ImportExportModelAdmin
 
@@ -49,8 +50,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "event_name",
         "buyer_name",
         "buyer_phone",
-        "price_amount",
-        "payment_status",
+        "entered",
         "download_ticket_link",
     )
 
@@ -64,7 +64,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "status",
         "event_name",
         "entered",
-        "created_at"
+        ("created_at", RangeDateTimeFilter)
     )
 
     list_per_page = 500
