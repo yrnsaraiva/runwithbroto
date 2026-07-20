@@ -1,67 +1,137 @@
 import json
 import os
-import requests
+import logging
 from datetime import datetime, timezone as dt_timezone, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
+import requests
 from django.core.cache import cache
 from django.db.models import Count, Sum, Q
 from django.db.models.functions import TruncDate
 from django.shortcuts import render
 from django.utils import timezone
-import logging
 
 from apps.events.models import ExternalTicket
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# CONSTANTES E CONFIGURAÇÕES
+# =============================================================================
+
 ETK_BASE = "https://eticketsmz.site"
-ETK_TOKEN = os.environ.get("ETK_TOKEN", "")
+ETK_TOKEN = os.environ.get("ETK_TOKEN", "etk_live_3SZPEA7FNCZAdqjIaBIIbI7j")
 TIMEOUT_READ = 10
 CACHE_HOME_KEY = "core:home_events"
 CACHE_HOME_TTL = 60 * 5  # 5 minutos
 
+# =============================================================================
+# OVERRIDES TEMPORÁRIOS PARA EVENTOS
+# =============================================================================
+
+EVENT_OVERRIDES = {
+    "EVNT17827193458075": {  # ID do evento Run With Broto → Last Winter Social
+        "name": "Last Winter Social",
+        # UTC = 06:30 → no fuso Africa/Maputo (UTC+2) vira 08:30
+        "date": "2026-08-01T04:30:00Z",
+        "description": (
+            "No sábado, dia 1 de agosto de 2026, começa o dia com uma corrida de 5 km "
+            "e prolonga a experiência num after run pensado para celebrar o movimento e a comunidade.\n\n"
+            "Depois da corrida, junta-te ao Coffee Party, com DJs, ativações de marcas e um ambiente "
+            "descontraído para conviver, recuperar energias e conhecer novas pessoas.\n\n"
+            "Horário: 06:30 às 11:00\n\n"
+            "Inscrição: 300 MZN\n\n"
+            "As vagas são limitadas a apenas 100 participantes. Garante já o teu lugar."
+        ),
+        "imageUrl": "/static/img/lastwinter.jpeg",  # ← substitua pelo nome real
+        # Se quiser alterar localização:
+        # "location": {
+        #     "province": "Maputo",
+        #     "details": "Noctis",
+        # }
+    },
+}
+
+# =============================================================================
+# FUNÇÕES AUXILIARES - API CLIENT
+# =============================================================================
+
+def _etk_request(method, path, timeout=TIMEOUT_READ):
+    """Faz requisição à API da ETickets e retorna o JSON decodificado."""
+    url = f"{ETK_BASE}{path}"
+    headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
+    try:
+        resp = requests.request(method, url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+    except requests.RequestException as e:
+        logger.error(f"Erro na requisição para {url}: {e}")
+        raise
+
+def _apply_event_overrides(event_data):
+    """Aplica overrides temporários a um evento, se existirem."""
+    event_id = str(event_data.get("id"))
+    if event_id in EVENT_OVERRIDES:
+        overrides = EVENT_OVERRIDES[event_id]
+        for key, value in overrides.items():
+            if isinstance(value, dict) and key in event_data and isinstance(event_data[key], dict):
+                # Mescla dicionários aninhados (ex: location)
+                event_data[key].update(value)
+            else:
+                event_data[key] = value
+    return event_data
+
+def _parse_datetime(value):
+    """Converte string ISO 8601 para datetime (suporta Z e offset)."""
+    if not value:
+        return None
+    try:
+        if value.endswith('Z'):
+            value = value[:-1] + '+00:00'
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+def _build_event_summary(event_data):
+    """
+    Constrói um dicionário resumido para listagem, já com overrides aplicados.
+    """
+    start_at = _parse_datetime(event_data.get("date"))
+    return {
+        "event_id": event_data.get("id"),
+        "title": event_data.get("name"),
+        "description": event_data.get("description") or "",
+        "slug": event_data.get("id"),
+        "city": (event_data.get("location") or {}).get("province"),
+        "meeting_point": (event_data.get("location") or {}).get("details"),
+        "event_type": event_data.get("category"),
+        "confirmed_count": event_data.get("totalTicketsPurchased", 0),
+        "start_at": start_at,
+        "image": event_data.get("imageUrl"),
+    }
+
+# =============================================================================
+# VIEWS
+# =============================================================================
 
 def _fetch_home_events() -> tuple[list, list]:
-    """Retorna (events, future_events). Usa cache."""
+    """
+    Retorna (events, future_events) com cache.
+    Aplica os overrides definidos em EVENT_OVERRIDES.
+    """
     cached = cache.get(CACHE_HOME_KEY)
     if cached is not None:
         return cached
 
-    url = f"{ETK_BASE}/borrow/external/events"
-    headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
     events = []
-
     try:
-        response = requests.get(url, headers=headers, timeout=TIMEOUT_READ)
-        response.raise_for_status()
-        data = response.json()
-
-        for e in data.get("data", []):
-            event_id = e.get("id")
-            if not event_id:
-                continue
-
-            start_at = None
-            if e.get("date"):
-                try:
-                    start_at = datetime.fromisoformat(e["date"].replace("Z", "+00:00"))
-                except Exception:
-                    pass
-
-            events.append({
-                "event_id": event_id,
-                "title": e.get("name"),
-                "description": e.get("description") or "",
-                "slug": event_id,
-                "city": (e.get("location") or {}).get("province"),
-                "meeting_point": (e.get("location") or {}).get("details"),
-                "event_type": e.get("category"),
-                "confirmed_count": e.get("totalTicketsPurchased", 0),
-                "start_at": start_at,
-                "image": e.get("imageUrl"),
-            })
-
+        data = _etk_request("GET", "/back/borrow/external/events")
+        raw_events = data.get("data", [])
+        for e in raw_events:
+            # Aplica overrides antes de construir o resumo
+            _apply_event_overrides(e)
+            events.append(_build_event_summary(e))
     except Exception as e:
         logger.warning(f"Erro ao carregar eventos (home): {e}")
 
@@ -76,8 +146,8 @@ def _fetch_home_events() -> tuple[list, list]:
     cache.set(CACHE_HOME_KEY, result, CACHE_HOME_TTL)
     return result
 
-
 def home(request):
+    """Página inicial com lista de eventos e próximo evento."""
     events, future_events = _fetch_home_events()
 
     next_event = min(
@@ -91,16 +161,23 @@ def home(request):
         "next_event": next_event,
     })
 
-
 def contact(request):
+    """Página de contacto."""
     return render(request, "core/contact.html")
 
-
 def our_story(request):
+    """Página 'A Nossa História'."""
     return render(request, "core/our-story.html")
 
+# =============================================================================
+# DASHBOARD (ADMIN)
+# =============================================================================
 
 def dashboard_callback(request, context):
+    """
+    Callback para o dashboard do admin.
+    Gera KPIs, gráficos e tabela de tickets por evento.
+    """
     tickets = ExternalTicket.objects.all()
     hoje = timezone.now()
     ultimos_7_dias = hoje - timedelta(days=6)

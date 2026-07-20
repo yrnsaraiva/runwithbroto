@@ -6,7 +6,7 @@
     <!-- HERO -->
     <section class="max-w-6xl mx-auto px-4 pt-10 pb-10">
         <div class="text-[11px] muted label">broto.st // our story</div>
-        <h1 class="mt-3 font-display text-5xl md:text-7xl leading-[0.9] max-w-4xl">
+        <h1 class="mt-3 font-display uppercase text-5xl md:text-7xl leading-[0.9] max-w-4xl text-ink">
             Community first.
             <span class="block">Consistency always.</span>
         </h1>
@@ -16,9 +16,9 @@
             e a comunidade é o motivo.
         </p>
 
-        <div class="mt-8 grid lg:grid-cols-12 gap-6 items-start">
+        <div class="mt-8 grid lg:grid-cols-12 gap-4 items-stretch">
             <div class="lg:col-span-7">
-                <div class="aspect-[16/9] border hairline rounded-2xl bg-[linear-gradient(135deg,#f2f2f2,#dcdcdc)] overflow-hidden">
+                <div class="aspect-[16/9] border hairline overflow-hidden">
                     <img
                             src="{% static 'img/Fotografias45.jpg' %}"
                             alt="Descrição da imagem"
@@ -27,20 +27,30 @@
                 </div>
             </div>
 
-            <div class="lg:col-span-5 border hairline rounded-2xl p-6">
-                <div class="text-[11px] muted label">manifesto</div>
-                <blockquote class="mt-4">
-                    <p class="font-display text-3xl leading-[0.95]">
-                        “We run together. We grow together.”
-                    </p>
-                    <p class="mt-3 text-sm muted leading-relaxed">
-                        Ninguém fica para trás. A consistência vence a motivação. E a rua é para todos.
-                    </p>
-                </blockquote>
+            <div class="lg:col-span-5 p-8 flex flex-col justify-between min-h-[280px] relative overflow-hidden text-paper"
+                 style="background: var(--ink);">
+                <div aria-hidden
+                     class="absolute -right-8 -bottom-14 font-display text-[10rem] leading-none text-white/5 select-none pointer-events-none">
+                    BROTO
+                </div>
+                <div class="relative">
+                    <span class="inline-flex items-center px-2 py-1 text-ink text-xs font-semibold mb-6"
+                          style="background: var(--brand);">
+                        MANIFESTO
+                    </span>
+                    <blockquote>
+                        <p class="font-display uppercase text-3xl md:text-4xl leading-[0.95] text-white">
+                            We run together. We grow together.
+                        </p>
+                        <p class="mt-4 text-sm text-white/60 leading-relaxed">
+                            Ninguém fica para trás. A consistência vence a motivação. E a rua é para todos.
+                        </p>
+                    </blockquote>
+                </div>
 
-                <div class="mt-6 flex flex-wrap gap-2">
-                    <a class="btn-solid" href="https://strava.app.link/9Qj3YDzPm1b" target="_blank" rel="nofollow">Join</a>
-                    <a class="btn" href="{% url 'events:event_list' %}">Schedule</a>
+                <div class="relative mt-6 flex flex-wrap gap-3">
+                    <a class="btn-solid" style="border-radius:0" href="https://strava.app.link/9Qj3YDzPm1b" target="_blank" rel="nofollow">Join</a>
+                    <a class="btn text-paper hover:text-ink bg-white" style="border-radius:0; border-color: rgba(255,255,255,.2)" href="{% url 'events:event_list' %}">Schedule</a>
                 </div>
             </div>
         </div>
@@ -50,45 +60,45 @@
     <section class="max-w-6xl mx-auto px-4 pb-16">
         <div class="grid lg:grid-cols-12 gap-10 items-start hairline pt-10">
             <div class="lg:col-span-5">
-                <div class="text-[11px] muted label">why we exist</div>
-                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[0.95]">
+                <span class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">why we exist</span>
+                <h2 class="mt-3 font-display uppercase text-4xl md:text-5xl leading-[0.95] text-ink">
                     A place to show up.
                 </h2>
                 <p class="mt-4 muted leading-relaxed">
-                    A maioria das pessoas não precisa de “mais informação”. Precisa de um lugar e um horário.
+                    A maioria das pessoas não precisa de "mais informação". Precisa de um lugar e um horário.
                     A Broto é isso: encontros consistentes, paces acessíveis, e uma comunidade que recebe.
                 </p>
             </div>
 
             <div class="lg:col-span-7">
                 <div class="grid md:grid-cols-2 gap-4">
-                    <div class="border hairline rounded-2xl p-6">
-                        <div class="text-[11px] muted label">01</div>
-                        <div class="mt-3 font-display text-3xl leading-[0.95]">Belonging</div>
+                    <div class="border hairline p-6">
+                        <div class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">01</div>
+                        <div class="mt-3 font-display uppercase text-3xl leading-[0.95] text-ink">Belonging</div>
                         <p class="mt-3 text-sm muted leading-relaxed">
                             Corrida como ponte para amizade, disciplina e saúde mental.
                         </p>
                     </div>
 
-                    <div class="border hairline rounded-2xl p-6">
-                        <div class="text-[11px] muted label">02</div>
-                        <div class="mt-3 font-display text-3xl leading-[0.95]">Consistency</div>
+                    <div class="border hairline p-6">
+                        <div class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">02</div>
+                        <div class="mt-3 font-display uppercase text-3xl leading-[0.95] text-ink">Consistency</div>
                         <p class="mt-3 text-sm muted leading-relaxed">
                             Rotina simples: aparece, aquece, corre, volta.
                         </p>
                     </div>
 
-                    <div class="border hairline rounded-2xl p-6">
-                        <div class="text-[11px] muted label">03</div>
-                        <div class="mt-3 font-display text-3xl leading-[0.95]">No ego</div>
-                        <p class="mt-3 text-sm muted leading-relaxed">
-                            Ritmos diferentes, mesma vibe. Apoio > competição.
+                    <div class="p-6 text-paper" style="background: var(--ink);">
+                        <div class="text-[10px] font-semibold uppercase tracking-widest text-white/40">03</div>
+                        <div class="mt-3 font-display uppercase text-3xl leading-[0.95]" style="color: var(--brand);">No ego</div>
+                        <p class="mt-3 text-sm text-white/60 leading-relaxed">
+                            Ritmos diferentes, mesma vibe. Apoio &gt; competição.
                         </p>
                     </div>
 
-                    <div class="border hairline rounded-2xl p-6">
-                        <div class="text-[11px] muted label">04</div>
-                        <div class="mt-3 font-display text-3xl leading-[0.95]">The city</div>
+                    <div class="border hairline p-6">
+                        <div class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">04</div>
+                        <div class="mt-3 font-display uppercase text-3xl leading-[0.95] text-ink">The city</div>
                         <p class="mt-3 text-sm muted leading-relaxed">
                             Maputo e Matola como pista: rua, marginal, rotas novas.
                         </p>
@@ -100,17 +110,24 @@
 
         <!-- CTA -->
         <div class="mt-10 hairline pt-10">
-            <div class="border hairline rounded-2xl overflow-hidden">
-                <div class="p-6 md:p-10 border-b hairline">
-                    <div class="text-[11px] muted label">ready?</div>
-                    <div class="mt-3 font-display text-4xl md:text-5xl leading-[0.95]">Show up this week.</div>
-                    <div class="mt-6 flex flex-wrap gap-2">
-                        <a class="btn-solid" href="{% url 'events:event_list' %}">Schedule</a>
-                        <a class="btn" href="https://strava.app.link/9Qj3YDzPm1b" rel="nofollow" target="_blank">Join</a>
+            <div class="border hairline overflow-hidden grid md:grid-cols-2">
+                <div class="p-8 md:p-10 flex flex-col justify-center text-paper relative overflow-hidden" style="background: var(--ink);">
+                    <div aria-hidden
+                         class="absolute -right-10 -bottom-16 font-display text-[10rem] leading-none text-white/5 select-none pointer-events-none">
+                        BROTO
+                    </div>
+                    <div class="relative">
+                        <span class="inline-flex items-center px-2 py-1 text-ink text-xs font-semibold mb-6" style="background: var(--brand);">
+                            READY?
+                        </span>
+                        <div class="font-display uppercase text-4xl md:text-5xl leading-[0.95] mb-6 text-white">Show up this week.</div>
+                        <div class="flex flex-wrap gap-3">
+                            <a class="btn-solid" style="border-radius:0" href="{% url 'events:event_list' %}">Schedule</a>
+                            <a class="btn text-paper hover:text-ink bg-white" style="border-radius:0; border-color: rgba(255,255,255,.2)" href="https://strava.app.link/9Qj3YDzPm1b" rel="nofollow" target="_blank">Join</a>
+                        </div>
                     </div>
                 </div>
-                <div class="aspect-[16/9] bg-[linear-gradient(135deg,#f2f2f2,#dcdcdc)] grid place-items-center">
-
+                <div class="aspect-[16/9] md:aspect-auto">
                     <img
                             src="{% static 'img/Photo153.JPG' %}"
                             alt="Descrição da imagem"

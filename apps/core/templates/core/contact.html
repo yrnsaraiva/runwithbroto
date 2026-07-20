@@ -3,17 +3,26 @@
 
 {% block content %}
 
-    <section class="max-w-6xl mx-auto px-4 pt-10 pb-16">
-        <div class="grid lg:grid-cols-12 gap-10 items-start">
-            <div class="lg:col-span-6">
-                <div class="text-[11px] muted label">broto.st // contact</div>
-                <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[0.92]">Contact.</h1>
-                <p class="mt-4 muted leading-relaxed max-w-xl">
-                    Parcerias, imprensa, eventos, colaborações - fala com a gente.
-                </p>
+    <style>
+        .contact-square .field,
+        .contact-square .btn,
+        .contact-square .btn-solid {
+            border-radius: 0;
+        }
+    </style>
 
-                <div class="mt-8 border hairline rounded-2xl p-6">
-                    <div class="text-[11px] muted label">channels</div>
+    <section class="contact-square max-w-6xl mx-auto px-4 pt-10 pb-16">
+        <div class="text-[11px] muted label">broto.st // contact</div>
+        <h1 class="mt-3 font-display uppercase text-5xl md:text-6xl leading-[0.92] text-ink">Contact.</h1>
+        <p class="mt-4 muted leading-relaxed max-w-xl">
+            Parcerias, imprensa, eventos, colaborações - fala com a gente.
+        </p>
+
+        <div class="mt-8 grid lg:grid-cols-12 gap-10 items-start">
+            <div class="lg:col-span-6">
+
+                <div class="border hairline p-6">
+                    <div class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">channels</div>
                     <div class="mt-4 grid gap-3 text-sm">
                         <div class="flex items-start justify-between gap-4">
                             <div>
@@ -49,23 +58,29 @@
                     </div>
                 </div>
 
-                <div class="mt-4 border hairline rounded-2xl p-6">
-                    <div class="text-[11px] muted label">cities</div>
-                    <div class="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
-                        <div class="border hairline rounded-xl p-4">
-                            <div class="font-medium">Maputo</div>
-                            <div class="mt-1 muted">Weekly runs • Evening</div>
-                        </div>
+                <div class="mt-4 p-6 text-paper relative overflow-hidden" style="background: var(--ink);">
+                    <div aria-hidden
+                         class="absolute -right-8 -bottom-12 font-display text-[8rem] leading-none text-white/5 select-none pointer-events-none">
+                        BROTO
                     </div>
-                    <div class="mt-4">
-                        <a class="link-u text-sm" href="{% url 'events:event_list' %}">See schedule</a>
+                    <div class="relative">
+                        <div class="text-[10px] font-semibold uppercase tracking-widest text-white/40">cities</div>
+                        <div class="mt-3 grid sm:grid-cols-2 gap-3 text-sm">
+                            <div class="border border-white/10 p-4">
+                                <div class="font-medium" style="color: var(--brand);">Maputo</div>
+                                <div class="mt-1 text-white/60">Weekly runs • Evening</div>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <a class="link-u text-sm text-paper" href="{% url 'events:event_list' %}">See schedule</a>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="lg:col-span-6">
-                <div class="border hairline rounded-2xl p-6 md:p-8">
-                    <div class="text-[11px] muted label">send a message</div>
+                <div class="border hairline p-6 md:p-8">
+                    <div class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">send a message</div>
                     <form class="mt-6 grid gap-4" onsubmit="return handleContact(event)">
                         <div class="grid sm:grid-cols-2 gap-4">
                             <div>
@@ -98,9 +113,9 @@
 
                         <button class="btn-solid mt-2" type="submit">Send</button>
 
-                        <div class="hidden border hairline rounded-xl p-4" id="contactSuccess">
-                            <div class="text-[11px] muted label">sent</div>
-                            <div class="mt-2 font-display text-2xl leading-[0.95]">Message received.</div>
+                        <div class="hidden border hairline p-4" id="contactSuccess">
+                            <div class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">sent</div>
+                            <div class="mt-2 font-display uppercase text-2xl leading-[0.95] text-ink">Message received.</div>
                             <p class="mt-2 text-sm muted">Vamos responder o mais rápido possível.</p>
                         </div>
                     </form>
@@ -110,4 +125,3 @@
     </section>
 
 {% endblock %}
-

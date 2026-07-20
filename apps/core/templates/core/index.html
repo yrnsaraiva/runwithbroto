@@ -3,127 +3,237 @@
 
 {% block content %}
 
-    <main>
-        <!-- HERO with countdown & next event spotlight -->
-        {% if next_event and next_event.event_id %}
+    <style>
+        /* Marquee genérico (topo + CTA) — mesmo princípio do marquee de parceiros */
+        .rwb-marquee-track {
+            display: flex;
+            width: max-content;
+            animation: rwb-scroll 26s linear infinite;
+        }
+        .rwb-marquee-track:hover {
+            animation-play-state: paused;
+        }
+        @keyframes rwb-scroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+        @keyframes rwb-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .3; }
+        }
+        .rwb-pulse-dot {
+            animation: rwb-pulse 1.6s ease-in-out infinite;
+        }
+    </style>
 
-            <!-- HERO NORMAL -->
-            <section class="max-w-6xl mx-auto px-4 pt-12 pb-8 min-h-[calc(100dvh-19dvh)] flex items-center">
-                <div class="grid lg:grid-cols-2 gap-10 items-center">
+    <main id="home">
 
-                    <div>
-                        <div class="text-[11px] muted label">broto.st // próxima paragem</div>
-
-                        <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[1.1] tracking-tight">
-                            {{ next_event.title }}
-                        </h1>
-
-                        <div class="mt-4 flex flex-wrap gap-4 items-center">
-                            <div class="flex items-center gap-2 text-sm">
-                                <span>📍 {{ next_event.meeting_point|default:"A definir" }}</span>
-                                <span class="w-1 h-1 rounded-full bg-muted"></span>
-                                <span>⏱️ {{ next_event.start_at|time:"H:i"|default:"--:--" }}</span>
-                            </div>
-
-                            <div class="text-[11px] muted label bg-neutral-50 px-3 py-1 rounded-full">
-                                {{ next_event.event_type|default:"Evento" }}
-                            </div>
-                        </div>
-
-                        <p class="mt-4 muted leading-relaxed max-w-md">
-                            {{ next_event.description|default:"Sem descrição disponível."|truncatewords:31 }}
-                        </p>
-
-                        <div class="mt-6 flex flex-wrap gap-3">
-
-                            <a class="btn-solid"
-                               href="{% url 'events:event_detail' next_event.event_id %}">
-                                Ver detalhes →
-                            </a>
-
-                            <a class="btn" href="{% url 'events:event_list' %}">
-                                Ver agenda
-                            </a>
-
-                        </div>
-                    </div>
-
-                    <!-- COUNTDOWN -->
-                    <div class="border hairline rounded-2xl p-6 md:p-8 bg-white shadow-sm">
-                        <div class="text-[11px] muted label text-center md:text-left">
-                            faltam apenas
-                        </div>
-
-                        <div class="mt-2 grid grid-cols-4 gap-2 text-center">
-                            <div>
-                                <div class="countdown-number font-display text-4xl" id="days">00</div>
-                                <div class="text-[10px] muted uppercase mt-1 tracking-wide">Dias</div>
-                            </div>
-                            <div>
-                                <div class="countdown-number font-display text-4xl" id="hours">00</div>
-                                <div class="text-[10px] muted uppercase mt-1 tracking-wide">Horas</div>
-                            </div>
-                            <div>
-                                <div class="countdown-number font-display text-4xl" id="minutes">00</div>
-                                <div class="text-[10px] muted uppercase mt-1 tracking-wide">Min</div>
-                            </div>
-                            <div>
-                                <div class="countdown-number font-display text-4xl" id="seconds">00</div>
-                                <div class="text-[10px] muted uppercase mt-1 tracking-wide">Seg</div>
-                            </div>
-                        </div>
-
-                        <div class="mt-6 border-t hairline pt-5 flex items-center justify-between">
-                <span class="text-sm font-medium">
-                    {{ next_event.start_at|date:"l, d M"|default:"Data por definir" }}
-                    •
-                    {{ next_event.start_at|time:"H:i"|default:"--:--" }}
-                </span>
-                            <span class="text-xs muted label">#RunWithBroto</span>
-                        </div>
-                    </div>
-
-                </div>
-            </section>
-
-        {% else %}
-            <section class="max-w-6xl mx-auto px-4 pt-10 pb-6">
-                <div class="text-[11px] muted label">broto.st // próxima paragem</div>
-                <h1 class="mt-3 font-display text-5xl md:text-6xl leading-[0.92]">Weekly runs & meet-ups.</h1>
-            </section>
-
-            <!-- FALLBACK LIMPO (sem evento válido) -->
-            <section class="max-w-6xl mx-auto min-h-[45vh] px-4 pb-8">
-                <div class="mt-10 border hairline rounded-2xl p-8" id="emptyState">
-                    <div class="text-[11px] muted label">Sem resultados</div>
-                    <div class="mt-3 font-display text-3xl leading-[0.95]">Não existem corridas agendadas para os
-                        próximos dias.
-                    </div>
-                    <p class="mt-3 muted">Acompanha as nossas redes sociais para ficares a par das novidades.</p>
-                </div>
-            </section>
-
-        {% endif %}
-
-        <!-- INSTAGRAM SECTION (clean grid, running vibe) -->
-        <section class="max-w-6xl mx-auto px-4 py-12 ">
-            <div class="text-center max-w-2xl mx-auto mb-10">
-                <div class="text-[11px] muted label">@runwithbroto_</div>
-                <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[1.1]">Instagram</h2>
-                <p class="mt-3 muted">Segue-nos para ver os momentos em tempo real.</p>
-            </div>
-
-            <div class="relative w-full overflow-hidden">
-                <div class="relative w-full" style="height: 500px;">
-                    <!-- Elfsight Instagram Feed | rwb -->
-                    <script src="https://elfsightcdn.com/platform.js" async></script>
-                    <div class="elfsight-app-4de6df48-e95e-4654-977d-034465e4e5a8" data-elfsight-app-lazy></div>
-                </div>
+        <!-- Marquee reduzido -->
+        <section class="py-3 overflow-hidden border-b border-hairline" style="background: var(--brand);">
+            <div class="rwb-marquee-track whitespace-nowrap">
+                {% for i in "12" %}
+                    <span class="font-display uppercase text-xl md:text-2xl px-4 text-ink leading-none tracking-wide">
+                        RUN WITH BROTO · MOZ · PRÓXIMA PARAGEM: {{ next_event.meeting_point|default:"A DEFINIR" }} · {{ next_event.start_at|time:"H:i"|default:"--:--" }}H ·
+                        RUN WITH BROTO · MOZ · PRÓXIMA PARAGEM: {{ next_event.meeting_point|default:"A DEFINIR" }} · {{ next_event.start_at|time:"H:i"|default:"--:--" }}H ·
+                        RUN WITH BROTO · MOZ · PRÓXIMA PARAGEM: {{ next_event.meeting_point|default:"A DEFINIR" }} · {{ next_event.start_at|time:"H:i"|default:"--:--" }}H ·
+                    </span>
+                {% endfor %}
             </div>
         </section>
 
-        <!-- GALLERY SECTION (clean grid, running vibe) -->
-        <section class="max-w-6xl mx-auto px-4 py-12 ">
+        <!-- Bento -->
+        <section class="max-w-6xl mx-auto px-4 py-12 md:py-16">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+                <!-- Next Stop -->
+                <div class="md:col-span-8 text-paper p-8 md:p-10 flex flex-col justify-between min-h-[420px] relative overflow-hidden"
+                     style="background: var(--ink);">
+                    <div aria-hidden
+                         class="absolute -right-10 -bottom-16 font-display text-[14rem] leading-none text-white/5 select-none pointer-events-none">
+                        BROTO
+                    </div>
+
+                    {% if next_event and next_event.event_id %}
+                        <div class="relative">
+                            <span class="inline-flex items-center gap-2 px-2 py-1 text-ink text-xs font-semibold mb-6"
+                                  style="background: var(--brand);">
+                                <span class="size-1.5 rounded-full bg-black rwb-pulse-dot"></span>
+                                NEXT STOP
+                            </span>
+                            <h1 class="font-display uppercase text-2xl md:text-5xl leading-[0.95] mb-4 text-white">
+                                {{ next_event.title }}
+                            </h1>
+                            <p class="text-white/60">
+                                {{ next_event.description|default:"Sem descrição disponível."|truncatewords:20 }}
+                            </p>
+                        </div>
+                        <div class="relative flex items-center gap-6 flex-wrap">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-white/40 uppercase tracking-widest">Ponto de encontro</span>
+                                <span class="font-display text-2xl md:text-3xl text-white">{{ next_event.meeting_point|default:"A definir" }}</span>
+                            </div>
+                            <div class="w-px h-10 bg-white/10"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-white/40 uppercase tracking-widest">Hora</span>
+                                <span class="font-display text-2xl md:text-3xl text-white">{{ next_event.start_at|time:"H:i"|default:"--:--" }}</span>
+                            </div>
+                            <div class="w-px h-10 bg-white/10"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-white/40 uppercase tracking-widest">Tipo</span>
+                                <span class="font-display text-2xl md:text-3xl text-white">{{ next_event.event_type|default:"Evento" }}</span>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="relative">
+                            <span class="inline-flex items-center gap-2 px-2 py-1 text-ink text-xs font-semibold mb-6"
+                                  style="background: var(--brand);">
+                                NEXT STOP
+                            </span>
+                            <h1 class="font-display uppercase text-5xl md:text-6xl leading-[0.95] mb-4">
+                                Weekly runs &amp; meet-ups
+                            </h1>
+                            <p class="max-w-[42ch] text-white/60 text-lg">
+                                Não existem corridas agendadas para os próximos dias. Acompanha as nossas redes
+                                sociais para ficares a par das novidades.
+                            </p>
+                        </div>
+                        <div class="relative mt-6">
+                            <a class="btn-solid" style="border-radius:0" href="{% url 'events:event_list' %}">
+                                Ver agenda
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Countdown -->
+                <div class="md:col-span-4 p-8 flex flex-col justify-center items-center text-center min-h-[420px]"
+                     style="background: var(--brand);">
+                    <span class="text-xs font-semibold uppercase mb-3 tracking-widest text-ink">Faltam apenas</span>
+
+                    <div class="grid grid-cols-4 gap-2 w-full mb-6">
+                        <div>
+                            <div class="font-display text-5xl md:text-6xl tabular-nums leading-none text-ink" id="days">00</div>
+                            <div class="text-[10px] uppercase mt-1 tracking-widest text-ink/70">Dias</div>
+                        </div>
+                        <div>
+                            <div class="font-display text-5xl md:text-6xl tabular-nums leading-none text-ink" id="hours">00</div>
+                            <div class="text-[10px] uppercase mt-1 tracking-widest text-ink/70">Horas</div>
+                        </div>
+                        <div>
+                            <div class="font-display text-5xl md:text-6xl tabular-nums leading-none text-ink" id="minutes">00</div>
+                            <div class="text-[10px] uppercase mt-1 tracking-widest text-ink/70">Min</div>
+                        </div>
+                        <div>
+                            <div class="font-display text-5xl md:text-6xl tabular-nums leading-none text-ink" id="seconds">00</div>
+                            <div class="text-[10px] uppercase mt-1 tracking-widest text-ink/70">Seg</div>
+                        </div>
+                    </div>
+
+                    <div class="text-xs font-semibold uppercase tracking-widest mb-6 text-ink/70">
+                        {{ next_event.start_at|date:"l, d M"|default:"Data por definir" }}
+                    </div>
+
+                    {% if next_event and next_event.event_id %}
+                        <a href="{% url 'events:event_detail' next_event.event_id %}"
+                           class="w-full py-3 px-4 text-sm font-semibold uppercase transition-colors text-paper hover:opacity-90"
+                           style="background: var(--ink); color: var(--brand)">
+                            Ver detalhes
+                        </a>
+                    {% else %}
+                        <a href="{% url 'events:event_list' %}"
+                           class="w-full py-3 px-4 text-sm font-semibold uppercase transition-colors text-paper hover:opacity-90"
+                           style="background: var(--ink); color: var(--brand)">
+                            Ver agenda
+                        </a>
+                    {% endif %}
+                </div>
+
+                <!-- Weekly Agenda -->
+                <div id="schedule" class="md:col-span-4 border border-hairline bg-white p-8 min-h-[320px]">
+                    <div class="flex items-start justify-between mb-6">
+                        <h3 class="font-display uppercase text-3xl leading-tight text-ink">
+                            Agenda <br /> Semanal
+                        </h3>
+                        <span class="font-mono text-[10px] uppercase tracking-widest text-muted">
+                            {% now "W" %}
+                        </span>
+                    </div>
+                    <div class="flex flex-col items-start justify-center py-6 text-left">
+                        <div class="size-10 rounded-full grid place-items-center mb-4" style="background: var(--brand);">
+                            <svg class="size-5 text-ink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M12 8v4l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                        </div>
+                        {% if next_event and next_event.event_id %}
+                            <p class="font-display uppercase text-2xl leading-tight mb-2 text-ink">Já temos a próxima corrida</p>
+                            <p class="text-sm text-muted">
+                                {{ next_event.title }} — {{ next_event.start_at|date:"d M"|default:"data por definir" }}.
+                                Consulta a agenda completa para veres todas as próximas corridas.
+                            </p>
+                        {% else %}
+                            <p class="font-display uppercase text-2xl leading-tight mb-2 text-ink">Sem corridas agendadas</p>
+                            <p class="text-sm text-muted">
+                                Novas corridas anunciadas todos os domingos às 20h no Instagram.
+                            </p>
+                        {% endif %}
+                        <a href="{% url 'events:event_list' %}" class="link-u mt-4 text-sm font-semibold text-ink">
+                            Ver agenda completa
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Story -->
+                <div id="story" class="md:col-span-5 border border-hairline bg-white p-8 flex flex-col justify-between min-h-[320px]">
+                    <div>
+                        <span class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">Our Story</span>
+                        <h3 class="font-display uppercase text-4xl md:text-5xl leading-tight mt-2 mb-4 text-ink">
+                            Beyond the pavement
+                        </h3>
+                        <p class="max-w-[52ch] text-muted leading-relaxed">
+                            Run With Broto nasceu para criar rotina e pertencimento através da corrida.
+                            A rua é o nosso espaço e a comunidade é o motivo.
+                        </p>
+                    </div>
+                    <a href="{% url 'core:our_story' %}" class="link-u inline-flex items-center gap-2 text-sm font-semibold mt-6 text-ink">
+                        Ler o manifesto
+                        <svg class="size-4" fill="currentColor" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd"
+                                  d="M2 8a.75.75 0 0 1 .75-.75h8.69L8.22 4.03a.75.75 0 0 1 1.06-1.06l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 0 1-1.06-1.06l3.22-3.22H2.75A.75.75 0 0 1 2 8Z" />
+                        </svg>
+                    </a>
+                </div>
+
+                <!-- Stats -->
+                <div class="md:col-span-3 text-paper p-8 flex flex-col justify-between min-h-[320px]" style="background: var(--ink);">
+                    <span class="text-[10px] uppercase tracking-widest text-white/40">Club stats</span>
+                    <div>
+                        <div class="font-display text-6xl leading-none" style="color: var(--brand);">5.2K</div>
+                        <span class="text-[10px] uppercase tracking-widest text-white/40">Followers</span>
+                    </div>
+                    <div>
+                        <div class="font-display text-6xl leading-none text-white">25</div>
+                        <span class="text-[10px] uppercase tracking-widest text-white/40">Corridas realizadas</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Big CTA marquee -->
+        <section class="py-8 overflow-hidden" style="background: var(--ink);">
+            <div class="rwb-marquee-track whitespace-nowrap">
+                {% for i in "12" %}
+                    <span class="font-display uppercase text-2xl md:text-4xl px-6 leading-none" style="color: var(--brand);">
+                        JOIN THE PACK · NO EGOS, JUST MILES · CORRE COM A GENTE ·
+                        JOIN THE PACK · NO EGOS, JUST MILES · CORRE COM A GENTE ·
+                    </span>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- GALLERY SECTION -->
+        <section class="max-w-6xl mx-auto px-4 py-12">
             <div class="text-center max-w-2xl mx-auto mb-8">
                 <div class="text-[11px] muted label">momentos • rua • comunidade</div>
                 <h2 class="mt-3 font-display text-4xl md:text-5xl leading-[1.1]">Galeria</h2>
@@ -134,7 +244,8 @@
             <div class="overflow-hidden shadow-sm bg-neutral-50" id="galleryContainer">
                 <div class="relative w-full" style="height: 520px;">
                     <iframe
-                            src="https://coresvivas62.pixieset.com/run/"
+                            src="https://coresvivasclientesmoz.pixieset.com/runwithbrotocoffeparty/"
+
                             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"
                             allowfullscreen
                             loading="lazy">
@@ -200,7 +311,6 @@
                                  class="h-15 object-contain"/>
                         </div>
 
-
                     </div>
                 </div>
             </div>
@@ -210,8 +320,6 @@
                     display: flex;
                     will-change: transform;
                 }
-
-
             </style>
 
             <script>
@@ -300,8 +408,6 @@
         // Se preferir formato ISO (mais simples)
         const eventDateFromDjango = new Date("{{ next_event.start_at|date:'c' }}");
 
-        console.log("Data do evento:", eventDateFromDjango);
-
         function getNextEventDate() {
             const eventDate = eventDateFromDjango;
             const now = new Date();
@@ -342,6 +448,5 @@
         updateCountdown();
         setInterval(updateCountdown, 1000);
     </script>
-
 
 {% endblock %}
