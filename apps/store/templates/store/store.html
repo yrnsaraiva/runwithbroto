@@ -473,6 +473,31 @@
         return g.includes('#f2f2f2') || g.includes('#e8dcc8') || g.includes('#dfe7ef');
     }
 
+    // Ajuda a lidar com as variações (tamanho/preço/stock) de cada produto
+    function getVariant(p, size) {
+        return (p.variants || []).find(v => v.size === size);
+    }
+    function getPrice(p, size) {
+        const v = getVariant(p, size);
+        return v ? v.price : p.price;
+    }
+    function isVariantSoldOut(p, size) {
+        const v = getVariant(p, size);
+        return v ? v.soldOut : false;
+    }
+    function defaultSize(p) {
+        if (!p.variants || p.variants.length === 0) return null;
+        const firstAvailable = p.variants.find(v => !v.soldOut);
+        return (firstAvailable || p.variants[0]).size;
+    }
+    function cardPriceLabel(p) {
+        if (!p.variants || p.variants.length === 0) return fmt(p.price);
+        const prices = p.variants.map(v => v.price);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        return min === max ? fmt(min) : `A partir de ${fmt(min)}`;
+    }
+
     function getCsrfToken() {
         const el = document.querySelector('[name=csrfmiddlewaretoken]');
         return el ? el.value : '';
@@ -559,7 +584,7 @@
                 <div class="p-3 sm:p-4">
                     <div class="text-[10px] sm:text-[11px] muted label">${labelFor(p.category)}</div>
                     <div class="mt-1.5 sm:mt-2 text-sm sm:text-base font-medium leading-snug"><span class="cardTitle">${p.name}</span></div>
-                    <div class="mt-1.5 sm:mt-2 text-xs sm:text-sm muted">${fmt(p.price)}</div>
+                    <div class="mt-1.5 sm:mt-2 text-xs sm:text-sm muted">${cardPriceLabel(p)}</div>
                 </div>
             </div>
         `;
@@ -634,7 +659,7 @@
     function openQuickView(id) {
         const p = PRODUCTS.find(x => x.id === id);
         if (!p) return;
-        qvState = { productId: id, size: p.sizes[0], qty: 1 };
+        qvState = { productId: id, size: defaultSize(p), qty: 1 };
         lastFocusedEl = document.activeElement;
         renderQuickView(p);
         document.getElementById('quickViewOverlay').classList.add('is-open');
@@ -664,15 +689,16 @@
                         <div class="text-[11px] muted label">${labelFor(p.category)}</div>
                     </div>
                     <div class="mt-2 font-display text-2xl sm:text-3xl leading-[0.95]" id="qvTitle">${p.name}</div>
-                    <div class="mt-2 text-base sm:text-lg">${fmt(p.price)}</div>
+                    <div class="mt-2 text-base sm:text-lg" id="qvPrice">${fmt(getPrice(p, qvState.size))}</div>
                     <p class="mt-3 text-sm muted leading-relaxed">${p.blurb || ''}</p>
 
+                    ${(p.variants && p.variants.length) ? `
                     <div class="mt-5">
                         <div class="text-sm font-medium mb-2">Tamanho</div>
                         <div class="flex flex-wrap gap-2" id="qvSizes">
-                            ${p.sizes.map(s => `<button class="pill" aria-pressed="${s === qvState.size}" onclick="setQvSize('${s}')">${s}</button>`).join('')}
+                            ${p.variants.map(v => `<button class="pill" aria-pressed="${v.size === qvState.size}" ${v.soldOut ? 'disabled style="opacity:.4;cursor:not-allowed;"' : ''} onclick="setQvSize('${v.size}')">${v.sizeLabel}${v.soldOut ? ' (esgotado)' : ''}</button>`).join('')}
                         </div>
-                    </div>
+                    </div>` : ''}
 
                     <div class="mt-5 flex items-center gap-3">
                         <div class="text-sm font-medium">Quantidade</div>
@@ -683,8 +709,8 @@
                         </div>
                     </div>
 
-                    <button class="btn-solid w-full mt-6" ${p.soldOut ? 'disabled' : ''} onclick="addFromQuickView()" id="qvAddBtn">
-                        ${p.soldOut ? 'Esgotado' : 'Adicionar ao carrinho'}
+                    <button class="btn-solid w-full mt-6" ${(p.soldOut || isVariantSoldOut(p, qvState.size)) ? 'disabled' : ''} onclick="addFromQuickView()" id="qvAddBtn">
+                        ${(p.soldOut || isVariantSoldOut(p, qvState.size)) ? 'Esgotado' : 'Adicionar ao carrinho'}
                     </button>
                     ${p.soldOut ? `
                     <form class="mt-3" onsubmit="return handleStockAlert(event)">
@@ -727,7 +753,7 @@
     function quickAdd(id) {
         const p = PRODUCTS.find(x => x.id === id);
         if (!p) return;
-        addToCart(id, p.sizes[0], 1);
+        addToCart(id, defaultSize(p), 1);
         showToast(`${p.name} adicionado!`);
         // feedback no botão (opcional)
         const btn = document.querySelector(`.p-card[data-id="${id}"] .p-mini-btn.solid`);
@@ -803,7 +829,7 @@
         wrap.innerHTML = cart.map((item, idx) => {
             const p = PRODUCTS.find(x => x.id === item.productId);
             if (!p) return '';
-            const lineTotal = p.price * item.qty;
+            const lineTotal = getPrice(p, item.size) * item.qty;
             subtotal += lineTotal;
             const thumb = p.image ? `background-image:url('${p.image}');background-size:cover;` : `background:${gradientFor(p.id)};`;
             return `
@@ -865,8 +891,9 @@
         checkoutBtn.disabled = true;
         checkoutBtn.textContent = 'A registar...';
 
+        let orderId = null;
         try {
-            await fetch("{% url 'store:create_order' %}", {
+            const res = await fetch("{% url 'store:create_order' %}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -874,17 +901,38 @@
                 },
                 body: JSON.stringify({ items: cart }),
             });
+            const data = await res.json();
+
+            if (res.status === 409 && data.stockErrors) {
+                const msg = data.stockErrors
+                    .map(e => `• ${e.name} (Tam. ${e.size}): só ${e.available} disponível(is), pediste ${e.requested}`)
+                    .join('\n');
+                alert(`Alguns itens do carrinho já não têm stock suficiente:\n\n${msg}\n\nAjusta as quantidades e tenta novamente.`);
+                checkoutBtn.disabled = false;
+                checkoutBtn.textContent = originalText;
+                return;
+            }
+
+            if (!res.ok) {
+                alert('Não foi possível registar o pedido. Tenta novamente.');
+                checkoutBtn.disabled = false;
+                checkoutBtn.textContent = originalText;
+                return;
+            }
+
+            orderId = data.orderId || null;
         } catch (err) {
             console.warn('Não foi possível registar a encomenda, a continuar para o WhatsApp na mesma.', err);
         }
 
         // Montar mensagem WhatsApp
         let lines = ['Olá! Quero encomendar da loja RWB:', ''];
+        if (orderId) lines.push(`Pedido: ${orderId}`, '');
         let subtotal = 0;
         cart.forEach(item => {
             const p = PRODUCTS.find(x => x.id === item.productId);
             if (!p) return;
-            const lineTotal = p.price * item.qty;
+            const lineTotal = getPrice(p, item.size) * item.qty;
             subtotal += lineTotal;
             lines.push(`• ${p.name} — Tam. ${item.size} — Qtd. ${item.qty} — ${fmt(lineTotal)}`);
         });

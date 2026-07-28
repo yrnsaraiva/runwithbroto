@@ -69,6 +69,8 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         ("created_at", RangeDateTimeFilter)
     )
 
+    list_editable = ("entered",)
+
     list_per_page = 500
 
     ordering = ("-external_created_at",)
