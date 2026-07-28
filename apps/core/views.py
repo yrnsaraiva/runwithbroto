@@ -44,7 +44,7 @@ EVENT_OVERRIDES = {
             "Inscrição: 300 MZN\n\n"
             "As vagas são limitadas a apenas 100 participantes. Garante já o teu lugar."
         ),
-        "imageUrl": "/static/img/lastwinter.jpeg",  # ← substitua pelo nome real
+        "imageUrl": "https://runwithbroto.com/static/img/lastwinter.jpeg",  # ← substitua pelo nome real
         # Se quiser alterar localização:
         # "location": {
         #     "province": "Maputo",
@@ -145,6 +145,7 @@ def _fetch_home_events() -> tuple[list, list]:
     result = (events, future_events)
     cache.set(CACHE_HOME_KEY, result, CACHE_HOME_TTL)
     return result
+
 
 def home(request):
     """Página inicial com lista de eventos e próximo evento."""

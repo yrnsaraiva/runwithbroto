@@ -41,7 +41,7 @@ EVENT_OVERRIDES = {
             "Inscrição: 300 MZN\n\n"
             "As vagas são limitadas a apenas 100 participantes. Garante já o teu lugar."
         ),
-        "imageUrl": "/static/img/lastwinter.jpeg",  # ← substitua pelo nome real da imagem
+        "imageUrl": "https://runwithbroto.com/static/img/lastwinter.jpeg",  # ← substitua pelo nome real da imagem
         # Se quiser alterar localização:
         # "location": {
         #     "province": "Maputo",
@@ -49,6 +49,7 @@ EVENT_OVERRIDES = {
         # }
     },
 }
+
 
 # =============================================================================
 # FUNÇÕES AUXILIARES - API CLIENT
@@ -68,6 +69,7 @@ def _etk_request(method, path, json=None, timeout=TIMEOUT):
         logger.error(f"Erro na requisição para {url}: {e}")
         raise
 
+
 def _apply_event_overrides(event_data):
     """Aplica overrides temporários a um evento, se existirem."""
     event_id = str(event_data.get("id"))
@@ -81,6 +83,7 @@ def _apply_event_overrides(event_data):
                 event_data[key] = value
     return event_data
 
+
 def _get_events_from_api():
     """Retorna a lista de eventos da API, com overrides aplicados."""
     data = _etk_request("GET", "/back/borrow/external/events")
@@ -89,6 +92,7 @@ def _get_events_from_api():
         _apply_event_overrides(e)
     return events
 
+
 def _get_event_from_api(event_id):
     """Retorna os dados de um evento específico, com overrides aplicados."""
     data = _etk_request("GET", f"/back/borrow/external/events/{event_id}")
@@ -96,9 +100,11 @@ def _get_event_from_api(event_id):
     _apply_event_overrides(event)
     return event
 
+
 def _create_ticket_in_api(payload):
     """Cria um ticket na API e retorna a resposta."""
     return _etk_request("POST", "/back/borrow/external/tickets", json=payload)
+
 
 def _parse_datetime(value):
     """Converte string ISO 8601 para datetime (suporta Z e offset)."""
@@ -111,6 +117,7 @@ def _parse_datetime(value):
         return datetime.fromisoformat(value)
     except ValueError:
         return None
+
 
 # =============================================================================
 # UTILITÁRIOS DE MAPEAMENTO DE DADOS
@@ -152,6 +159,7 @@ def _build_event_context(event_data):
         "confirmed_count": event_data.get("totalTicketsPurchased") or 0,
     }
 
+
 # =============================================================================
 # VALIDAÇÃO DE FORMULÁRIO
 # =============================================================================
@@ -188,6 +196,7 @@ def _validate_registration_data(post_data):
     cleaned["payment"] = (post_data.get("payment") or "").strip()
 
     return cleaned, errors
+
 
 # =============================================================================
 # VIEWS
