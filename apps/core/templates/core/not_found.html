@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-MZ">
 <head>
@@ -6,6 +7,7 @@
     <title>Página não encontrada · Run With Broto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="shortcut icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -77,19 +79,42 @@
         }
 
         .rwb-404-pin {
-            transform-origin: center;
-            animation: rwb-pin-drop .6s cubic-bezier(.34,1.56,.64,1) 2.6s both;
+            position: absolute;
+            width: 0;
+            height: 0;
+            transform: translate(-50%, -50%);
+            animation: rwb-pin-drop .6s cubic-bezier(.34,1.56,.64,1) 2.8s both;
         }
-        @keyframes rwb-pin-drop {
-            0%   { transform: translateY(-16px) scale(.6); opacity: 0; }
-            100% { transform: translateY(0) scale(1); opacity: 1; }
+        .rwb-404-pin-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--brand);
+            box-shadow: 0 0 14px rgba(227, 178, 60, .8);
+            transform: translate(-50%, -50%);
         }
         .rwb-404-pin-pulse {
-            animation: rwb-pulse 1.6s ease-in-out 3.2s infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--brand);
+            opacity: .25;
+            transform: translate(-50%, -50%);
+            animation: rwb-pulse 1.6s ease-in-out 3.4s infinite;
+        }
+        @keyframes rwb-pin-drop {
+            0%   { transform: translate(-50%, -50%) translateY(-16px) scale(.6); opacity: 0; }
+            100% { transform: translate(-50%, -50%) translateY(0) scale(1); opacity: 1; }
         }
         @keyframes rwb-pulse {
-            0%, 100% { opacity: .9; }
-            50% { opacity: .2; }
+            0%, 100% { opacity: .35; }
+            50% { opacity: .05; }
         }
 
         /* Marcador de quilómetro "KM 404" */
@@ -110,12 +135,18 @@
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .rwb-404-route path,
-            .rwb-404-pin,
-            .rwb-404-pin-pulse {
+            .rwb-404-route path {
                 animation: none !important;
                 stroke-dashoffset: 0;
                 opacity: .45;
+            }
+            .rwb-404-pin {
+                animation: none !important;
+                opacity: 1;
+            }
+            .rwb-404-pin-pulse {
+                animation: none !important;
+                opacity: .2;
             }
         }
     </style>
@@ -127,11 +158,13 @@
         <!-- Trilho GPS decorativo -->
         <svg class="rwb-404-route" viewBox="0 0 1200 700" preserveAspectRatio="none" aria-hidden="true">
             <path d="M -50 620 C 150 560, 250 660, 420 560 S 680 380, 780 420 S 950 300, 1010 260" />
-            <g class="rwb-404-pin" transform="translate(1010, 260)">
-                <circle class="rwb-404-pin-pulse" r="14" fill="var(--brand)" opacity=".25" />
-                <circle r="6" fill="var(--brand)" />
-            </g>
         </svg>
+
+        <!-- Pin no fim da rota (fora do SVG para não distorcer com o stretch do viewBox) -->
+        <div class="rwb-404-pin" style="left: 84.2%; top: 37.1%;" aria-hidden="true">
+            <span class="rwb-404-pin-pulse"></span>
+            <span class="rwb-404-pin-dot"></span>
+        </div>
 
         <div class="relative max-w-6xl mx-auto px-4 py-20 md:py-28 w-full">
             <div class="max-w-2xl">
