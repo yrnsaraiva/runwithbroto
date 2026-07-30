@@ -50,6 +50,16 @@ EVENT_OVERRIDES = {
     },
 }
 
+# =============================================================================
+# EVENTOS COM ROTA TEMPORARIAMENTE DESATIVADA
+# =============================================================================
+# IDs de eventos cujas páginas (detalhe, inscrição, sucesso) devem devolver 404.
+# Para reativar, basta remover o ID desta lista.
+
+DISABLED_EVENT_IDS = {
+    "EVNT17827193458075",
+}
+
 
 # =============================================================================
 # FUNÇÕES AUXILIARES - API CLIENT
@@ -254,6 +264,9 @@ def event_detail(request, event_id):
 @require_http_methods(["GET", "POST"])
 def register_form(request, event_id):
     """Formulário de inscrição no evento (GET) e processamento (POST)."""
+    if event_id in DISABLED_EVENT_IDS:
+        raise Http404("Inscrições encerradas.")
+
     # Busca evento
     try:
         event_data = _get_event_from_api(event_id)
