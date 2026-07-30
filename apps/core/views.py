@@ -258,3 +258,7 @@ def dashboard_callback(request, context):
     })
 
     return context
+
+
+def not_found(request, exception):
+    return render(request, 'core/not_found.html')

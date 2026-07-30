@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Página não encontrada · Run With Broto</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --ink: #14110F;
+            --brand: #E3B23C;
+            --brand-dark: #B98F2A;
+            --paper: #F5F1E8;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--ink);
+        }
+        .font-display {
+            font-family: 'Oswald', sans-serif;
+        }
+        .btn-solid {
+            display: inline-block;
+            background: var(--brand);
+            color: var(--ink);
+            padding: .75rem 1.25rem;
+            font-size: .875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            transition: opacity .2s;
+        }
+        .btn-solid:hover {
+            opacity: .9;
+        }
+        .rwb-pulse-dot {
+            animation: rwb-dot-pulse 1.6s ease-in-out infinite;
+        }
+        @keyframes rwb-dot-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .3; }
+        }
+        .rwb-404 {
+            position: relative;
+            min-height: calc(100vh - 80px);
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            background: var(--ink);
+            background-image:
+                radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* Rota GPS tracejada que atravessa o ecrã e "morre" no marcador */
+        .rwb-404-route {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .rwb-404-route path {
+            fill: none;
+            stroke: var(--brand);
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-dasharray: 10 10;
+            opacity: .45;
+            stroke-dashoffset: 1000;
+            animation: rwb-route-draw 3.5s ease-out forwards;
+        }
+        @keyframes rwb-route-draw {
+            to { stroke-dashoffset: 0; }
+        }
+
+        .rwb-404-pin {
+            transform-origin: center;
+            animation: rwb-pin-drop .6s cubic-bezier(.34,1.56,.64,1) 2.6s both;
+        }
+        @keyframes rwb-pin-drop {
+            0%   { transform: translateY(-16px) scale(.6); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .rwb-404-pin-pulse {
+            animation: rwb-pulse 1.6s ease-in-out 3.2s infinite;
+        }
+        @keyframes rwb-pulse {
+            0%, 100% { opacity: .9; }
+            50% { opacity: .2; }
+        }
+
+        /* Marcador de quilómetro "KM 404" */
+        .rwb-404-marker {
+            display: inline-flex;
+            align-items: baseline;
+            gap: .5rem;
+            line-height: .85;
+        }
+        .rwb-404-marker span.unit {
+            font-size: clamp(1.1rem, 2vw, 1.5rem);
+            letter-spacing: .2em;
+            color: var(--brand-dark);
+        }
+        .rwb-404-marker span.num {
+            font-size: clamp(5.5rem, 16vw, 11rem);
+            color: var(--brand);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .rwb-404-route path,
+            .rwb-404-pin,
+            .rwb-404-pin-pulse {
+                animation: none !important;
+                stroke-dashoffset: 0;
+                opacity: .45;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <main id="page-404" class="rwb-404">
+
+        <!-- Trilho GPS decorativo -->
+        <svg class="rwb-404-route" viewBox="0 0 1200 700" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M -50 620 C 150 560, 250 660, 420 560 S 680 380, 780 420 S 950 300, 1010 260" />
+            <g class="rwb-404-pin" transform="translate(1010, 260)">
+                <circle class="rwb-404-pin-pulse" r="14" fill="var(--brand)" opacity=".25" />
+                <circle r="6" fill="var(--brand)" />
+            </g>
+        </svg>
+
+        <div class="relative max-w-6xl mx-auto px-4 py-20 md:py-28 w-full">
+            <div class="max-w-2xl">
+
+                <div class="rwb-404-marker font-display mb-4">
+                    <span class="unit uppercase">Km</span>
+                    <span class="num">404</span>
+                </div>
+
+                <h1 class="font-display uppercase text-3xl md:text-5xl leading-[0.95] mb-5 text-white">
+                    Saíste do trilho
+                </h1>
+
+                <p class="text-white/60 text-lg max-w-[42ch] mb-10">
+                    Esta página não existe. Volta ao início.
+                </p>
+
+                <a href="/" class="btn-solid" style="border-radius:0">
+                    Voltar ao início
+                </a>
+
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
