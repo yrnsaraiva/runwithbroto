@@ -405,8 +405,9 @@
 
     <script>
 
-        // Se preferir formato ISO (mais simples)
-        const eventDateFromDjango = new Date("{{ next_event.start_at|date:'c' }}");
+        // Só existe data válida se houver next_event
+        const hasNextEvent = {% if next_event and next_event.event_id %}true{% else %}false{% endif %};
+        const eventDateFromDjango = hasNextEvent ? new Date("{{ next_event.start_at|date:'c' }}") : null;
 
         function getNextEventDate() {
             const eventDate = eventDateFromDjango;
@@ -421,7 +422,20 @@
             return eventDate;
         }
 
+        function setCountdownDashes() {
+            document.getElementById("days").innerText = "--";
+            document.getElementById("hours").innerText = "--";
+            document.getElementById("minutes").innerText = "--";
+            document.getElementById("seconds").innerText = "--";
+        }
+
         function updateCountdown() {
+            // Sem próximo evento: mostra travessões em vez de NaN e nem tenta calcular
+            if (!hasNextEvent || !eventDateFromDjango || isNaN(eventDateFromDjango.getTime())) {
+                setCountdownDashes();
+                return;
+            }
+
             const target = getNextEventDate();
             const now = new Date();
             const diff = target - now;
@@ -446,7 +460,10 @@
         }
 
         updateCountdown();
-        setInterval(updateCountdown, 1000);
+        // Só corre o intervalo se houver um evento real para contar
+        if (hasNextEvent) {
+            setInterval(updateCountdown, 1000);
+        }
     </script>
 
 {% endblock %}
