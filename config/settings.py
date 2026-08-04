@@ -91,7 +91,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'runwithbroto.urls'
+ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
