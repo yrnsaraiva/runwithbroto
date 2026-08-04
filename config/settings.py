@@ -74,7 +74,6 @@ INSTALLED_APPS = [
 
     "apps.core.apps.CoreConfig",
     "apps.events.apps.EventsConfig",
-    "apps.members.apps.MembersConfig",
     "apps.scanner.apps.ScannerConfig",
     "apps.store.apps.StoreConfig"
 ]
