@@ -19,12 +19,16 @@
 
     <!-- App CSS -->
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    <link href="https://unpkg.com/kursor/dist/kursor.css" rel="stylesheet">
 
     {% block extra_head %}{% endblock %}
 </head>
 
 <body class="font-body bg-paper text-ink antialiased">
 {% include "includes/navbar.html" %}
+
+<div class="pointer-events-none fixed inset-0 space-grid opacity-[0.25]"></div>
+
 
 <main>
     {% block content %}{% endblock %}
@@ -34,5 +38,15 @@
 
 <script src="{% static 'js/app.js' %}"></script>
 {% block extra_js %}{% endblock %}
+
+<script src="https://unpkg.com/kursor"></script>
+<script>
+    new kursor({
+        type: 1,
+        removeDefaultCursor: true,
+        color: 'rgba(92,92,92,0.77)'
+    })
+</script>
+
 </body>
 </html>
