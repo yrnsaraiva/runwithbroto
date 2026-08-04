@@ -33,8 +33,8 @@ DEBUG = False
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    'runwithbroto.com',
-    'www.runwithbroto.com',
+    'config.com',
+    'www.config.com',
     'nqhgstr.up.railway.app',  # domínio do Railway
     '.railway.app',  # permite qualquer subdomínio do Railway
     '*'
@@ -109,7 +109,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'runwithbroto.wsgi.application'
+WSGI_APPLICATION = 'config.wsgi.application'
 
 
 # Database
@@ -194,7 +194,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # MEDIA FILES (uploads)
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = "/app/media"
 
 
 LOGGING = {
@@ -299,21 +299,6 @@ UNFOLD = {
                         "title": _("Tickets"),
                         "icon": "mobile_ticket",
                         "link": reverse_lazy("admin:events_externalticket_changelist"),
-                    },
-                    {
-                        "title": _("Pré-inscrições"),
-                        "icon": "assignment",
-                        "link": reverse_lazy("admin:members_interessemembrofundador_changelist"),
-                    },
-                    {
-                        "title": _("Membership Plans"),
-                        "icon": "crown",
-                        "link": reverse_lazy("admin:members_plano_changelist"),
-                    },
-                    {
-                        "title": _("Membership"),
-                        "icon": "card_membership",
-                        "link": reverse_lazy("admin:members_assinatura_changelist"),
                     },
 
                 ],
