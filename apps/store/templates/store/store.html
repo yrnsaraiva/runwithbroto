@@ -1103,7 +1103,7 @@
             if (!p) return;
             const lineTotal = getPrice(p, item.size) * item.qty;
             subtotal += lineTotal;
-            lines.push(`• ${p.name} — Tam. ${item.size} — Qtd. ${item.qty} — ${fmt(lineTotal)}`);
+            lines.push(`• ${p.name} - Tam. ${item.size} - Qtd. ${item.qty} - ${fmt(lineTotal)}`);
         });
         lines.push('', `Subtotal: ${fmt(subtotal)}`);
         const message = encodeURIComponent(lines.join('\n'));
