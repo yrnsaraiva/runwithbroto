@@ -169,10 +169,43 @@
                 <span class="font-medium" id="cartSubtotal">0 MT</span>
             </div>
 
-            <button class="btn-solid w-full mt-4" id="checkoutBtn" onclick="checkout()">Finalizar pedido</button>
+            <button class="btn-solid w-full mt-4" id="checkoutBtn" onclick="openCheckoutModal()">Finalizar pedido</button>
             <button class="btn w-full mt-2 text-xs" onclick="clearCart()" id="clearCartBtn">Esvaziar carrinho</button>
         </div>
     </aside>
+</div>
+
+<!-- CHECKOUT MODAL -->
+<div id="checkoutOverlay" class="qv-overlay" onclick="if(event.target===this) closeCheckoutModal()" role="dialog" aria-modal="true" aria-labelledby="checkoutTitle">
+    <div class="qv-modal border hairline" id="checkoutModal" style="max-width: 480px;">
+        <form class="p-5 sm:p-6 md:p-8" onsubmit="return submitCheckout(event)">
+            <div class="flex items-start justify-between">
+                <div>
+                    <div class="text-[11px] muted label">passo final</div>
+                    <div class="mt-1 font-display text-2xl sm:text-3xl leading-[0.95]" id="checkoutTitle">Os teus dados</div>
+                </div>
+                <button type="button" class="text-sm bg-white/80 rounded-none p-1.5 hover:bg-white transition-colors" onclick="closeCheckoutModal()" aria-label="Fechar">✕</button>
+            </div>
+            <p class="mt-2 text-sm muted leading-relaxed">Precisamos disto para confirmar a encomenda e falar contigo no WhatsApp.</p>
+
+            <div class="mt-5">
+                <label class="text-xs muted" for="checkoutName">Nome completo</label>
+                <input type="text" id="checkoutName" name="name" required placeholder="O teu nome"
+                       class="field w-full mt-2 text-sm py-2" autocomplete="name" />
+            </div>
+
+            <div class="mt-4">
+                <label class="text-xs muted" for="checkoutPhone">Telefone (WhatsApp)</label>
+                <input type="tel" id="checkoutPhone" name="phone" required placeholder="84 000 0000"
+                       class="field w-full mt-2 text-sm py-2" autocomplete="tel" />
+            </div>
+
+            <div id="checkoutError" class="hidden mt-3 text-xs" style="color:#b91c1c;"></div>
+
+            <button type="submit" class="btn-solid w-full mt-6" id="checkoutSubmitBtn">Confirmar e enviar via WhatsApp</button>
+            <button type="button" class="btn w-full mt-2 text-xs" onclick="closeCheckoutModal()">Voltar ao carrinho</button>
+        </form>
+    </div>
 </div>
 
 <!-- TOAST NOTIFICATION -->
@@ -1052,13 +1085,45 @@
     // ================================================================
     // CHECKOUT
     // ================================================================
-    async function checkout() {
+    function openCheckoutModal() {
+        if (cart.length === 0) return;
+        lastFocusedEl = document.activeElement;
+        document.getElementById('checkoutError').classList.add('hidden');
+        document.getElementById('checkoutOverlay').classList.add('is-open');
+        lockScroll();
+        const nameInput = document.getElementById('checkoutName');
+        if (nameInput) nameInput.focus();
+    }
+
+    function closeCheckoutModal() {
+        document.getElementById('checkoutOverlay').classList.remove('is-open');
+        unlockScroll();
+        if (lastFocusedEl) lastFocusedEl.focus();
+    }
+
+    function submitCheckout(event) {
+        event.preventDefault();
+        const name = document.getElementById('checkoutName').value.trim();
+        const phone = document.getElementById('checkoutPhone').value.trim();
+        const errorEl = document.getElementById('checkoutError');
+
+        if (!name || !phone) {
+            errorEl.textContent = 'Preenche o nome e o telefone para continuar.';
+            errorEl.classList.remove('hidden');
+            return false;
+        }
+        errorEl.classList.add('hidden');
+        checkout(name, phone);
+        return false;
+    }
+
+    async function checkout(name, phone) {
         if (cart.length === 0) return;
 
-        const checkoutBtn = document.getElementById('checkoutBtn');
-        const originalText = checkoutBtn.textContent;
-        checkoutBtn.disabled = true;
-        checkoutBtn.textContent = 'A registar...';
+        const submitBtn = document.getElementById('checkoutSubmitBtn');
+        const originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'A registar...';
 
         let orderId = null;
         try {
@@ -1068,7 +1133,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRFToken': getCsrfToken(),
                 },
-                body: JSON.stringify({ items: cart }),
+                body: JSON.stringify({ items: cart, name: name, phone: phone }),
             });
             const data = await res.json();
 
@@ -1077,15 +1142,15 @@
                     .map(e => `• ${e.name} (Tam. ${e.size}): só ${e.available} disponível(is), pediste ${e.requested}`)
                     .join('\n');
                 alert(`Alguns itens do carrinho já não têm stock suficiente:\n\n${msg}\n\nAjusta as quantidades e tenta novamente.`);
-                checkoutBtn.disabled = false;
-                checkoutBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
                 return;
             }
 
             if (!res.ok) {
                 alert('Não foi possível registar o pedido. Tenta novamente.');
-                checkoutBtn.disabled = false;
-                checkoutBtn.textContent = originalText;
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
                 return;
             }
 
@@ -1097,6 +1162,7 @@
         // Montar mensagem WhatsApp
         let lines = ['Olá! Quero encomendar da loja RWB:', ''];
         if (orderId) lines.push(`Pedido: ${orderId}`, '');
+        lines.push(`Nome: ${name}`, `Telefone: ${phone}`, '');
         let subtotal = 0;
         cart.forEach(item => {
             const p = PRODUCTS.find(x => x.id === item.productId);
@@ -1109,8 +1175,13 @@
         const message = encodeURIComponent(lines.join('\n'));
         window.open(`https://wa.me/258845343113?text=${message}`, '_blank');
 
-        checkoutBtn.disabled = false;
-        checkoutBtn.textContent = originalText;
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        closeCheckoutModal();
+        closeCart();
+        // Limpa o carrinho sem pedir confirmação, já que o pedido foi enviado
+        cart = [];
+        saveCart();
     }
 
     // ================================================================
@@ -1180,6 +1251,7 @@
         if (e.key === 'Escape') {
             closeQuickView();
             closeCart();
+            closeCheckoutModal();
         }
     });
 </script>
