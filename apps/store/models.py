@@ -64,6 +64,20 @@ class Product(models.Model):
     total_stock.short_description = "Stock total"
 
 
+class ProductImage(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
+    image = models.ImageField("Imagem", upload_to="loja/produtos/galeria/")
+    order = models.PositiveIntegerField("Ordem", default=0)
+
+    class Meta:
+        verbose_name = "Imagem do produto"
+        verbose_name_plural = "Imagens do produto"
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"{self.product.name} — imagem {self.order}"
+
+
 class ProductVariant(models.Model):
     class Size(models.TextChoices):
         UNICO = "UNICO", "Único"

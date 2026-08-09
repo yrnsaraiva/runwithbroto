@@ -1,7 +1,14 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
 
-from .models import Order, Product, ProductVariant
+from .models import Order, Product, ProductVariant, ProductImage
+
+
+class ProductImageInline(admin.TabularInline):
+    model = ProductImage
+    extra = 1
+    fields = ("image", "order")
+    ordering = ("order", "id")
 
 
 class ProductVariantInline(TabularInline):
@@ -17,7 +24,7 @@ class ProductAdmin(ModelAdmin):
     list_filter = ("category", "sold_out", "is_active")
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
-    inlines = [ProductVariantInline]
+    inlines = [ProductImageInline, ProductVariantInline]
 
 
 @admin.register(Order)

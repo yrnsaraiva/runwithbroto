@@ -11,10 +11,13 @@ from .models import Order, Product, ProductVariant
 
 
 def store_list(request):
-    products = Product.objects.filter(is_active=True).prefetch_related("variants")
+    products = Product.objects.filter(is_active=True).prefetch_related("variants", "images")
 
     products_data = []
     for p in products:
+        gallery_images = [p.image.url] if p.image else []
+        gallery_images += [img.image.url for img in p.images.all()]
+
         variants = [
             {
                 "size": v.size,
@@ -33,7 +36,8 @@ def store_list(request):
                 "price": float(p.price),
                 "variants": variants,
                 "blurb": p.description,
-                "image": p.image.url if p.image else "",
+                "image": gallery_images[0] if gallery_images else "",
+                "images": gallery_images,
                 "badge": p.badge,
                 "soldOut": p.is_sold_out(),
             }

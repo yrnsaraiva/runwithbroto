@@ -335,6 +335,36 @@
         outline: 1px solid rgba(0,0,0,0.15);
     }
 
+    /* ===== Quick View — galeria de imagens ===== */
+    .qv-media {
+        position: relative;
+        overflow: hidden;
+    }
+    .qv-media .hero-nav-btn { width: 2rem; height: 2rem; }
+    .qv-dots.hero-dots { bottom: 0.6rem; }
+    .qv-thumbs {
+        display: flex;
+        gap: 0.4rem;
+        padding: 0.6rem;
+        overflow-x: auto;
+    }
+    .qv-thumb {
+        flex: 0 0 3rem;
+        width: 3rem;
+        height: 3rem;
+        border: 1px solid var(--color-border, #ddd);
+        padding: 0;
+        cursor: pointer;
+        background-size: cover;
+        background-position: center;
+        opacity: .55;
+        transition: opacity .2s ease, border-color .2s ease;
+    }
+    .qv-thumb.is-active {
+        opacity: 1;
+        border-color: var(--ink, #111);
+    }
+
     /* ===== Botões =====
        .btn-solid e .btn já vêm definidos globalmente (app.css) com as
        cores da marca — aqui só acrescentamos o toque de hover/disabled
@@ -856,12 +886,12 @@
     // ================================================================
     // QUICK VIEW
     // ================================================================
-    let qvState = { productId: null, size: null, qty: 1 };
+    let qvState = { productId: null, size: null, qty: 1, imgIndex: 0 };
 
     function openQuickView(id) {
         const p = PRODUCTS.find(x => x.id === id);
         if (!p) return;
-        qvState = { productId: id, size: defaultSize(p), qty: 1 };
+        qvState = { productId: id, size: defaultSize(p), qty: 1, imgIndex: 0 };
         lastFocusedEl = document.activeElement;
         renderQuickView(p);
         document.getElementById('quickViewOverlay').classList.add('is-open');
@@ -871,20 +901,43 @@
     }
 
     function renderQuickView(p) {
-        const gradient = p.image ? null : gradientFor(p.id);
+        const images = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+        const gradient = images.length ? null : gradientFor(p.id);
+        const idx = Math.min(qvState.imgIndex, Math.max(images.length - 1, 0));
+
         let media;
-        if (p.image) {
-            media = `<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;" />`;
+        if (images.length) {
+            media = `<img src="${images[idx]}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;" />`;
         } else {
             const color = isLightGradient(gradient) ? '#111' : '#fff';
             media = `<span class="font-display" style="font-size:48px; opacity:.18; color:${color};">BROTO</span>`;
         }
 
+        const galleryNav = images.length > 1 ? `
+            <button class="hero-nav-btn hero-nav-btn--prev" aria-label="Imagem anterior" onclick="changeQvImage(-1)">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button class="hero-nav-btn hero-nav-btn--next" aria-label="Imagem seguinte" onclick="changeQvImage(1)">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+            <div class="hero-dots qv-dots" role="tablist" aria-label="Selecionar imagem">
+                ${images.map((_, i) => `<button class="hero-dot ${i === idx ? 'is-active' : ''}" role="tab" aria-label="Imagem ${i + 1}" onclick="setQvImage(${i})"></button>`).join('')}
+            </div>` : '';
+
+        const thumbs = images.length > 1 ? `
+            <div class="qv-thumbs">
+                ${images.map((src, i) => `<button class="qv-thumb ${i === idx ? 'is-active' : ''}" style="background-image:url('${src}')" aria-label="Ver imagem ${i + 1}" onclick="setQvImage(${i})"></button>`).join('')}
+            </div>` : '';
+
         document.getElementById('quickViewModal').innerHTML = `
             <div class="grid md:grid-cols-2 min-w-0">
-                <div class="aspect-[4/3] sm:aspect-square md:aspect-auto relative min-w-0" style="${p.image ? '' : `background:${gradient};`} display:grid; place-items:center;">
-                    ${media}
-                    <button class="absolute top-3 right-3 text-sm bg-white/80 rounded-none p-1.5 hover:bg-white transition-colors" onclick="closeQuickView()" aria-label="Fechar">✕</button>
+                <div class="min-w-0">
+                    <div class="qv-media aspect-[4/3] sm:aspect-square md:aspect-auto relative min-w-0" style="${images.length ? '' : `background:${gradient};`} display:grid; place-items:center;">
+                        ${media}
+                        ${galleryNav}
+                        <button class="absolute top-3 right-3 text-sm bg-white/80 rounded-none p-1.5 hover:bg-white transition-colors" onclick="closeQuickView()" aria-label="Fechar">✕</button>
+                    </div>
+                    ${thumbs}
                 </div>
                 <div class="p-5 sm:p-6 md:p-8 min-w-0">
                     <div class="flex items-start justify-between">
@@ -932,6 +985,19 @@
     function setQvSize(s) {
         qvState.size = s;
         renderQuickView(PRODUCTS.find(p => p.id === qvState.productId));
+    }
+
+    function setQvImage(i) {
+        qvState.imgIndex = i;
+        renderQuickView(PRODUCTS.find(p => p.id === qvState.productId));
+    }
+
+    function changeQvImage(delta) {
+        const p = PRODUCTS.find(x => x.id === qvState.productId);
+        const images = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+        if (!images.length) return;
+        qvState.imgIndex = (qvState.imgIndex + delta + images.length) % images.length;
+        renderQuickView(p);
     }
 
     function changeQvQty(delta) {
