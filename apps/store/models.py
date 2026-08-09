@@ -19,7 +19,6 @@ class Product(models.Model):
         help_text="Usado como fallback quando uma variação não tem preço próprio",
     )
     description = models.TextField("Descrição", blank=True)
-    image = models.ImageField("Imagem", upload_to="loja/produtos/", blank=True, null=True)
     badge = models.CharField(
         "Badge", max_length=40, blank=True, help_text="Ex: Novo, Poupa 15%"
     )
