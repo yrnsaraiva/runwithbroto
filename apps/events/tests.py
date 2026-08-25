@@ -1,10 +1,10 @@
 from django.test import TestCase
 import requests
 
-url = "https://eticketsmz.site/back/borrow/external/events"
+url = "https://etk-api.up.railway.app/back/borrow/external/events"
 
 headers = {
-    "Authorization": "Bearer etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
+    "Authorization": "Bearer etk_live_2btldp22PSu8AmsSyhdeDE-s"
 }
 
 

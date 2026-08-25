@@ -1,11 +1,11 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-import dj_database_url
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from import_export.formats.base_formats import CSV, XLSX
+import dj_database_url
 
 
 IMPORT_FORMATS = [CSV, XLSX]

@@ -26,7 +26,7 @@ class Product(models.Model):
     sold_out = models.BooleanField(
         "Esgotado (manual)",
         default=False,
-        help_text="Marca manual — se ligada, esconde o produto independentemente do stock das variações",
+        help_text="Marca manual, se ligada, esconde o produto independentemente do stock das variações",
     )
     is_active = models.BooleanField("Ativo", default=True)
     order = models.PositiveIntegerField("Ordem de exibição", default=0)

@@ -19,8 +19,8 @@ logger = logging.getLogger(__name__)
 # CONSTANTES E CONFIGURAÇÕES
 # =============================================================================
 
-ETK_BASE = "https://eticketsmz.site"
-ETK_TOKEN = "etk_live_3SZPEA7FNCZAdqjIaBIIbI7j"
+ETK_BASE = "https://etk-api.up.railway.app"
+ETK_TOKEN = "etk_live_2btldp22PSu8AmsSyhdeDE-s"
 TIMEOUT = 120
 
 # =============================================================================
@@ -28,26 +28,7 @@ TIMEOUT = 120
 # =============================================================================
 
 EVENT_OVERRIDES = {
-    "EVNT17827193458075": {  # ID do evento Run With Broto
-        "name": "Last Winter Social",
-        # UTC = 06:30 -> no fuso Africa/Maputo (UTC+2) vira 08:30
-        "date": "2026-08-01T04:30:00Z",
-        "description": (
-            "No sábado, dia 1 de agosto de 2026, começa o dia com uma corrida de 5 km "
-            "e prolonga a experiência num after run pensado para celebrar o movimento e a comunidade.\n\n"
-            "Depois da corrida, junta-te ao Coffee Party, com DJs, ativações de marcas e um ambiente "
-            "descontraído para conviver, recuperar energias e conhecer novas pessoas.\n\n"
-            "Horário: 06:30 às 11:00\n\n"
-            "Inscrição: 300 MZN\n\n"
-            "As vagas são limitadas a apenas 100 participantes. Garante já o teu lugar."
-        ),
-        "imageUrl": "https://runwithbroto.com/static/img/lastwinter.jpeg",  # ← substitua pelo nome real da imagem
-        # Se quiser alterar localização:
-        # "location": {
-        #     "province": "Maputo",
-        #     "details": "Noctis",
-        # }
-    },
+
 }
 
 # =============================================================================
@@ -57,7 +38,7 @@ EVENT_OVERRIDES = {
 # Para reativar, basta remover o ID desta lista.
 
 DISABLED_EVENT_IDS = {
-    "EVNT17827193458075",
+
 }
 
 
