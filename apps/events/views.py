@@ -52,13 +52,24 @@ def _etk_request(method, path, json=None, timeout=TIMEOUT):
     headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
     if json is not None:
         headers["Content-Type"] = "application/json"
+    resp = requests.request(method, url, headers=headers, json=json, timeout=timeout)
     try:
-        resp = requests.request(method, url, headers=headers, json=json, timeout=timeout)
         resp.raise_for_status()
-        return resp.json()
+    except requests.HTTPError as e:
+        # O raise_for_status() disparava antes de lermos o corpo, por isso o
+        # motivo real do 400/422 (ex.: qual campo é inválido) nunca aparecia
+        # no log — só "400 Client Error: Bad Request". Agora capturamos e
+        # registamos o corpo da resposta antes de relançar.
+        try:
+            detail = resp.json()
+        except ValueError:
+            detail = resp.text
+        logger.error(f"Erro na requisição para {url}: {e} — resposta: {detail}")
+        raise
     except requests.RequestException as e:
         logger.error(f"Erro na requisição para {url}: {e}")
         raise
+    return resp.json()
 
 
 def _apply_event_overrides(event_data):
