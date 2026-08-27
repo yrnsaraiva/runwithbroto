@@ -31,31 +31,13 @@ CACHE_HOME_TTL = 60 * 5  # 5 minutos
 # =============================================================================
 
 EVENT_OVERRIDES = {
-    "EVNT17827193458075": {  # ID do evento Run With Broto → Last Winter Social
-        "name": "Last Winter Social",
-        # UTC = 06:30 → no fuso Africa/Maputo (UTC+2) vira 08:30
-        "date": "2026-08-01T04:30:00Z",
-        "description": (
-            "No sábado, dia 1 de agosto de 2026, começa o dia com uma corrida de 5 km "
-            "e prolonga a experiência num after run pensado para celebrar o movimento e a comunidade.\n\n"
-            "Depois da corrida, junta-te ao Coffee Party, com DJs, ativações de marcas e um ambiente "
-            "descontraído para conviver, recuperar energias e conhecer novas pessoas.\n\n"
-            "Horário: 06:30 às 11:00\n\n"
-            "Inscrição: 300 MZN\n\n"
-            "As vagas são limitadas a apenas 100 participantes. Garante já o teu lugar."
-        ),
-        "imageUrl": "https://runwithbroto.com/static/img/lastwinter.jpeg",  # ← substitua pelo nome real
-        # Se quiser alterar localização:
-        # "location": {
-        #     "province": "Maputo",
-        #     "details": "Noctis",
-        # }
-    },
+
 }
 
 # =============================================================================
 # FUNÇÕES AUXILIARES - API CLIENT
 # =============================================================================
+
 
 def _etk_request(method, path, timeout=TIMEOUT_READ):
     """Faz requisição à API da ETickets e retorna o JSON decodificado."""
@@ -68,6 +50,7 @@ def _etk_request(method, path, timeout=TIMEOUT_READ):
     except requests.RequestException as e:
         logger.error(f"Erro na requisição para {url}: {e}")
         raise
+
 
 def _apply_event_overrides(event_data):
     """Aplica overrides temporários a um evento, se existirem."""
@@ -82,6 +65,7 @@ def _apply_event_overrides(event_data):
                 event_data[key] = value
     return event_data
 
+
 def _parse_datetime(value):
     """Converte string ISO 8601 para datetime (suporta Z e offset)."""
     if not value:
@@ -92,6 +76,7 @@ def _parse_datetime(value):
         return datetime.fromisoformat(value)
     except ValueError:
         return None
+
 
 def _build_event_summary(event_data):
     """
@@ -114,6 +99,7 @@ def _build_event_summary(event_data):
 # =============================================================================
 # VIEWS
 # =============================================================================
+
 
 def _fetch_home_events() -> tuple[list, list]:
     """
@@ -162,13 +148,16 @@ def home(request):
         "next_event": next_event,
     })
 
+
 def contact(request):
     """Página de contacto."""
     return render(request, "core/contact.html")
 
+
 def our_story(request):
     """Página 'A Nossa História'."""
     return render(request, "core/our-story.html")
+
 
 # =============================================================================
 # DASHBOARD (ADMIN)
