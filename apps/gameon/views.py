@@ -32,7 +32,7 @@ def participante_required(view_func):
         participante = get_participante_atual(request)
         if participante is None:
             proximo = request.get_full_path()
-            return redirect(f"{reverse('gameon:entrar')}?next={proximo}")
+            return redirect(f"{reverse('gameon:escolher_participante')}?next={proximo}")
         return view_func(request, participante, *args, **kwargs)
 
     return wrapper
