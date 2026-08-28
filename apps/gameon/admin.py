@@ -1,11 +1,13 @@
 from django.contrib import admin
 from django.utils import timezone
 
+from unfold.admin import ModelAdmin
+
 from .models import Actividade, CartaAtribuida, CartaSurpresa, Missao, Participante
 
 
 @admin.register(Missao)
-class MissaoAdmin(admin.ModelAdmin):
+class MissaoAdmin(ModelAdmin):
     list_display = ("nome", "categoria", "pontos", "activa")
     list_filter = ("categoria", "activa")
     search_fields = ("nome", "chave")
@@ -13,7 +15,7 @@ class MissaoAdmin(admin.ModelAdmin):
 
 
 @admin.register(CartaSurpresa)
-class CartaSurpresaAdmin(admin.ModelAdmin):
+class CartaSurpresaAdmin(ModelAdmin):
     list_display = ("tipo", "descricao", "pontos", "data_lancamento", "activa")
     list_filter = ("tipo", "activa")
     list_editable = ("activa",)
@@ -21,7 +23,7 @@ class CartaSurpresaAdmin(admin.ModelAdmin):
 
 
 @admin.register(CartaAtribuida)
-class CartaAtribuidaAdmin(admin.ModelAdmin):
+class CartaAtribuidaAdmin(ModelAdmin):
     list_display = ("participante", "carta", "atribuida_em", "usada")
     list_filter = ("usada", "carta__tipo")
     search_fields = ("participante__nome", "participante__telefone")
@@ -29,7 +31,7 @@ class CartaAtribuidaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Participante)
-class ParticipanteAdmin(admin.ModelAdmin):
+class ParticipanteAdmin(ModelAdmin):
     list_display = ("nome", "telefone", "pontos_totais_cache", "numero_desafios_concluidos", "inscrito_em")
     search_fields = ("nome", "telefone")
     readonly_fields = ("pontos_totais_cache",)
@@ -41,7 +43,7 @@ class ParticipanteAdmin(admin.ModelAdmin):
 
 
 @admin.register(Actividade)
-class ActividadeAdmin(admin.ModelAdmin):
+class ActividadeAdmin(ModelAdmin):
     list_display = ("participante", "origem", "pontos", "estado", "data_actividade", "revisado_por")
     list_filter = ("estado", "missao__categoria", "data_actividade")
     search_fields = ("participante__nome",)
