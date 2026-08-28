@@ -66,6 +66,39 @@ class CartaSurpresa(models.Model):
         return f"{self.get_tipo_display()} — {self.descricao[:40]}"
 
 
+class CartaAtribuida(models.Model):
+    """
+    Atribuição de uma Carta Surpresa a um participante específico.
+    Não é a organização que decide quem recebe cada carta em cada dia — o
+    management command `atribuir_cartas_surpresa` escolhe participantes ao
+    acaso e dá-lhes uma carta activa. Não precisa de correr todos os dias:
+    corre quando o Coach Broto quiser lançar uma ronda.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    participante = models.ForeignKey(
+        "Participante", on_delete=models.CASCADE, related_name="cartas_atribuidas"
+    )
+    carta = models.ForeignKey(CartaSurpresa, on_delete=models.CASCADE, related_name="atribuicoes")
+    atribuida_em = models.DateTimeField(auto_now_add=True)
+    usada = models.BooleanField(
+        default=False,
+        help_text="Marcada automaticamente quando o participante regista uma actividade com esta carta.",
+    )
+
+    class Meta:
+        verbose_name = "Carta Atribuída"
+        verbose_name_plural = "Cartas Atribuídas"
+        ordering = ["-atribuida_em"]
+        constraints = [
+            models.UniqueConstraint(fields=["participante", "carta"], name="carta_atribuida_unica_por_participante")
+        ]
+
+    def __str__(self):
+        estado = "usada" if self.usada else "disponível"
+        return f"{self.participante} — {self.carta} ({estado})"
+
+
 class Participante(models.Model):
     """Um inscrito no desafio. Liga-se ao utilizador da plataforma RWB, se existir."""
 
@@ -173,3 +206,8 @@ class Actividade(models.Model):
         self.nota_organizacao = motivo
         self.save(update_fields=["estado", "revisado_por", "revisado_em", "nota_organizacao"])
         self.participante.recalcular_pontos_totais()
+        if self.carta_surpresa_id:
+            # Liberta a carta para o participante poder tentar de novo.
+            CartaAtribuida.objects.filter(
+                participante=self.participante, carta=self.carta_surpresa
+            ).update(usada=False)

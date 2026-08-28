@@ -32,7 +32,7 @@ def participante_required(view_func):
         participante = get_participante_atual(request)
         if participante is None:
             proximo = request.get_full_path()
-            return redirect(f"{reverse('gameon:escolher_participante')}?next={proximo}")
+            return redirect(f"{reverse('gameon:entrar')}?next={proximo}")
         return view_func(request, participante, *args, **kwargs)
 
     return wrapper
@@ -65,7 +65,7 @@ def escolher_participante(request):
 
 def sair_participante(request):
     request.session.pop(SESSION_KEY, None)
-    return redirect("gameon:escolher_participante")
+    return redirect("gameon:entrar")
 
 
 class RankingView(ListView):
@@ -84,15 +84,20 @@ class RankingView(ListView):
 def registar_actividade(request, participante):
     """Formulário onde o participante submete uma actividade para verificação."""
     if request.method == "POST":
-        form = ActividadeForm(request.POST, request.FILES)
+        form = ActividadeForm(request.POST, request.FILES, participante=participante)
         if form.is_valid():
             form.save(participante=participante)
             messages.success(request, "Actividade registada. Aguarda verificação da organização.")
             return redirect("gameon:minhas_actividades")
     else:
-        form = ActividadeForm()
+        form = ActividadeForm(participante=participante)
 
-    return render(request, "gameon/registar_actividade.html", {"form": form, "participante": participante})
+    cartas_disponiveis = participante.cartas_atribuidas.filter(usada=False).select_related("carta")
+    return render(
+        request,
+        "gameon/registar_actividade.html",
+        {"form": form, "participante": participante, "cartas_disponiveis": cartas_disponiveis},
+    )
 
 
 @participante_required

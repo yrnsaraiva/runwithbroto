@@ -18,7 +18,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.gameon.models import Actividade, CartaSurpresa, Missao, Participante
+from apps.gameon.models import Actividade, CartaAtribuida, CartaSurpresa, Missao, Participante
 
 MISSOES = [
     ("correr_5km", "Correr 5 km", Missao.Categoria.CORRIDA, 10),
@@ -43,7 +43,7 @@ CARTAS_SURPRESA = [
 ]
 
 PARTICIPANTES = [
-    ("Yuran Saraiva", "+258844723840"),
+    ("Yuran Saraiva", "+258878750526"),
     ("Amina Cassamo", "+258821234567"),
     ("Bruno Tembe", "+258849876543"),
     ("Célia Nhantumbo", "+258862345678"),
@@ -87,6 +87,7 @@ class Command(BaseCommand):
         if options["reset"]:
             self.stdout.write("A apagar dados existentes do gameon...")
             Actividade.objects.all().delete()
+            CartaAtribuida.objects.all().delete()
             Participante.objects.all().delete()
             CartaSurpresa.objects.all().delete()
             Missao.objects.all().delete()
@@ -94,7 +95,8 @@ class Command(BaseCommand):
         missoes = self._seed_missoes()
         cartas = self._seed_cartas_surpresa()
         participantes = self._seed_participantes()
-        self._seed_actividades(participantes, missoes, cartas, options["actividades_por_participante"])
+        self._seed_cartas_atribuidas(participantes, cartas)
+        self._seed_actividades(participantes, missoes, options["actividades_por_participante"])
 
         for participante in participantes:
             participante.recalcular_pontos_totais()
@@ -135,17 +137,36 @@ class Command(BaseCommand):
         self.stdout.write(f"Participantes: {len(participantes)}")
         return participantes
 
-    def _seed_actividades(self, participantes, missoes, cartas, n_por_participante):
+    def _seed_cartas_atribuidas(self, participantes, cartas):
+        """
+        Simula o comando atribuir_cartas_surpresa: só uma parte dos
+        participantes recebe uma carta, e cada um recebe uma ao acaso —
+        não é "todos recebem tudo todos os dias".
+        """
+        contemplados = random.sample(participantes, k=max(1, round(len(participantes) * 0.5)))
+        criadas = 0
+        for participante in contemplados:
+            carta = random.choice(cartas)
+            _, criada = CartaAtribuida.objects.get_or_create(participante=participante, carta=carta)
+            if criada:
+                criadas += 1
+        self.stdout.write(f"Cartas atribuídas: {criadas} (a {len(contemplados)} participante(s))")
+
+    def _seed_actividades(self, participantes, missoes, n_por_participante):
         hoje = timezone.now().date()
         criadas = 0
         for participante in participantes:
+            cartas_disponiveis = list(participante.cartas_atribuidas.filter(usada=False))
+
             for _ in range(n_por_participante):
-                # ~80% missão do catálogo, ~20% carta surpresa — reflecte que as
-                # cartas são lançadas com menos frequência que os desafios fixos.
-                if random.random() < 0.8:
-                    origem, campo = random.choice(missoes), "missao"
+                # Só usa uma carta surpresa se o participante realmente tiver
+                # uma atribuída e por usar — nunca inventa uma do catálogo geral.
+                if cartas_disponiveis and random.random() < 0.3:
+                    atribuicao = cartas_disponiveis.pop()
+                    origem, campo = atribuicao.carta, "carta_surpresa"
                 else:
-                    origem, campo = random.choice(cartas), "carta_surpresa"
+                    atribuicao = None
+                    origem, campo = random.choice(missoes), "missao"
 
                 estado = random.choice(ESTADOS_DISTRIBUICAO)
                 dias_atras = random.randint(0, 13)  # dentro da janela de 14 dias da 1ª edição
@@ -165,5 +186,12 @@ class Command(BaseCommand):
                     actividade.revisado_em = timezone.now() - timedelta(days=max(dias_atras - 1, 0))
 
                 actividade.save()
+
+                if atribuicao is not None:
+                    # Rejeitado liberta a carta (mesma regra do Actividade.rejeitar);
+                    # pendente/aprovado marca-a como usada.
+                    atribuicao.usada = estado != Actividade.Estado.REJEITADO
+                    atribuicao.save(update_fields=["usada"])
+
                 criadas += 1
         self.stdout.write(f"Actividades: {criadas}")

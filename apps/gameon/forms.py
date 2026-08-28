@@ -2,7 +2,7 @@ import re
 
 from django import forms
 
-from .models import Actividade, CartaSurpresa, Missao
+from .models import Actividade, CartaAtribuida, CartaSurpresa, Missao
 
 
 def normalizar_telefone(telefone: str) -> str:
@@ -55,14 +55,27 @@ class ActividadeForm(forms.ModelForm):
             "evidencia_imagem": forms.ClearableFileInput(attrs={"class": "field"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, participante=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.participante = participante
+
         self.fields["missao"].queryset = Missao.objects.filter(activa=True)
         self.fields["missao"].required = False
         self.fields["missao"].widget.attrs["class"] = "field"
-        self.fields["carta_surpresa"].queryset = CartaSurpresa.objects.filter(activa=True)
+
+        if participante is not None:
+            cartas_disponiveis = CartaSurpresa.objects.filter(
+                atribuicoes__participante=participante, atribuicoes__usada=False, activa=True
+            ).distinct()
+        else:
+            cartas_disponiveis = CartaSurpresa.objects.none()
+
+        self.fields["carta_surpresa"].queryset = cartas_disponiveis
         self.fields["carta_surpresa"].required = False
         self.fields["carta_surpresa"].widget.attrs["class"] = "field"
+        self.fields["carta_surpresa"].empty_label = (
+            "— nenhuma carta atribuída de momento —" if not cartas_disponiveis.exists() else "— escolhe uma —"
+        )
 
     def clean(self):
         cleaned = super().clean()
@@ -86,4 +99,8 @@ class ActividadeForm(forms.ModelForm):
         actividade.pontos = origem.pontos  # snapshot no momento do registo
         if commit:
             actividade.save()
+            if actividade.carta_surpresa_id:
+                CartaAtribuida.objects.filter(
+                    participante=participante, carta=actividade.carta_surpresa, usada=False
+                ).update(usada=True)
         return actividade
