@@ -2,99 +2,1277 @@
 
 {% block content %}
 
-    <style>
-        .gameon-square .field,
-        .gameon-square .btn,
-        .gameon-square .btn-solid {
-            border-radius: 0;
+<style>
+    .gameon-page {
+        --game-bg: #f5f5f3;
+        --game-card: #ffffff;
+        --game-ink: #0b0b0b;
+        --game-muted: #777;
+        --game-line: #deded9;
+        --game-brand: var(--brand, #fabb00);
+        --game-brand-dark: var(--brand-dark, #e1a800);
+    }
+
+    .gameon-page .game-card {
+        background: var(--game-card);
+        border: 1px solid var(--game-line);
+    }
+
+    .gameon-page .game-input {
+        width: 100%;
+        border: 1px solid var(--game-line);
+        background: #fafafa;
+        padding: 14px 16px;
+        outline: none;
+        transition:
+            border-color .2s ease,
+            background .2s ease,
+            box-shadow .2s ease;
+    }
+
+    .gameon-page .game-input:focus {
+        border-color: var(--game-ink);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(250, 187, 0, .16);
+    }
+
+    .gameon-page .choice-card {
+        position: relative;
+        cursor: pointer;
+        border: 1px solid var(--game-line);
+        background: #fafafa;
+        padding: 18px;
+        transition:
+            border-color .2s ease,
+            background .2s ease,
+            transform .2s ease;
+    }
+
+    .gameon-page .choice-card:hover {
+        border-color: var(--game-ink);
+        transform: translateY(-2px);
+    }
+
+    .gameon-page .choice-card.active {
+        border-color: var(--game-brand);
+        background: rgba(250, 187, 0, .08);
+        box-shadow: inset 0 0 0 1px var(--game-brand);
+    }
+
+    .gameon-page .choice-radio {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .gameon-page .choice-indicator {
+        display: flex;
+        width: 22px;
+        height: 22px;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #aaa;
+        border-radius: 999px;
+    }
+
+    .gameon-page .choice-card.active .choice-indicator {
+        border-color: var(--game-brand-dark);
+    }
+
+    .gameon-page .choice-card.active .choice-indicator::after {
+        content: "";
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--game-brand);
+    }
+
+    .gameon-page .upload-zone {
+        border: 1px dashed #bdbdb7;
+        background: #fafafa;
+        transition:
+            border-color .2s ease,
+            background .2s ease;
+    }
+
+    .gameon-page .upload-zone:hover,
+    .gameon-page .upload-zone.dragging {
+        border-color: var(--game-brand-dark);
+        background: rgba(250, 187, 0, .06);
+    }
+
+    .gameon-page .step {
+        transition: all .25s ease;
+    }
+
+    .gameon-page .step.active .step-number {
+        background: var(--game-brand);
+        color: var(--game-ink);
+    }
+
+    .gameon-page .step.completed .step-number {
+        background: var(--game-ink);
+        color: white;
+    }
+
+    .gameon-page .step-number {
+        display: flex;
+        height: 30px;
+        width: 30px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--game-line);
+        background: white;
+        font-family: monospace;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .gameon-page .submit-button {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .gameon-page .submit-button::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        transform: translateX(-100%);
+        background: rgba(255,255,255,.18);
+        transition: transform .5s ease;
+    }
+
+    .gameon-page .submit-button:hover::after {
+        transform: translateX(100%);
+    }
+
+    .gameon-page .preview-image {
+        display: none;
+        width: 100%;
+        max-height: 240px;
+        object-fit: cover;
+    }
+
+    .gameon-page .field-error {
+        color: #c0392b;
+    }
+
+    @media (max-width: 640px) {
+        .gameon-page .choice-card {
+            padding: 15px;
         }
-    </style>
+    }
+</style>
 
-    <section class="gameon-square max-w-6xl mx-auto px-4 pt-10 pb-16">
-        <div class="text-[11px] muted label">broto.st // game on</div>
-        <h1 class="mt-3 font-display uppercase text-5xl md:text-6xl leading-[0.92] text-ink">Registar.</h1>
-        <p class="mt-4 muted leading-relaxed max-w-xl">
-            Escolhe uma missão do catálogo ou uma carta surpresa activa, e junta uma evidência.
-            A organização verifica antes de somar os pontos.
-        </p>
 
-        <div class="mt-8 grid lg:grid-cols-12 gap-10 items-start">
+<section class="gameon-page min-h-screen bg-[#f5f5f3]">
 
-            <div class="lg:col-span-7">
-                <div class="border hairline p-6 md:p-8">
-                    <div class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">nova actividade</div>
 
-                    <form class="mt-6 grid gap-4" method="post" enctype="multipart/form-data" novalidate>
-                        {% csrf_token %}
+    <!-- =========================================================
+         TOP BAR
+    ========================================================== -->
 
-                        {% if form.non_field_errors %}
-                            <div class="border hairline p-4 text-sm" style="border-color:#c0392b; color:#c0392b;">
-                                {% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}
-                            </div>
-                        {% endif %}
+    <div class="border-b border-black/10 bg-white">
 
-                        <div>
-                            <label class="text-sm font-medium">Missão do catálogo</label>
-                            {{ form.missao }}
-                            {% for e in form.missao.errors %}<p class="text-xs mt-1" style="color:#c0392b;">{{ e }}</p>{% endfor %}
-                        </div>
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 md:px-8">
 
-                        <div class="text-[10px] uppercase tracking-widest muted text-center">ou</div>
+            <div class="flex items-center gap-3">
 
-                        <div>
-                            <label class="text-sm font-medium">Carta surpresa activa</label>
-                            {{ form.carta_surpresa }}
-                            {% for e in form.carta_surpresa.errors %}<p class="text-xs mt-1" style="color:#c0392b;">{{ e }}</p>{% endfor %}
-                        </div>
-
-                        <div class="grid sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="text-sm font-medium">Data</label>
-                                {{ form.data_actividade }}
-                            </div>
-                            <div>
-                                <label class="text-sm font-medium">Link da evidência</label>
-                                {{ form.evidencia_url }}
-                                {% for e in form.evidencia_url.errors %}<p class="text-xs mt-1" style="color:#c0392b;">{{ e }}</p>{% endfor %}
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="text-sm font-medium">Foto da evidência</label>
-                            {{ form.evidencia_imagem }}
-                            <p class="text-xs muted mt-1">Link ou foto — só precisas de uma das duas.</p>
-                            {% for e in form.evidencia_imagem.errors %}<p class="text-xs mt-1" style="color:#c0392b;">{{ e }}</p>{% endfor %}
-                        </div>
-
-                        <button class="btn-solid mt-2" type="submit">Submit</button>
-                    </form>
+                <div
+                    class="flex h-8 w-8 items-center justify-center bg-black font-mono text-xs font-bold text-white"
+                >
+                    B
                 </div>
-            </div>
 
-            <div class="lg:col-span-5">
-                <div class="border hairline p-6">
-                    <div class="text-[10px] font-semibold uppercase tracking-widest" style="color: var(--brand-dark);">como jogar</div>
-                    <div class="mt-4 grid gap-3 text-sm">
-                        <div class="flex items-start justify-between gap-4">
-                            <div class="muted">1. Inscreve-te e entra no ranking</div>
-                        </div>
-                        <div class="border-t hairline pt-4 flex items-start justify-between gap-4">
-                            <div class="muted">2. Regista cada actividade cumprida</div>
-                        </div>
-                        <div class="border-t hairline pt-4 flex items-start justify-between gap-4">
-                            <div class="muted">3. A organização verifica a evidência</div>
-                        </div>
-                        <div class="border-t hairline pt-4 flex items-start justify-between gap-4">
-                            <div class="muted">4. Acumula pontos e sobe no ranking</div>
-                        </div>
+                <div>
+                    <div class="font-display text-sm font-black uppercase tracking-tight">
+                        BROTO.ST
+                    </div>
+
+                    <div class="font-mono text-[8px] uppercase tracking-[0.2em] text-gray-500">
+                        Game On
                     </div>
                 </div>
-                <div class="mt-4">
-                    <a class="link-u text-sm" href="{% url 'gameon:minhas_actividades' %}">Ver as minhas actividades →</a>
+
+            </div>
+
+
+            <a
+                href="{% url 'gameon:minhas_actividades' %}"
+                class="font-mono text-[9px] font-bold uppercase tracking-widest transition-colors hover:text-[#e1a800]"
+            >
+                Minhas actividades →
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         HEADER
+    ========================================================== -->
+
+    <header class="mx-auto max-w-7xl px-5 pb-8 pt-10 md:px-8 md:pb-12 md:pt-14">
+
+        <div class="grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
+
+            <div>
+
+                <div class="mb-4 flex items-center gap-3">
+
+                    <span
+                        class="h-2 w-2 animate-pulse rounded-full bg-[#fabb00]"
+                    ></span>
+
+                    <span class="font-mono text-[9px] font-bold uppercase tracking-[0.25em] text-gray-500">
+                        Registo de actividade
+                    </span>
+
                 </div>
+
+                <h1
+                    class="font-display text-6xl font-black uppercase leading-[.82] tracking-[-.06em] text-[#0b0b0b] md:text-8xl"
+                >
+                    Joga.<br>
+                    <span class="text-[#fabb00]">Prova.</span><br>
+                    Soma.
+                </h1>
+
+                <p class="mt-7 max-w-xl text-sm leading-relaxed text-gray-600 md:text-base">
+                    Cumpriste uma missão? Tens uma carta surpresa?
+                    Regista-a, envia a evidência e deixa a organização validar os teus pontos.
+                </p>
+
+            </div>
+
+
+            <!-- SCORE -->
+            <div class="hidden text-right md:block">
+
+                <div class="font-mono text-[9px] uppercase tracking-[0.2em] text-gray-400">
+                    Game On
+                </div>
+
+                <div class="mt-1 font-display text-6xl font-black italic tracking-tighter">
+                    +XP
+                </div>
+
             </div>
 
         </div>
-    </section>
+
+    </header>
+
+
+    <!-- =========================================================
+         STEPS
+    ========================================================== -->
+
+    <div class="border-y border-black/10 bg-white">
+
+        <div class="mx-auto grid max-w-7xl grid-cols-3 px-5 md:px-8">
+
+            <div class="step active flex items-center gap-3 border-r border-black/10 py-4">
+
+                <span class="step-number">01</span>
+
+                <span class="hidden font-mono text-[9px] font-bold uppercase tracking-widest sm:block">
+                    Escolher
+                </span>
+
+            </div>
+
+
+            <div class="step flex items-center gap-3 border-r border-black/10 px-4 py-4">
+
+                <span class="step-number">02</span>
+
+                <span class="hidden font-mono text-[9px] font-bold uppercase tracking-widest sm:block">
+                    Provar
+                </span>
+
+            </div>
+
+
+            <div class="step flex items-center gap-3 px-4 py-4">
+
+                <span class="step-number">03</span>
+
+                <span class="hidden font-mono text-[9px] font-bold uppercase tracking-widest sm:block">
+                    Submeter
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================================
+         MAIN
+    ========================================================== -->
+
+    <main class="mx-auto max-w-7xl px-5 py-10 md:px-8 md:py-14">
+
+        <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+
+
+            <!-- =====================================================
+                 FORM
+            ====================================================== -->
+
+            <div class="game-card p-5 md:p-8">
+
+                <div class="mb-8 flex items-start justify-between gap-6">
+
+                    <div>
+
+                        <div class="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#e1a800]">
+                            Nova actividade
+                        </div>
+
+                        <h2 class="mt-2 font-display text-3xl font-black uppercase tracking-tighter md:text-4xl">
+                            O que fizeste?
+                        </h2>
+
+                    </div>
+
+                    <div
+                        id="activity-status"
+                        class="border border-black/10 px-3 py-2 font-mono text-[8px] uppercase tracking-widest text-gray-400"
+                    >
+                        Aguardando
+                    </div>
+
+                </div>
+
+
+                <form
+                    method="post"
+                    enctype="multipart/form-data"
+                    novalidate
+                    id="activity-form"
+                    class="space-y-8"
+                >
+
+                    {% csrf_token %}
+
+
+                    <!-- ERRORS -->
+
+                    {% if form.non_field_errors %}
+
+                        <div class="border border-red-300 bg-red-50 p-4">
+
+                            <div class="font-mono text-[9px] font-bold uppercase tracking-widest text-red-600">
+                                Atenção
+                            </div>
+
+                            {% for e in form.non_field_errors %}
+                                <p class="mt-1 text-sm text-red-600">
+                                    {{ e }}
+                                </p>
+                            {% endfor %}
+
+                        </div>
+
+                    {% endif %}
+
+
+                    <!-- =================================================
+                         ACTIVITY TYPE
+                    ================================================== -->
+
+                    <div>
+
+                        <div class="mb-3 flex items-center justify-between">
+
+                            <label class="font-mono text-[9px] font-bold uppercase tracking-widest">
+                                Escolhe o tipo
+                            </label>
+
+                            <span class="font-mono text-[8px] uppercase tracking-widest text-gray-400">
+                                1 opção
+                            </span>
+
+                        </div>
+
+
+                        <div class="grid gap-3 sm:grid-cols-2">
+
+
+                            <!-- MISSÃO -->
+
+                            <label
+                                id="mission-card"
+                                class="choice-card active"
+                            >
+
+                                <input
+                                    type="radio"
+                                    name="activity_type"
+                                    value="mission"
+                                    class="choice-radio"
+                                    checked
+                                >
+
+                                <div class="flex items-start gap-4">
+
+                                    <span class="choice-indicator mt-1"></span>
+
+                                    <div>
+
+                                        <div class="flex items-center gap-2">
+
+                                            <span class="font-display text-xl font-black uppercase tracking-tight">
+                                                Missão
+                                            </span>
+
+                                            <span class="bg-[#fabb00] px-2 py-1 font-mono text-[7px] font-bold uppercase">
+                                                Catálogo
+                                            </span>
+
+                                        </div>
+
+                                        <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                                            Escolhe uma missão disponível no catálogo.
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                            </label>
+
+
+                            <!-- CARTA -->
+
+                            <label
+                                id="card-card"
+                                class="choice-card"
+                            >
+
+                                <input
+                                    type="radio"
+                                    name="activity_type"
+                                    value="card"
+                                    class="choice-radio"
+                                >
+
+                                <div class="flex items-start gap-4">
+
+                                    <span class="choice-indicator mt-1"></span>
+
+                                    <div>
+
+                                        <div class="flex items-center gap-2">
+
+                                            <span class="font-display text-xl font-black uppercase tracking-tight">
+                                                Surpresa
+                                            </span>
+
+                                            <span class="border border-black/10 px-2 py-1 font-mono text-[7px] font-bold uppercase">
+                                                Carta
+                                            </span>
+
+                                        </div>
+
+                                        <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                                            Tens uma carta surpresa activa? Regista-a aqui.
+                                        </p>
+
+                                    </div>
+
+                                </div>
+
+                            </label>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =================================================
+                         MISSION
+                    ================================================== -->
+
+                    <div id="mission-wrapper">
+
+                        <label
+                            for="{{ form.missao.id_for_label }}"
+                            class="mb-2 block font-mono text-[9px] font-bold uppercase tracking-widest"
+                        >
+                            Missão do catálogo
+                        </label>
+
+                        {{ form.missao }}
+
+                        {% for e in form.missao.errors %}
+                            <p class="field-error mt-2 text-xs">
+                                {{ e }}
+                            </p>
+                        {% endfor %}
+
+                    </div>
+
+
+                    <!-- =================================================
+                         CARD
+                    ================================================== -->
+
+                    <div
+                        id="card-wrapper"
+                        class="hidden"
+                    >
+
+                        <label
+                            for="{{ form.carta_surpresa.id_for_label }}"
+                            class="mb-2 block font-mono text-[9px] font-bold uppercase tracking-widest"
+                        >
+                            Carta surpresa activa
+                        </label>
+
+                        {{ form.carta_surpresa }}
+
+                        {% for e in form.carta_surpresa.errors %}
+                            <p class="field-error mt-2 text-xs">
+                                {{ e }}
+                            </p>
+                        {% endfor %}
+
+                    </div>
+
+
+                    <!-- =================================================
+                         DATE
+                    ================================================== -->
+
+                    <div>
+
+                        <label
+                            for="{{ form.data_actividade.id_for_label }}"
+                            class="mb-2 block font-mono text-[9px] font-bold uppercase tracking-widest"
+                        >
+                            Quando aconteceu?
+                        </label>
+
+                        {{ form.data_actividade }}
+
+                    </div>
+
+
+                    <!-- =================================================
+                         EVIDENCE
+                    ================================================== -->
+
+                    <div>
+
+                        <div class="mb-3">
+
+                            <label class="font-mono text-[9px] font-bold uppercase tracking-widest">
+                                Mostra a tua prova
+                            </label>
+
+                            <p class="mt-1 text-xs text-gray-500">
+                                Adiciona um link ou uma fotografia da actividade.
+                            </p>
+
+                        </div>
+
+
+                        <div class="grid gap-3 md:grid-cols-2">
+
+
+                            <!-- LINK -->
+
+                            <div>
+
+                                <label
+                                    for="{{ form.evidencia_url.id_for_label }}"
+                                    class="mb-2 block text-xs font-medium"
+                                >
+                                    Link da evidência
+                                </label>
+
+                                {{ form.evidencia_url }}
+
+                                {% for e in form.evidencia_url.errors %}
+                                    <p class="field-error mt-2 text-xs">
+                                        {{ e }}
+                                    </p>
+                                {% endfor %}
+
+                            </div>
+
+
+                            <!-- IMAGE -->
+
+                            <div>
+
+                                <label
+                                    class="upload-zone block cursor-pointer p-4"
+                                    id="upload-zone"
+                                    for="{{ form.evidencia_imagem.id_for_label }}"
+                                >
+
+                                    <div
+                                        id="upload-content"
+                                        class="flex min-h-[100px] flex-col items-center justify-center text-center"
+                                    >
+
+                                        <div class="mb-3 text-2xl">
+                                            ↑
+                                        </div>
+
+                                        <div class="font-mono text-[9px] font-bold uppercase tracking-widest">
+                                            Adicionar foto
+                                        </div>
+
+                                        <div class="mt-1 text-[10px] text-gray-400">
+                                            Arrasta ou clica para seleccionar
+                                        </div>
+
+                                    </div>
+
+                                    {{ form.evidencia_imagem }}
+
+                                    <img
+                                        id="image-preview"
+                                        class="preview-image"
+                                        alt="Preview da evidência"
+                                    >
+
+                                </label>
+
+                                {% for e in form.evidencia_imagem.errors %}
+                                    <p class="field-error mt-2 text-xs">
+                                        {{ e }}
+                                    </p>
+                                {% endfor %}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =================================================
+                         INFO
+                    ================================================== -->
+
+                    <div class="border-y border-black/10 py-5">
+
+                        <div class="flex items-start gap-4">
+
+                            <div class="flex h-7 w-7 shrink-0 items-center justify-center bg-[#fabb00] font-mono text-[10px] font-bold">
+                                !
+                            </div>
+
+                            <div>
+
+                                <p class="text-xs font-semibold">
+                                    A evidência será verificada.
+                                </p>
+
+                                <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                                    Os pontos só entram no teu ranking depois da validação da organização.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =================================================
+                         SUBMIT
+                    ================================================== -->
+
+                    <div>
+
+                        <button
+                            id="submit-button"
+                            type="submit"
+                            class="submit-button flex w-full items-center justify-between bg-[#0b0b0b] px-6 py-5 text-left text-white transition-colors hover:bg-[#fabb00] hover:text-black"
+                        >
+
+                            <span>
+
+                                <span class="block font-display text-2xl font-black italic uppercase tracking-tighter">
+                                    Registar actividade
+                                </span>
+
+                                <span class="mt-1 block font-mono text-[8px] uppercase tracking-widest opacity-60">
+                                    Enviar para validação
+                                </span>
+
+                            </span>
+
+                            <span class="text-2xl">
+                                →
+                            </span>
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+            </div>
+
+
+            <!-- =====================================================
+                 SIDEBAR
+            ====================================================== -->
+
+            <aside class="space-y-5 lg:sticky lg:top-24 lg:self-start">
+
+
+                <!-- HOW TO PLAY -->
+
+                <div class="game-card p-6">
+
+                    <div class="flex items-center justify-between">
+
+                        <div class="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#e1a800]">
+                            Como jogar
+                        </div>
+
+                        <div class="font-mono text-[8px] text-gray-400">
+                            01—04
+                        </div>
+
+                    </div>
+
+
+                    <div class="mt-6 space-y-0">
+
+
+                        <div class="step-item flex gap-4 border-b border-black/10 pb-5">
+
+                            <span class="flex h-7 w-7 shrink-0 items-center justify-center bg-black font-mono text-[9px] font-bold text-white">
+                                01
+                            </span>
+
+                            <div>
+                                <div class="text-sm font-semibold">
+                                    Entra no jogo
+                                </div>
+
+                                <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                                    Inscreve-te e começa a acumular pontos.
+                                </p>
+                            </div>
+
+                        </div>
+
+
+                        <div class="step-item flex gap-4 border-b border-black/10 py-5">
+
+                            <span class="flex h-7 w-7 shrink-0 items-center justify-center border border-black/10 font-mono text-[9px] font-bold">
+                                02
+                            </span>
+
+                            <div>
+                                <div class="text-sm font-semibold">
+                                    Cumpre
+                                </div>
+
+                                <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                                    Faz uma missão ou activa uma carta.
+                                </p>
+                            </div>
+
+                        </div>
+
+
+                        <div class="step-item flex gap-4 border-b border-black/10 py-5">
+
+                            <span class="flex h-7 w-7 shrink-0 items-center justify-center border border-black/10 font-mono text-[9px] font-bold">
+                                03
+                            </span>
+
+                            <div>
+                                <div class="text-sm font-semibold">
+                                    Prova
+                                </div>
+
+                                <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                                    Envia uma fotografia ou link.
+                                </p>
+                            </div>
+
+                        </div>
+
+
+                        <div class="step-item flex gap-4 pt-5">
+
+                            <span class="flex h-7 w-7 shrink-0 items-center justify-center border border-black/10 font-mono text-[9px] font-bold">
+                                04
+                            </span>
+
+                            <div>
+                                <div class="text-sm font-semibold">
+                                    Sobe no ranking
+                                </div>
+
+                                <p class="mt-1 text-xs leading-relaxed text-gray-500">
+                                    Depois da validação, os pontos são adicionados.
+                                </p>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- RANKING CTA -->
+
+                <a
+                    href="{% url 'gameon:minhas_actividades' %}"
+                    class="group block bg-[#0b0b0b] p-6 text-white transition-colors hover:bg-[#fabb00] hover:text-black"
+                >
+
+                    <div class="flex items-center justify-between">
+
+                        <span class="font-mono text-[9px] font-bold uppercase tracking-[0.2em] opacity-60">
+                            Dashboard
+                        </span>
+
+                        <span class="text-xl transition-transform duration-300 group-hover:translate-x-1">
+                            →
+                        </span>
+
+                    </div>
+
+                    <div class="mt-8 font-display text-3xl font-black italic uppercase tracking-tighter">
+                        Ver as minhas<br>
+                        actividades.
+                    </div>
+
+                </a>
+
+
+                <!-- TIP -->
+
+                <div class="border border-black/10 bg-[#fabb00] p-6">
+
+                    <div class="font-mono text-[9px] font-bold uppercase tracking-[0.2em]">
+                        Dica
+                    </div>
+
+                    <p class="mt-3 text-sm font-medium leading-relaxed">
+                        Uma boa evidência aumenta a probabilidade de validação rápida.
+                    </p>
+
+                </div>
+
+            </aside>
+
+        </div>
+
+    </main>
+
+</section>
+
+
+<!-- =============================================================
+     INTERACTION
+============================================================= -->
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.getElementById("activity-form");
+
+    const missionCard = document.getElementById("mission-card");
+    const cardCard = document.getElementById("card-card");
+
+    const missionWrapper = document.getElementById("mission-wrapper");
+    const cardWrapper = document.getElementById("card-wrapper");
+
+    const status = document.getElementById("activity-status");
+
+    const uploadZone = document.getElementById("upload-zone");
+    const uploadInput = document.querySelector(
+        'input[type="file"]'
+    );
+
+    const uploadContent = document.getElementById("upload-content");
+    const imagePreview = document.getElementById("image-preview");
+
+    const submitButton = document.getElementById("submit-button");
+
+    const steps = document.querySelectorAll(".gameon-page .step");
+
+
+    /* =============================================================
+       TYPE SELECTION
+    ============================================================= */
+
+    const radios = document.querySelectorAll(
+        'input[name="activity_type"]'
+    );
+
+
+    function updateActivityType(type) {
+
+        if (type === "mission") {
+
+            missionCard.classList.add("active");
+            cardCard.classList.remove("active");
+
+            missionWrapper.classList.remove("hidden");
+            cardWrapper.classList.add("hidden");
+
+        } else {
+
+            missionCard.classList.remove("active");
+            cardCard.classList.add("active");
+
+            missionWrapper.classList.add("hidden");
+            cardWrapper.classList.remove("hidden");
+
+        }
+
+        status.textContent =
+            type === "mission"
+                ? "Missão seleccionada"
+                : "Carta seleccionada";
+
+        status.classList.remove(
+            "text-gray-400"
+        );
+
+        status.classList.add(
+            "text-black"
+        );
+
+        updateProgress();
+
+    }
+
+
+    radios.forEach(function (radio) {
+
+        radio.addEventListener("change", function () {
+            updateActivityType(this.value);
+        });
+
+    });
+
+
+    /* =============================================================
+       PROGRESS
+    ============================================================= */
+
+    function updateProgress() {
+
+        const activitySelected =
+            document.querySelector(
+                'input[name="activity_type"]:checked'
+            );
+
+        const mission =
+            document.querySelector(
+                '[name="missao"]'
+            );
+
+        const card =
+            document.querySelector(
+                '[name="carta_surpresa"]'
+            );
+
+        const evidenceUrl =
+            document.querySelector(
+                '[name="evidencia_url"]'
+            );
+
+        const evidenceImage =
+            document.querySelector(
+                '[name="evidencia_imagem"]'
+            );
+
+
+        steps.forEach(function (step) {
+            step.classList.remove(
+                "active",
+                "completed"
+            );
+        });
+
+
+        /*
+         * STEP 1
+         */
+
+        if (activitySelected) {
+
+            steps[0].classList.add(
+                "completed"
+            );
+
+            steps[1].classList.add(
+                "active"
+            );
+
+        } else {
+
+            steps[0].classList.add(
+                "active"
+            );
+
+        }
+
+
+        /*
+         * STEP 2
+         */
+
+        const activityValue =
+            activitySelected?.value === "mission"
+                ? mission?.value
+                : card?.value;
+
+        if (activityValue) {
+
+            steps[1].classList.remove(
+                "active"
+            );
+
+            steps[1].classList.add(
+                "completed"
+            );
+
+            steps[2].classList.add(
+                "active"
+            );
+
+        }
+
+
+        /*
+         * STEP 3
+         */
+
+        if (
+            evidenceUrl?.value.trim() ||
+            evidenceImage?.files?.length
+        ) {
+
+            steps[2].classList.remove(
+                "active"
+            );
+
+            steps[2].classList.add(
+                "completed"
+            );
+
+        }
+
+    }
+
+
+    document.querySelectorAll(
+        "#activity-form input, #activity-form select, #activity-form textarea"
+    ).forEach(function (field) {
+
+        field.addEventListener(
+            "input",
+            updateProgress
+        );
+
+        field.addEventListener(
+            "change",
+            updateProgress
+        );
+
+    });
+
+
+    /* =============================================================
+       IMAGE UPLOAD
+    ============================================================= */
+
+    if (uploadInput) {
+
+        uploadInput.addEventListener(
+            "change",
+            function () {
+
+                const file = this.files[0];
+
+                if (!file) {
+                    return;
+                }
+
+                if (!file.type.startsWith("image/")) {
+                    return;
+                }
+
+                const reader =
+                    new FileReader();
+
+                reader.onload = function (event) {
+
+                    imagePreview.src =
+                        event.target.result;
+
+                    imagePreview.style.display =
+                        "block";
+
+                    uploadContent.style.display =
+                        "none";
+
+                    uploadZone.classList.add(
+                        "border-[#fabb00]"
+                    );
+
+                    updateProgress();
+
+                };
+
+                reader.readAsDataURL(file);
+
+            }
+        );
+
+
+        /*
+         * DRAG ENTER
+         */
+
+        ["dragenter", "dragover"].forEach(
+            function (eventName) {
+
+                uploadZone.addEventListener(
+                    eventName,
+                    function (event) {
+
+                        event.preventDefault();
+
+                        uploadZone.classList.add(
+                            "dragging"
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+
+        /*
+         * DRAG LEAVE
+         */
+
+        ["dragleave", "drop"].forEach(
+            function (eventName) {
+
+                uploadZone.addEventListener(
+                    eventName,
+                    function () {
+
+                        uploadZone.classList.remove(
+                            "dragging"
+                        );
+
+                    }
+                );
+
+            }
+        );
+
+
+        /*
+         * DROP
+         */
+
+        uploadZone.addEventListener(
+            "drop",
+            function (event) {
+
+                event.preventDefault();
+
+                const files =
+                    event.dataTransfer.files;
+
+                if (!files.length) {
+                    return;
+                }
+
+                uploadInput.files =
+                    files;
+
+                uploadInput.dispatchEvent(
+                    new Event("change", {
+                        bubbles: true
+                    })
+                );
+
+            }
+        );
+
+    }
+
+
+    /* =============================================================
+       FORM SUBMIT
+    ============================================================= */
+
+    if (form) {
+
+        form.addEventListener(
+            "submit",
+            function () {
+
+                submitButton.disabled =
+                    true;
+
+                submitButton.classList.add(
+                    "opacity-70",
+                    "cursor-wait"
+                );
+
+                status.textContent =
+                    "A enviar…";
+
+                submitButton.querySelector(
+                    "span span"
+                ).textContent =
+                    "A enviar actividade…";
+
+            }
+        );
+
+    }
+
+
+    /* =============================================================
+       INITIAL STATE
+    ============================================================= */
+
+    const initialRadio =
+        document.querySelector(
+            'input[name="activity_type"]:checked'
+        );
+
+    if (initialRadio) {
+        updateActivityType(
+            initialRadio.value
+        );
+    }
+
+    updateProgress();
+
+});
+</script>
 
 {% endblock %}
