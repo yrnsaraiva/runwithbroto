@@ -75,7 +75,10 @@ class Participante(models.Model):
         null=True, blank=True,
     )
     nome = models.CharField(max_length=150)
-    telefone = models.CharField(max_length=30, blank=True)
+    telefone = models.CharField(
+        max_length=30, unique=True,
+        help_text="Identifica o participante nas páginas públicas — sem conta nem password.",
+    )
     inscrito_em = models.DateTimeField(auto_now_add=True)
 
     # Campo desnormalizado só para performance nas listagens de ranking.

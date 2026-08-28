@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <style>
+        .gameon-square .field,
+        .gameon-square .btn,
+        .gameon-square .btn-solid {
+            border-radius: 0;
+        }
+    </style>
+
+    <section class="gameon-square max-w-6xl mx-auto px-4 pt-10 pb-16">
+        <div class="text-[11px] muted label">broto.st // game on</div>
+        <h1 class="mt-3 font-display uppercase text-5xl md:text-6xl leading-[0.92] text-ink">Quem és tu?</h1>
+        <p class="mt-4 muted leading-relaxed max-w-xl">
+            Sem contas nem passwords — só o teu número de telefone. Se já jogaste, entramos directo no teu progresso.
+        </p>
+
+        <div class="mt-8 grid lg:grid-cols-12 gap-10 items-start">
+            <div class="lg:col-span-6">
+                <div class="border hairline p-6 md:p-8">
+                    <form class="grid gap-4" method="post" novalidate>
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ next }}">
+
+                        {% if form.non_field_errors %}
+                            <div class="border hairline p-4 text-sm" style="border-color:#c0392b; color:#c0392b;">
+                                {% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div>
+                            <label class="text-sm font-medium">Número de telefone</label>
+                            {{ form.telefone }}
+                            {% for e in form.telefone.errors %}<p class="text-xs mt-1" style="color:#c0392b;">{{ e }}</p>{% endfor %}
+                        </div>
+
+                        <div>
+                            <label class="text-sm font-medium">Nome</label>
+                            {{ form.nome }}
+                            <p class="text-xs muted mt-1">Só é preciso da primeira vez.</p>
+                        </div>
+
+                        <button class="btn-solid mt-2" type="submit">Entrar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+{% endblock %}

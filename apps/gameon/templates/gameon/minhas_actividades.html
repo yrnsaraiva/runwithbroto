@@ -26,6 +26,10 @@
         <p class="mt-4 muted leading-relaxed max-w-xl">
             Estado de cada submissão — pendente, aprovado ou rejeitado pela organização.
         </p>
+        <p class="mt-2 text-sm muted">
+            A jogar como <span class="font-medium text-ink">{{ participante.nome }}</span> ·
+            <a class="link-u" href="{% url 'gameon:sair_participante' %}">não sou eu</a>
+        </p>
 
         <div class="mt-8 border hairline p-6 md:p-8">
             {% for actividade in actividades %}
