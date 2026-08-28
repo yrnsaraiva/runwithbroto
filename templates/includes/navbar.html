@@ -13,6 +13,9 @@
         
             <a class="hover:text-[var(--brand)] transition{% if request.path|slice:':10' == '/schedule/' %} font-semibold{% endif %}"
                href="{% url 'events:event_list' %}">Schedule</a>
+        
+            <a class="hover:text-[var(--brand)] transition{% if request.path|slice:':10' == '/gameon/' %} font-semibold{% endif %}"
+               href="{% url 'gameon:entrar' %}">GameOn</a>
 
             <a class="hover:text-[var(--brand)] transition{% if request.path == '/our-story/' %} font-semibold{% endif %}"
                href="{% url 'core:our_story' %}">Our Story</a>
