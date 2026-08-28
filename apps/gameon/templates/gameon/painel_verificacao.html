@@ -1,0 +1,59 @@
+{% extends "gameon/base_gameon.html" %}
+{% block title %}Painel de verificação{% endblock %}
+
+{% block extra_style %}
+<style>
+  .item{
+    padding:18px 0; border-bottom:1px solid var(--line);
+    display:grid; grid-template-columns:1fr auto; gap:16px; align-items:start;
+  }
+  .item:first-child{border-top:1px solid var(--line);}
+  .who{font-family:'Oswald',sans-serif; font-size:16px;}
+  .what{color:var(--text-dim); font-size:13px; margin-top:3px;}
+  .evid{font-size:12px; margin-top:8px;}
+  .evid a{color:var(--brand); text-decoration:none;}
+  .evid a:hover{text-decoration:underline;}
+  .actions{display:flex; gap:8px; align-items:flex-start;}
+  .reject-form{display:inline;}
+  .reject-form input[type="text"]{
+    background:var(--ink-2); border:1px solid var(--line); color:var(--text);
+    font-size:12px; padding:8px 10px; width:150px; margin-right:6px;
+  }
+  .empty{padding:40px 0; color:var(--text-dim); text-align:center; border:1px solid var(--line); margin-top:32px;}
+  .count{color:var(--brand); font-family:'Oswald',sans-serif;}
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="eyebrow">Painel da organização</div>
+  <h1 class="page-title">Verificação de actividades</h1>
+  <p class="page-sub"><span class="count">{{ actividades|length }}</span> actividade{{ actividades|length|pluralize }} pendente{{ actividades|length|pluralize }} de revisão.</p>
+
+  <div style="margin-top:32px;">
+    {% for actividade in actividades %}
+      <div class="item">
+        <div>
+          <div class="who">{{ actividade.participante.nome }}</div>
+          <div class="what">{{ actividade.missao|default:actividade.carta_surpresa }} · {{ actividade.pontos }} pts · {{ actividade.data_actividade|date:"d/m/Y" }}</div>
+          <div class="evid">
+            {% if actividade.evidencia_url %}<a href="{{ actividade.evidencia_url }}" target="_blank" rel="noopener">Ver evidência (link) →</a>{% endif %}
+            {% if actividade.evidencia_imagem %}<a href="{{ actividade.evidencia_imagem.url }}" target="_blank" rel="noopener">Ver foto →</a>{% endif %}
+          </div>
+        </div>
+        <div class="actions">
+          <form method="post" action="{% url 'gameon:aprovar_actividade' actividade.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn small">Aprovar</button>
+          </form>
+          <form method="post" action="{% url 'gameon:rejeitar_actividade' actividade.id %}" class="reject-form">
+            {% csrf_token %}
+            <input type="text" name="motivo" placeholder="Motivo (opcional)">
+            <button type="submit" class="btn small danger-outline">Rejeitar</button>
+          </form>
+        </div>
+      </div>
+    {% empty %}
+      <div class="empty">Sem actividades pendentes. Tudo verificado.</div>
+    {% endfor %}
+  </div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "gameon/base_gameon.html" %}
+{% block title %}Ranking{% endblock %}
+
+{% block extra_style %}
+<style>
+  .row{
+    display:grid; grid-template-columns:76px 1px 1fr auto; align-items:center;
+    gap:0; border-bottom:1px solid var(--line);
+  }
+  .row:first-child{border-top:1px solid var(--line);}
+
+  /* Bib: número da posição, como o dorsal de uma corrida */
+  .bib{
+    padding:18px 0; text-align:center;
+  }
+  .bib .bib-num{font-size:26px; color:var(--text-dim);}
+  .row.pos-1 .bib-num, .row.pos-2 .bib-num, .row.pos-3 .bib-num{color:var(--brand);}
+  .row.pos-1 .medal, .row.pos-2 .medal, .row.pos-3 .medal{display:block; font-size:11px; letter-spacing:0.08em; color:var(--brand); margin-top:2px;}
+
+  /* Perfuração — friso de "talão destacável" entre o bib e a informação */
+  .perf{
+    height:100%; min-height:64px;
+    background-image: radial-gradient(circle, var(--ink) 2.5px, transparent 2.6px);
+    background-size: 100% 14px;
+    background-position: center;
+    border-left:1px dashed var(--line);
+    border-right:1px dashed var(--line);
+  }
+
+  .who{padding:18px 20px;}
+  .who .name{font-family:'Oswald',sans-serif; font-size:17px; letter-spacing:0.02em;}
+  .who .meta{color:var(--text-dim); font-size:12px; margin-top:3px;}
+
+  .score{padding:18px 20px; text-align:right;}
+  .score .pts{font-family:'Oswald',sans-serif; font-size:22px; color:var(--brand);}
+  .score .pts-label{display:block; color:var(--text-dim); font-size:10px; letter-spacing:0.1em; text-transform:uppercase; margin-top:2px;}
+
+  .empty{padding:40px 0; color:var(--text-dim); text-align:center; border:1px solid var(--line);}
+
+  .pager{display:flex; justify-content:space-between; margin-top:24px;}
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="eyebrow">Secção 5 — Ranking</div>
+  <h1 class="page-title">Classificação geral</h1>
+  <p class="page-sub">Actualizado periodicamente à medida que a organização verifica as actividades registadas.</p>
+
+  <div style="margin-top:32px;">
+    {% for participante in participantes %}
+      <div class="row {% if forloop.counter == 1 %}pos-1{% elif forloop.counter == 2 %}pos-2{% elif forloop.counter == 3 %}pos-3{% endif %}">
+        <div class="bib">
+          <span class="bib-num">{{ forloop.counter }}º</span>
+          {% if forloop.counter == 1 %}<span class="medal">🥇</span>
+          {% elif forloop.counter == 2 %}<span class="medal">🥈</span>
+          {% elif forloop.counter == 3 %}<span class="medal">🥉</span>{% endif %}
+        </div>
+        <div class="perf"></div>
+        <div class="who">
+          <div class="name">{{ participante.nome }}</div>
+          <div class="meta">{{ participante.numero_desafios_concluidos }} desafio{{ participante.numero_desafios_concluidos|pluralize }} concluído{{ participante.numero_desafios_concluidos|pluralize }}</div>
+        </div>
+        <div class="score">
+          <span class="pts">{{ participante.pontos_totais_cache }}</span>
+          <span class="pts-label">pontos</span>
+        </div>
+      </div>
+    {% empty %}
+      <div class="empty">Ainda ninguém tem pontos registados. Sê o primeiro a jogar.</div>
+    {% endfor %}
+  </div>
+
+  {% if is_paginated %}
+    <div class="pager">
+      {% if page_obj.has_previous %}
+        <a class="btn ghost small" href="?page={{ page_obj.previous_page_number }}">← Anterior</a>
+      {% else %}<span></span>{% endif %}
+      {% if page_obj.has_next %}
+        <a class="btn ghost small" href="?page={{ page_obj.next_page_number }}">Seguinte →</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

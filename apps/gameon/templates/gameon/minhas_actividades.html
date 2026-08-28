@@ -1,0 +1,47 @@
+{% extends "gameon/base_gameon.html" %}
+{% block title %}As minhas actividades{% endblock %}
+
+{% block extra_style %}
+<style>
+  .item{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:16px 0; border-bottom:1px solid var(--line);
+  }
+  .item:first-child{border-top:1px solid var(--line);}
+  .item .what{font-family:'Oswald',sans-serif; font-size:15px;}
+  .item .when{color:var(--text-dim); font-size:12px; margin-top:3px;}
+  .item .note{color:var(--danger); font-size:12px; margin-top:4px;}
+  .item .right{text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px;}
+  .item .pts{color:var(--brand); font-family:'Oswald',sans-serif; font-size:15px;}
+  .empty{padding:40px 0; color:var(--text-dim); text-align:center; border:1px solid var(--line); margin-top:32px;}
+</style>
+{% endblock %}
+
+{% block content %}
+  <div class="eyebrow">O teu progresso</div>
+  <h1 class="page-title">As minhas actividades</h1>
+  <p class="page-sub">Estado de cada submissão — pendente, aprovado ou rejeitado pela organização.</p>
+
+  <div style="margin-top:32px;">
+    {% for actividade in actividades %}
+      <div class="item">
+        <div>
+          <div class="what">{{ actividade.missao|default:actividade.carta_surpresa }}</div>
+          <div class="when">{{ actividade.data_actividade|date:"d/m/Y" }}</div>
+          {% if actividade.estado == "rejeitado" and actividade.nota_organizacao %}
+            <div class="note">{{ actividade.nota_organizacao }}</div>
+          {% endif %}
+        </div>
+        <div class="right">
+          <span class="stamp {{ actividade.estado }}">{{ actividade.get_estado_display }}</span>
+          <span class="pts">+{{ actividade.pontos }} pts</span>
+        </div>
+      </div>
+    {% empty %}
+      <div class="empty">
+        Ainda não registaste nenhuma actividade.
+        <div style="margin-top:16px;"><a class="btn small" href="{% url 'gameon:registar_actividade' %}">Registar a primeira</a></div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}
