@@ -1,13 +1,26 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from unfold.admin import ModelAdmin
+from .models import Actividade, CartaAtribuida, CartaSurpresa, Edicao, Missao, Participante
 
-from .models import Actividade, CartaAtribuida, CartaSurpresa, Missao, Participante
+
+@admin.register(Edicao)
+class EdicaoAdmin(admin.ModelAdmin):
+    list_display = ("nome", "data_inicio", "data_fim_prevista", "estado", "encerrada_em")
+    list_filter = ("estado",)
+    list_editable = ("estado",)  # activar/encerrar directamente da lista — o modelo trata de haver só uma activa
+    search_fields = ("nome",)
+    actions = ["encerrar_seleccionadas"]
+
+    @admin.action(description="Encerrar edição(ões) seleccionada(s)")
+    def encerrar_seleccionadas(self, request, queryset):
+        for edicao in queryset:
+            edicao.encerrar()
+        self.message_user(request, f"{queryset.count()} edição(ões) encerrada(s).")
 
 
 @admin.register(Missao)
-class MissaoAdmin(ModelAdmin):
+class MissaoAdmin(admin.ModelAdmin):
     list_display = ("nome", "categoria", "pontos", "activa")
     list_filter = ("categoria", "activa")
     search_fields = ("nome", "chave")
@@ -15,7 +28,7 @@ class MissaoAdmin(ModelAdmin):
 
 
 @admin.register(CartaSurpresa)
-class CartaSurpresaAdmin(ModelAdmin):
+class CartaSurpresaAdmin(admin.ModelAdmin):
     list_display = ("tipo", "descricao", "pontos", "data_lancamento", "activa")
     list_filter = ("tipo", "activa")
     list_editable = ("activa",)
@@ -23,7 +36,7 @@ class CartaSurpresaAdmin(ModelAdmin):
 
 
 @admin.register(CartaAtribuida)
-class CartaAtribuidaAdmin(ModelAdmin):
+class CartaAtribuidaAdmin(admin.ModelAdmin):
     list_display = ("participante", "carta", "atribuida_em", "usada")
     list_filter = ("usada", "carta__tipo")
     search_fields = ("participante__nome", "participante__telefone")
@@ -31,7 +44,7 @@ class CartaAtribuidaAdmin(ModelAdmin):
 
 
 @admin.register(Participante)
-class ParticipanteAdmin(ModelAdmin):
+class ParticipanteAdmin(admin.ModelAdmin):
     list_display = ("nome", "telefone", "pontos_totais_cache", "numero_desafios_concluidos", "inscrito_em")
     search_fields = ("nome", "telefone")
     readonly_fields = ("pontos_totais_cache",)
@@ -43,11 +56,11 @@ class ParticipanteAdmin(ModelAdmin):
 
 
 @admin.register(Actividade)
-class ActividadeAdmin(ModelAdmin):
-    list_display = ("participante", "origem", "pontos", "estado", "data_actividade", "revisado_por")
-    list_filter = ("estado", "missao__categoria", "data_actividade")
+class ActividadeAdmin(admin.ModelAdmin):
+    list_display = ("participante", "edicao", "origem", "pontos", "estado", "data_actividade", "revisado_por")
+    list_filter = ("edicao", "estado", "missao__categoria", "data_actividade")
     search_fields = ("participante__nome",)
-    autocomplete_fields = ("participante", "missao", "carta_surpresa")
+    autocomplete_fields = ("participante", "missao", "carta_surpresa", "edicao")
     actions = ["aprovar_seleccionadas", "rejeitar_seleccionadas"]
 
     def origem(self, obj):

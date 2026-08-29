@@ -6,10 +6,12 @@ Uso:
     python manage.py seed_gameon --reset   # apaga dados do gameon antes de semear
 
 Cria o catálogo completo da Tabela de Pontuação (secção 3), as 4 Cartas
-Surpresa (secção 4), um punhado de participantes e um histórico de
-actividades em estados variados (pendente / aprovado / rejeitado) para
-que o ranking, o painel de verificação e "as minhas actividades" tenham
-logo conteúdo para inspeccionar.
+Surpresa (secção 4), um punhado de participantes, DUAS edições — uma já
+encerrada (com vencedores calculáveis) e a edição activa actual — e um
+histórico de actividades distribuído entre as duas, em estados variados
+(pendente / aprovado / rejeitado), para que o ranking, o painel de
+verificação, "as minhas actividades" e o selector de edições tenham logo
+conteúdo para inspeccionar.
 """
 import random
 from datetime import timedelta
@@ -18,7 +20,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.gameon.models import Actividade, CartaAtribuida, CartaSurpresa, Missao, Participante
+from apps.gameon.models import Actividade, CartaAtribuida, CartaSurpresa, Edicao, Missao, Participante
 
 MISSOES = [
     ("correr_5km", "Correr 5 km", Missao.Categoria.CORRIDA, 10),
@@ -43,7 +45,7 @@ CARTAS_SURPRESA = [
 ]
 
 PARTICIPANTES = [
-    ("Yuran Saraiva", "+258878750526"),
+    ("Yuran Saraiva", "+258844723840"),
     ("Amina Cassamo", "+258821234567"),
     ("Bruno Tembe", "+258849876543"),
     ("Célia Nhantumbo", "+258862345678"),
@@ -67,19 +69,19 @@ MOTIVOS_REJEICAO = [
 
 
 class Command(BaseCommand):
-    help = "Gera dados de teste para o GAME ON: missões, cartas surpresa, participantes e actividades."
+    help = "Gera dados de teste para o GAME ON: edições, missões, cartas surpresa, participantes e actividades."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--reset",
             action="store_true",
-            help="Apaga todos os dados do gameon (Actividade, Participante, CartaSurpresa, Missao) antes de semear.",
+            help="Apaga todos os dados do gameon (Actividade, Edicao, Participante, CartaSurpresa, Missao) antes de semear.",
         )
         parser.add_argument(
             "--actividades-por-participante",
             type=int,
-            default=5,
-            help="Número de actividades a gerar por participante (default: 5).",
+            default=8,
+            help="Número de actividades a gerar por participante, repartidas pelas duas edições (default: 8).",
         )
 
     @transaction.atomic
@@ -91,18 +93,23 @@ class Command(BaseCommand):
             Participante.objects.all().delete()
             CartaSurpresa.objects.all().delete()
             Missao.objects.all().delete()
+            Edicao.objects.all().delete()
 
         missoes = self._seed_missoes()
         cartas = self._seed_cartas_surpresa()
+        edicao_anterior, edicao_atual = self._seed_edicoes()
         participantes = self._seed_participantes()
         self._seed_cartas_atribuidas(participantes, cartas)
-        self._seed_actividades(participantes, missoes, options["actividades_por_participante"])
+        self._seed_actividades(
+            participantes, missoes, edicao_anterior, edicao_atual, options["actividades_por_participante"]
+        )
 
         for participante in participantes:
             participante.recalcular_pontos_totais()
 
         self.stdout.write(self.style.SUCCESS(
-            f"OK: {len(missoes)} missões, {len(cartas)} cartas surpresa, "
+            f"OK: 2 edições ({edicao_anterior.nome} — encerrada, {edicao_atual.nome} — activa), "
+            f"{len(missoes)} missões, {len(cartas)} cartas surpresa, "
             f"{len(participantes)} participantes, "
             f"{Actividade.objects.count()} actividades."
         ))
@@ -129,6 +136,33 @@ class Command(BaseCommand):
         self.stdout.write(f"Cartas Surpresa: {len(cartas)}")
         return cartas
 
+    def _seed_edicoes(self):
+        """
+        Duas edições de 14 dias, encostadas: uma já terminou (para testar
+        o ranking histórico e os vencedores), a outra está a decorrer agora.
+        """
+        hoje = timezone.now().date()
+
+        edicao_anterior, _ = Edicao.objects.update_or_create(
+            nome="GAME ON — Edição 1",
+            defaults={
+                "data_inicio": hoje - timedelta(days=28),
+                "data_fim_prevista": hoje - timedelta(days=14),
+                "estado": Edicao.Estado.ENCERRADA,
+                "encerrada_em": timezone.now() - timedelta(days=14),
+            },
+        )
+        edicao_atual, _ = Edicao.objects.update_or_create(
+            nome="GAME ON — Edição 2",
+            defaults={
+                "data_inicio": hoje - timedelta(days=13),
+                "data_fim_prevista": hoje + timedelta(days=1),
+                "estado": Edicao.Estado.ATIVA,
+            },
+        )
+        self.stdout.write(f"Edições: {edicao_anterior.nome} (encerrada), {edicao_atual.nome} (activa)")
+        return edicao_anterior, edicao_atual
+
     def _seed_participantes(self):
         participantes = []
         for nome, telefone in PARTICIPANTES:
@@ -152,16 +186,20 @@ class Command(BaseCommand):
                 criadas += 1
         self.stdout.write(f"Cartas atribuídas: {criadas} (a {len(contemplados)} participante(s))")
 
-    def _seed_actividades(self, participantes, missoes, n_por_participante):
+    def _seed_actividades(self, participantes, missoes, edicao_anterior, edicao_atual, n_por_participante):
         hoje = timezone.now().date()
         criadas = 0
         for participante in participantes:
             cartas_disponiveis = list(participante.cartas_atribuidas.filter(usada=False))
 
             for _ in range(n_por_participante):
+                dias_atras = random.randint(0, 27)  # cobre as duas edições de 14 dias
+                edicao = edicao_atual if dias_atras <= 13 else edicao_anterior
+
                 # Só usa uma carta surpresa se o participante realmente tiver
-                # uma atribuída e por usar — nunca inventa uma do catálogo geral.
-                if cartas_disponiveis and random.random() < 0.3:
+                # uma atribuída e por usar, e só na edição activa (as cartas
+                # atribuídas foram criadas "agora", não fazem sentido na edição antiga).
+                if edicao is edicao_atual and cartas_disponiveis and random.random() < 0.3:
                     atribuicao = cartas_disponiveis.pop()
                     origem, campo = atribuicao.carta, "carta_surpresa"
                 else:
@@ -169,10 +207,10 @@ class Command(BaseCommand):
                     origem, campo = random.choice(missoes), "missao"
 
                 estado = random.choice(ESTADOS_DISTRIBUICAO)
-                dias_atras = random.randint(0, 13)  # dentro da janela de 14 dias da 1ª edição
 
                 actividade = Actividade(
                     participante=participante,
+                    edicao=edicao,
                     pontos=origem.pontos,
                     estado=estado,
                     data_actividade=hoje - timedelta(days=dias_atras),

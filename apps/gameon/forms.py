@@ -92,9 +92,10 @@ class ActividadeForm(forms.ModelForm):
 
         return cleaned
 
-    def save(self, participante, commit=True):
+    def save(self, participante, edicao, commit=True):
         actividade = super().save(commit=False)
         actividade.participante = participante
+        actividade.edicao = edicao
         origem = actividade.missao or actividade.carta_surpresa
         actividade.pontos = origem.pontos  # snapshot no momento do registo
         if commit:

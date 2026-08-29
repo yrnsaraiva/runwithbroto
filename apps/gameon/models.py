@@ -14,6 +14,54 @@ from django.db import models
 from django.utils import timezone
 
 
+class Edicao(models.Model):
+    """
+    Um período de jogo (secção 8 do regulamento: 14 dias sugeridos, podendo
+    tornar-se mensal). Cada Actividade pertence a uma Edição; encerrar uma
+    edição congela os pontos e os vencedores dessa ronda, sem apagar nada —
+    a próxima edição começa do zero, mas o histórico fica sempre consultável.
+    """
+
+    class Estado(models.TextChoices):
+        ATIVA = "activa", "Activa"
+        ENCERRADA = "encerrada", "Encerrada"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    nome = models.CharField(max_length=120, help_text="Ex.: GAME ON — Edição 1")
+    data_inicio = models.DateField()
+    data_fim_prevista = models.DateField(help_text="Duração sugerida: 14 dias (secção 8 do regulamento)")
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ATIVA)
+    encerrada_em = models.DateTimeField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Edição"
+        verbose_name_plural = "Edições"
+        ordering = ["-data_inicio"]
+
+    def __str__(self):
+        return f"{self.nome} ({self.get_estado_display()})"
+
+    def save(self, *args, **kwargs):
+        if self.estado == self.Estado.ATIVA:
+            # Só pode haver uma edição activa de cada vez: activar esta
+            # encerra automaticamente qualquer outra que ainda o estivesse.
+            Edicao.objects.filter(estado=self.Estado.ATIVA).exclude(pk=self.pk).update(
+                estado=self.Estado.ENCERRADA, encerrada_em=timezone.now()
+            )
+        super().save(*args, **kwargs)
+
+    def encerrar(self):
+        self.estado = self.Estado.ENCERRADA
+        self.encerrada_em = timezone.now()
+        self.save(update_fields=["estado", "encerrada_em"])
+
+    @classmethod
+    def atual(cls):
+        """A edição activa neste momento, ou None se nenhuma estiver aberta."""
+        return cls.objects.filter(estado=cls.Estado.ATIVA).first()
+
+
 class Missao(models.Model):
     """Catálogo fixo de desafios da Tabela de Pontuação (secção 3 do regulamento)."""
 
@@ -154,6 +202,10 @@ class Actividade(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     participante = models.ForeignKey(Participante, on_delete=models.CASCADE, related_name="actividades")
+    edicao = models.ForeignKey(
+        Edicao, on_delete=models.PROTECT, null=True, blank=True, related_name="actividades",
+        help_text="Atribuída automaticamente à edição activa no momento do registo.",
+    )
 
     missao = models.ForeignKey(Missao, on_delete=models.PROTECT, null=True, blank=True, related_name="actividades")
     carta_surpresa = models.ForeignKey(
