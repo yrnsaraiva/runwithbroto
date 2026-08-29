@@ -1,7 +1,6 @@
 from functools import wraps
 
 from django.contrib import messages
-from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -136,7 +135,7 @@ def ranking(request, edicao_id=None):
 
 @participante_required
 def registar_actividade(request, participante):
-    """Formulário onde o participante submete uma actividade para verificação."""
+    """Formulário onde o participante submete uma actividade — aprovada automaticamente."""
     edicao_atual = Edicao.atual()
     cartas_disponiveis = participante.cartas_atribuidas.filter(usada=False).select_related("carta")
 
@@ -153,7 +152,7 @@ def registar_actividade(request, participante):
         form = ActividadeForm(request.POST, request.FILES, participante=participante)
         if form.is_valid():
             form.save(participante=participante, edicao=edicao_atual)
-            messages.success(request, "Actividade registada. Aguarda verificação da organização.")
+            messages.success(request, "Actividade registada — já conta para o ranking.")
             return redirect("gameon:minhas_actividades")
     else:
         form = ActividadeForm(participante=participante)
@@ -171,39 +170,3 @@ def minhas_actividades(request, participante):
     return render(
         request, "gameon/minhas_actividades.html", {"actividades": actividades, "participante": participante}
     )
-
-
-def _is_staff(user):
-    return user.is_authenticated and user.is_staff
-
-
-@user_passes_test(_is_staff, login_url="/admin/login/")
-def painel_verificacao(request):
-    """
-    Painel simples para a organização aprovar/rejeitar actividades pendentes.
-    Protegido pelo login do Django admin (já existe em qualquer projecto,
-    não precisa de rotas de autenticação próprias).
-    """
-    pendentes = (
-        Actividade.objects.filter(estado=Actividade.Estado.PENDENTE)
-        .select_related("participante", "missao", "carta_surpresa", "edicao")
-        .order_by("criado_em")
-    )
-    return render(request, "gameon/painel_verificacao.html", {"actividades": pendentes})
-
-
-@user_passes_test(_is_staff, login_url="/admin/login/")
-def aprovar_actividade(request, actividade_id):
-    actividade = get_object_or_404(Actividade, pk=actividade_id)
-    actividade.aprovar(por_utilizador=request.user)
-    messages.success(request, f"Actividade de {actividade.participante} aprovada.")
-    return redirect("gameon:painel_verificacao")
-
-
-@user_passes_test(_is_staff, login_url="/admin/login/")
-def rejeitar_actividade(request, actividade_id):
-    actividade = get_object_or_404(Actividade, pk=actividade_id)
-    motivo = request.POST.get("motivo", "")
-    actividade.rejeitar(por_utilizador=request.user, motivo=motivo)
-    messages.success(request, f"Actividade de {actividade.participante} rejeitada.")
-    return redirect("gameon:painel_verificacao")

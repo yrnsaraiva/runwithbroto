@@ -63,19 +63,29 @@ class ActividadeAdmin(ModelAdmin):
     list_filter = ("edicao", "estado", "missao__categoria", "data_actividade")
     search_fields = ("participante__nome",)
     autocomplete_fields = ("participante", "missao", "carta_surpresa", "edicao")
-    actions = ["aprovar_seleccionadas", "rejeitar_seleccionadas"]
+    list_editable = ("estado",)  # a forma normal de anular/rejeitar: mudar o estado aqui mesmo
+    actions = ["rejeitar_seleccionadas"]
 
     def origem(self, obj):
         return obj.missao or obj.carta_surpresa
 
-    @admin.action(description="Aprovar actividades seleccionadas")
-    def aprovar_seleccionadas(self, request, queryset):
-        for actividade in queryset.select_related("participante"):
-            actividade.aprovar(por_utilizador=request.user)
-        self.message_user(request, f"{queryset.count()} actividade(s) aprovada(s).")
+    def save_model(self, request, obj, form, change):
+        # Regista quem reviu sempre que o estado é alterado à mão no admin
+        # (quer pela lista — list_editable — quer pela página de edição).
+        # A aprovação em si já não passa por aqui: acontece sozinha ao
+        # registar (ver Actividade.save()); isto só regista intervenções manuais.
+        if change and "estado" in form.changed_data:
+            obj.revisado_por = request.user
+            obj.revisado_em = timezone.now()
+        super().save_model(request, obj, form, change)
 
     @admin.action(description="Rejeitar actividades seleccionadas")
     def rejeitar_seleccionadas(self, request, queryset):
         for actividade in queryset.select_related("participante"):
-            actividade.rejeitar(por_utilizador=request.user, motivo="Rejeitado em massa pelo painel")
+            actividade.estado = Actividade.Estado.REJEITADO
+            actividade.revisado_por = request.user
+            actividade.revisado_em = timezone.now()
+            if not actividade.nota_organizacao:
+                actividade.nota_organizacao = "Rejeitado em massa pelo admin"
+            actividade.save()  # dispara recálculo de pontos e libertação da carta
         self.message_user(request, f"{queryset.count()} actividade(s) rejeitada(s).")

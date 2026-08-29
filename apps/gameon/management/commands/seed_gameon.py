@@ -56,9 +56,8 @@ PARTICIPANTES = [
 ]
 
 ESTADOS_DISTRIBUICAO = (
-    [Actividade.Estado.APROVADO] * 6
-    + [Actividade.Estado.PENDENTE] * 3
-    + [Actividade.Estado.REJEITADO] * 1
+    [Actividade.Estado.APROVADO] * 9
+    + [Actividade.Estado.REJEITADO] * 1  # simula uma anulação manual pela organização, no admin
 )
 
 MOTIVOS_REJEICAO = [
@@ -220,16 +219,8 @@ class Command(BaseCommand):
 
                 if estado == Actividade.Estado.REJEITADO:
                     actividade.nota_organizacao = random.choice(MOTIVOS_REJEICAO)
-                if estado != Actividade.Estado.PENDENTE:
                     actividade.revisado_em = timezone.now() - timedelta(days=max(dias_atras - 1, 0))
 
-                actividade.save()
-
-                if atribuicao is not None:
-                    # Rejeitado liberta a carta (mesma regra do Actividade.rejeitar);
-                    # pendente/aprovado marca-a como usada.
-                    atribuicao.usada = estado != Actividade.Estado.REJEITADO
-                    atribuicao.save(update_fields=["usada"])
-
+                actividade.save()  # Actividade.save() já recalcula pontos e sincroniza a carta usada
                 criadas += 1
         self.stdout.write(f"Actividades: {criadas}")

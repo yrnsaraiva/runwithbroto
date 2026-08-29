@@ -2,7 +2,7 @@ import re
 
 from django import forms
 
-from .models import Actividade, CartaAtribuida, CartaSurpresa, Missao
+from .models import Actividade, CartaSurpresa, Missao
 
 
 def normalizar_telefone(telefone: str) -> str:
@@ -96,12 +96,9 @@ class ActividadeForm(forms.ModelForm):
         actividade = super().save(commit=False)
         actividade.participante = participante
         actividade.edicao = edicao
+        actividade.estado = Actividade.Estado.APROVADO
         origem = actividade.missao or actividade.carta_surpresa
         actividade.pontos = origem.pontos  # snapshot no momento do registo
         if commit:
-            actividade.save()
-            if actividade.carta_surpresa_id:
-                CartaAtribuida.objects.filter(
-                    participante=participante, carta=actividade.carta_surpresa, usada=False
-                ).update(usada=True)
+            actividade.save()  # dispara recálculo de pontos e libertação/uso da carta
         return actividade

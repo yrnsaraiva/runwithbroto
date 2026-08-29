@@ -213,7 +213,10 @@ class Actividade(models.Model):
     )
 
     pontos = models.PositiveIntegerField(help_text="Snapshot dos pontos no momento do registo")
-    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDENTE)
+    estado = models.CharField(
+        max_length=20, choices=Estado.choices, default=Estado.APROVADO,
+        help_text="Aprovada automaticamente ao ser registada. Rejeitar/anular faz-se aqui no admin.",
+    )
 
     evidencia_url = models.URLField(blank=True, help_text="Link Strava, foto, etc.")
     evidencia_imagem = models.ImageField(upload_to="gameon/evidencias/%Y/%m/", blank=True, null=True)
@@ -222,7 +225,8 @@ class Actividade(models.Model):
     data_actividade = models.DateField(default=timezone.now)
     criado_em = models.DateTimeField(auto_now_add=True)
     revisado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+        help_text="Preenchido automaticamente quando um membro do staff altera o estado no admin.",
     )
     revisado_em = models.DateTimeField(null=True, blank=True)
 
@@ -244,22 +248,18 @@ class Actividade(models.Model):
         origem = self.missao or self.carta_surpresa
         return f"{self.participante} — {origem} ({self.get_estado_display()})"
 
-    def aprovar(self, por_utilizador):
-        self.estado = self.Estado.APROVADO
-        self.revisado_por = por_utilizador
-        self.revisado_em = timezone.now()
-        self.save(update_fields=["estado", "revisado_por", "revisado_em"])
-        self.participante.recalcular_pontos_totais()
-
-    def rejeitar(self, por_utilizador, motivo=""):
-        self.estado = self.Estado.REJEITADO
-        self.revisado_por = por_utilizador
-        self.revisado_em = timezone.now()
-        self.nota_organizacao = motivo
-        self.save(update_fields=["estado", "revisado_por", "revisado_em", "nota_organizacao"])
-        self.participante.recalcular_pontos_totais()
+    def save(self, *args, **kwargs):
+        """
+        Ponto único de verdade para os efeitos secundários do estado —
+        corre sempre, quer a actividade seja criada pelo participante (já
+        aprovada automaticamente), quer o estado seja alterado depois no
+        admin (ex.: rejeitar por fraude). Assim nunca fica dessincronizado
+        entre "como foi criada" e "como foi editada".
+        """
+        super().save(*args, **kwargs)
+        if self.participante_id:
+            self.participante.recalcular_pontos_totais()
         if self.carta_surpresa_id:
-            # Liberta a carta para o participante poder tentar de novo.
             CartaAtribuida.objects.filter(
                 participante=self.participante, carta=self.carta_surpresa
-            ).update(usada=False)
+            ).update(usada=(self.estado == self.Estado.APROVADO))
