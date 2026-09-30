@@ -76,3 +76,38 @@ class StatusPollingTests(TestCase):
         with mock.patch("apps.events.views.etk_client.get_ticket", side_effect=Exception("down")):
             r = self.client.get(reverse("events:ticket_status", args=[t.public_token]))
         self.assertFalse(r.json()["paid"])
+
+
+EVENT = {"id": "EV1", "name": "Corrida", "date": "2099-01-01T08:00:00Z",
+         "location": {"province": "Maputo", "details": "Marginal"},
+         "prices": [{"id": "PRC1", "amount": 300, "status": "active"}]}
+API_TICKET = {"status": "success", "message": "Ticket created successfully",
+              "data": {"id": "TK9", "eventId": "EV1", "priceId": "PRC1", "payment": "pending",
+                       "status": "valid", "price": {"amount": 300}}}
+
+
+@mock.patch("apps.events.views._get_event_from_api", return_value=EVENT)
+class RegisterFormTests(TestCase):
+    url = "/events/event/EV1/inscrever/"
+    data = {"full_name": "Ana", "phone": "841234567", "email": "a@b.co",
+            "payment": "emola", "external_reference": "a" * 32}
+
+    def test_form_shows_payment_methods(self, _):
+        html = self.client.get(self.url).content.decode()
+        for m in ("mpesa", "emola", "mkesh"):
+            self.assertIn(f'value="{m}"', html)
+
+    def test_payment_method_sent_to_api(self, _):
+        with mock.patch("apps.events.views._create_ticket_in_api", return_value=API_TICKET) as m:
+            r = self.client.post(self.url, self.data)
+        self.assertEqual(r.status_code, 302)
+        payload = m.call_args.args[0]
+        self.assertEqual(payload["paymentMethod"], "emola")
+        self.assertEqual(payload["externalReference"], "a" * 32)
+
+    def test_missing_or_invalid_method_rejected(self, _):
+        for bad in ("", "bitcoin"):
+            with mock.patch("apps.events.views._create_ticket_in_api") as m:
+                r = self.client.post(self.url, {**self.data, "payment": bad})
+            self.assertEqual(r.status_code, 400)
+            m.assert_not_called()

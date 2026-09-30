@@ -87,6 +87,21 @@ def _build_event_context(event_data):
 # VALIDAÇÃO DE FORMULÁRIO
 # =============================================================================
 
+# Métodos oferecidos no formulário (valores aceites pela API em paymentMethod).
+PAYMENT_METHODS = [("mpesa", "M-Pesa"), ("emola", "e-Mola"), ("mkesh", "mKesh")]
+DEFAULT_PAYMENT = "mpesa"
+
+
+def _form_context(event, tamanhos, reference, selected=DEFAULT_PAYMENT):
+    return {
+        "event": event,
+        "tamanhos": tamanhos,
+        "external_reference": reference,
+        "payment_methods": PAYMENT_METHODS,
+        "selected_payment": selected,
+    }
+
+
 def _new_reference():
     return uuid.uuid4().hex
 
@@ -141,7 +156,11 @@ def _validate_registration_data(post_data):
         errors["tamanho_camisete"] = "Tamanho de camisete inválido."
     else:
         cleaned["tamanho_camisete"] = tamanho
-    cleaned["payment"] = (post_data.get("payment") or "").strip()[:30]
+    payment = (post_data.get("payment") or "").strip().lower()
+    if payment not in dict(PAYMENT_METHODS):
+        errors["payment"] = "Escolha o método de pagamento."
+    else:
+        cleaned["payment"] = payment
 
     return cleaned, errors
 
@@ -221,33 +240,22 @@ def register_form(request, event_id):
 
     # GET: apenas exibe o formulário
     if request.method == "GET":
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-            "external_reference": _new_reference(),
-        })
+        return render(request, "events/register.html", _form_context(event, tamanhos, _new_reference()))
 
     # POST: valida e processa
     cleaned, errors = _validate_registration_data(request.POST)
     reference = _clean_reference(request.POST.get("external_reference"))
+    selected = request.POST.get("payment") or DEFAULT_PAYMENT
     if errors:
         for field, msg in errors.items():
             messages.error(request, f"{field}: {msg}")
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-            "external_reference": reference,
-        }, status=400)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
 
     # Verifica se o evento tem priceId
     price_id = event.get("priceId")
     if not price_id:
         messages.error(request, "Este evento não tem preço ativo.")
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-            "external_reference": reference,
-        }, status=400)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
 
     # Monta payload para API
     payload = {
@@ -270,19 +278,11 @@ def register_form(request, event_id):
         logger.error(f"Erro ao criar ticket: {e}")
         code = getattr(e.response, "status_code", 502)
         messages.error(request, _api_error_message(e, "Não foi possível processar o pagamento. Tente novamente."))
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-            "external_reference": reference,
-        }, status=code if code in (400, 402, 404, 409, 422) else 502)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=code if code in (400, 402, 404, 409, 422) else 502)
     except Exception as e:
         logger.error(f"Erro ao criar ticket: {e}")
         messages.error(request, "Não foi possível processar o pagamento. Tente novamente.")
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-            "external_reference": reference,
-        }, status=502)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=502)
 
     # Verifica resposta da API
     if response_data.get("status") == "success":
@@ -296,11 +296,7 @@ def register_form(request, event_id):
     else:
         error_msg = response_data.get("message") or "Falha ao iniciar o pagamento."
         messages.error(request, error_msg)
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-            "external_reference": reference,
-        }, status=400)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
 
 
 def _save_ticket_locally(ticket_data, cleaned_data, raw_payload, event_data):
