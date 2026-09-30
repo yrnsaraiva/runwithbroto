@@ -27,12 +27,13 @@ def apply_api_ticket(data):
     ticket.entered = bool(data.get("entered", ticket.entered))
     ticket.qr_value = data.get("qrValue") or ticket.qr_value
     ticket.checkout_url = data.get("checkoutUrl") or ticket.checkout_url
+    ticket.price_name = (data.get("price") or {}).get("name") or ticket.price_name
     if "expiresAt" in data:
         ticket.confirmation_deadline = parse_datetime(data.get("expiresAt"))
     ticket.external_updated_at = parse_datetime(data.get("updatedAt")) or ticket.external_updated_at
     ticket.save(update_fields=[
         "payment_status", "status", "entered", "qr_value", "checkout_url",
-        "external_updated_at", "confirmation_deadline", "updated_at",
+        "external_updated_at", "confirmation_deadline", "price_name", "updated_at",
     ])
     return ticket
 
@@ -56,6 +57,7 @@ def ensure_local_ticket(data):
         event_date=parse_datetime(event.get("date")),
         price_id_external=data.get("priceId") or "",
         price_amount=data.get("amount") or 0,
+        price_name=(data.get("price") or {}).get("name") or "",
         entered=bool(data.get("entered")),
         qr_value=data.get("qrValue") or "",
         status=data.get("status") or "",

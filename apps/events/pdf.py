@@ -195,7 +195,8 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     left_col_x = text_x
     right_col_x = text_x + col_w + 6 * mm
     top_line_y = band_y + band_h - 16 * mm
-    gap = 14 * mm
+    gap = 14 * mm          # coluna do evento (4 linhas, valores que quebram)
+    rgap = 12 * mm         # coluna do participante (até 5 linhas)
 
     # esquerda (evento)
     draw_pair("EVENTO", ticket.event_name, left_col_x, top_line_y)
@@ -203,31 +204,35 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     draw_pair("LOCAL", _ticket_location(ticket), left_col_x, top_line_y - 2 * gap)
     draw_pair("DATA / HORA", start_str, left_col_x, top_line_y - 3 * gap)
 
-    # direita (participante)
+    # direita (participante) — o tipo vem do lote na API (Geral, VIP, Convite…)
     draw_pair("NOME", ticket.buyer_name or "Participante", right_col_x, top_line_y)
-    draw_pair("TIPO", "ENTRADA", right_col_x, top_line_y - gap)
+    draw_pair("TIPO", ticket.ticket_type.upper(), right_col_x, top_line_y - rgap)
 
     # Para o TICKET ID, que pode ser longo, também usa quebra de linha
     c.setFillColor(colors.white)
     c.setFont("Helvetica-Bold", 9)
-    c.drawString(right_col_x, top_line_y - 2 * gap + 11, "TICKET")
-    _draw_wrapped_text(c, ticket.external_id, right_col_x, top_line_y - 2 * gap,
+    c.drawString(right_col_x, top_line_y - 2 * rgap, "TICKET")
+    _draw_wrapped_text(c, ticket.external_id, right_col_x, top_line_y - 2 * rgap - 11,
                        max_width=col_w - 2 * mm, font_name="Helvetica", font_size=9, line_height=11)
 
-    # preço
-    price_y = band_y + 12 * mm
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(right_col_x, price_y + 10, "PRECO")
-    c.setFont("Helvetica", 9)
+    row = 3
+    if ticket.tamanho_camisete:
+        draw_pair("CAMISETE", ticket.get_tamanho_camisete_display(), right_col_x,
+                  top_line_y - row * rgap)
+        row += 1
 
+    # preço: gratuito/convite não mostram "0,00 MZN"
     price = ticket.price_amount or 0
-    currency = "MZN"
-    try:
-        price_str = f"{float(price):,.2f} {currency}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception:
-        price_str = f"{price} {currency}"
-    c.drawString(right_col_x, price_y, price_str)
+    if ticket.is_invite:
+        price_str = "Convite"
+    elif not price:
+        price_str = "Gratuito"
+    else:
+        try:
+            price_str = f"{float(price):,.2f} MZN".replace(",", "X").replace(".", ",").replace("X", ".")
+        except Exception:
+            price_str = f"{price} MZN"
+    draw_pair("PREÇO", price_str, right_col_x, top_line_y - row * rgap)
 
     # footer logo
     c.setFillColor(MUTED)
@@ -243,7 +248,8 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     terms = [
         "1. O ingresso é pessoal e válido apenas para o evento descrito.",
         "",
-        "2. O acesso ao evento depende da confirmação de pagamento e validação no check-in.",
+        "2. O acesso ao evento depende da validação no check-in"
+        + ("." if not ticket.price_amount or ticket.is_invite else " e da confirmação de pagamento."),
         "",
         "3. Guarde este PDF/QR para apresentação na entrada.",
         "",
