@@ -40,6 +40,8 @@ class ExternalTicket(models.Model):
 
     price_id_external = models.CharField(max_length=50, blank=True)
     price_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # Nome do lote na API (Geral, VIP, Early bird…): é o "tipo" do bilhete.
+    price_name = models.CharField(max_length=100, blank=True)
 
     entered = models.BooleanField(default=False)
     qr_value = models.CharField(max_length=255, blank=True)  # QR assinado pela API
@@ -68,6 +70,24 @@ class ExternalTicket(models.Model):
 
     def __str__(self):
         return f"{self.external_id} - {self.event_name} - {self.buyer_name}"
+
+    @property
+    def is_invite(self):
+        return (self.payment_status or "").lower() == "invited"
+
+    @property
+    def ticket_type(self):
+        """Tipo do bilhete, vindo da API (nome do lote) — nunca fixo no código.
+
+        Convite: "Convite", acrescentando o lote quando não é o genérico
+        (ex.: "Convite · VIP"). Bilhetes antigos, sem nome de lote
+        sincronizado, ficam como "Entrada".
+        """
+        lote = (self.price_name or "").strip()
+        if self.is_invite:
+            genericos = {"", "geral", "convite"}
+            return "Convite" if lote.lower() in genericos else f"Convite · {lote}"
+        return lote or "Entrada"
 
     class Meta:
         indexes = [

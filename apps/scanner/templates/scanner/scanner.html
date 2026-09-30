@@ -908,6 +908,7 @@
         ${row("Telefone", t.buyer_phone)}
         ${row("Evento", t.event_name)}
         ${row("Data", t.event_date)}
+        ${t.ticket_type ? row("Tipo", `<strong>${esc(t.ticket_type)}</strong>`, true) : ""}
         ${row("Pagamento", badge(t.payment_status), true)}
         ${t.tamanho_camisete && t.tamanho_camisete !== "—" ? row("T-shirt", t.tamanho_camisete) : ""}
         ${row("Ticket ID", `<span style="font-size:12px;color:#888">${esc(t.external_id)}</span>`, true)}

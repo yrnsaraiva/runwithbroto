@@ -100,6 +100,7 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
         Paragraph("<b>Nome</b>", cell_style),
         Paragraph("<b>Telefone</b>", cell_style),
         Paragraph("<b>Email</b>", cell_style),
+        Paragraph("<b>Tipo</b>", cell_style),
         Paragraph("<b>T-shirt</b>", cell_style),
         Paragraph("<b>Confirm.</b>", cell_center),
     ]]
@@ -110,6 +111,7 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
             Paragraph(t.buyer_name or "—", cell_style),
             Paragraph(t.buyer_phone or "—", cell_style),
             Paragraph(t.buyer_email or "—", cell_style),
+            Paragraph(t.ticket_type, cell_style),
             Paragraph(t.tamanho_camisete or "—", cell_style),
             Paragraph(" ", cell_center),
         ])
@@ -117,13 +119,13 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
     table = Table(
         data,
         colWidths=[
-            12 * mm,
-            42 * mm,
-            78 * mm,
-            38 * mm,
-            28 * mm,
-            22 * mm,
-            55 * mm,
+            10 * mm,   # #
+            52 * mm,   # nome
+            34 * mm,   # telefone
+            70 * mm,   # e-mail
+            32 * mm,   # tipo
+            20 * mm,   # t-shirt
+            24 * mm,   # confirmação
         ],
         repeatRows=1,
     )
@@ -136,7 +138,7 @@ def build_external_checkin_list_pdf(event_name, tickets) -> bytes:
         ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#9CA3AF")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("ALIGN", (0, 0), (0, -1), "CENTER"),
-        ("ALIGN", (4, 1), (6, -1), "CENTER"),
+        ("ALIGN", (5, 1), (6, -1), "CENTER"),
         ("TOPPADDING", (0, 0), (-1, -1), 6),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ("LEFTPADDING", (0, 0), (-1, -1), 6),

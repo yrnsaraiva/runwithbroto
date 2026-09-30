@@ -342,6 +342,7 @@ def _save_ticket_locally(ticket_data, cleaned_data, raw_payload, event_data):
         "event_date": _parse_datetime(event.get("date")),
         "price_id_external": ticket_data.get("priceId") or "",
         "price_amount": price.get("amount") or 0,
+        "price_name": price.get("name") or "",
         "entered": ticket_data.get("entered", False),
         "qr_value": ticket_data.get("qrValue") or "",
         "checkout_url": ticket_data.get("checkoutUrl") or "",
@@ -396,6 +397,7 @@ def register_success(request, token):
             ticket.confirmation_deadline and ticket.confirmation_deadline < timezone.now()
         ),
         "confirm_url": reverse("events:confirm_presence", args=[ticket.event_id_external]),
+        "ticket_type": ticket.ticket_type,
     }
     return render(request, "events/registration_success.html", context)
 

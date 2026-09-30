@@ -387,3 +387,92 @@ class InvitePanelTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn("/checkin-list/pdf/", r.context["checkin_pdf_url"])
         self.assertEqual(self.client.get(r.context["checkin_csv_url"]).status_code, 200)
+
+
+# ---------------------------------------------------------------------------
+# Tipo do bilhete (lote da API, nunca fixo) e PDF
+# ---------------------------------------------------------------------------
+import unittest
+
+try:                                    # só para ler o texto dos PDFs nos testes
+    import fitz
+except ImportError:                     # pragma: no cover
+    fitz = None
+
+needs_fitz = unittest.skipUnless(fitz, "pymupdf não instalado (só usado para testar o texto dos PDFs)")
+
+
+class TicketTypeTests(TestCase):
+    def test_type_comes_from_the_price_name(self):
+        self.assertEqual(make_ticket(external_id="A", price_name="VIP").ticket_type, "VIP")
+        self.assertEqual(make_ticket(external_id="B", price_name="Early bird").ticket_type, "Early bird")
+
+    def test_invite_type(self):
+        inv = dict(payment_status="invited")
+        self.assertEqual(make_ticket(external_id="A", price_name="Geral", **inv).ticket_type, "Convite")
+        self.assertEqual(make_ticket(external_id="B", price_name="", **inv).ticket_type, "Convite")
+        self.assertEqual(make_ticket(external_id="C", price_name="VIP", **inv).ticket_type, "Convite · VIP")
+
+    def test_old_tickets_without_a_synced_lot_keep_the_old_label(self):
+        self.assertEqual(make_ticket(external_id="A", price_name="").ticket_type, "Entrada")
+
+    def test_sync_fills_and_updates_the_type(self):
+        from .sync import apply_api_ticket, ensure_local_ticket
+        t = make_ticket(external_id="TKS", price_name="")
+        apply_api_ticket({"id": "TKS", "payment": "paid", "price": {"name": "VIP"}})
+        t.refresh_from_db()
+        self.assertEqual(t.price_name, "VIP")
+        # actualização sem preço não apaga o tipo já conhecido
+        apply_api_ticket({"id": "TKS", "payment": "paid"})
+        t.refresh_from_db()
+        self.assertEqual(t.price_name, "VIP")
+        novo = ensure_local_ticket({"id": "TKN", "eventId": "EV1", "payment": "invited",
+                                    "price": {"name": "Imprensa"}, "event": {}})
+        self.assertEqual(novo.ticket_type, "Convite · Imprensa")
+
+    @mock.patch("apps.events.views._get_event_from_api", return_value=EVENT)
+    def test_registration_stores_the_lot_name(self, _):
+        api = {"status": "success", "data": {"id": "TK7", "eventId": "EV1", "priceId": "PRC1",
+               "payment": "pending", "status": "valid", "price": {"amount": 300, "name": "VIP"}}}
+        with mock.patch("apps.events.views._create_ticket_in_api", return_value=api):
+            self.client.post("/events/event/EV1/inscrever/", {
+                "full_name": "Ana", "phone": "841234567", "email": "a@b.co",
+                "payment": "mpesa", "external_reference": "a" * 32})
+        self.assertEqual(ExternalTicket.objects.get(external_id="TK7").price_name, "VIP")
+
+    def test_success_page_shows_the_type(self):
+        t = make_ticket(price_name="VIP")
+        html = self.client.get(reverse("events:registration_success", args=[t.public_token])).content.decode()
+        self.assertIn("VIP", html)
+
+    @needs_fitz
+    def test_pdf_text_uses_the_type_and_not_the_old_hardcoded_one(self):
+        from .pdf import build_external_ticket_pdf
+
+        def text(**kw):
+            t = make_ticket(external_id=kw.pop("eid"), event_name="Corrida", **kw)
+            doc = fitz.open(stream=build_external_ticket_pdf(t), filetype="pdf")
+            return doc[0].get_text()
+
+        vip = text(eid="P1", price_name="VIP", price_amount=500, tamanho_camisete="L")
+        self.assertIn("VIP", vip)
+        self.assertNotIn("ENTRADA", vip)
+        self.assertIn("500,00 MZN", vip)
+        self.assertIn("CAMISETE", vip)
+        conv = text(eid="P2", payment_status="invited", price_name="Geral", tamanho_camisete="")
+        self.assertIn("CONVITE", conv)
+        self.assertNotIn("0,00 MZN", conv)
+        self.assertNotIn("CAMISETE", conv)               # sem tamanho, sem linha
+        self.assertNotIn("confirmação de pagamento", conv)
+        gratis = text(eid="P3", price_name="Geral", price_amount=0)
+        self.assertIn("Gratuito", gratis)
+
+    def test_scanner_payload_includes_the_type(self):
+        from apps.scanner.views import _ticket_info
+        self.assertEqual(_ticket_info(make_ticket(price_name="VIP"))["ticket_type"], "VIP")
+
+    @needs_fitz
+    def test_checkin_list_pdf_has_a_type_column(self):
+        from .pdfs_external_checkin import build_external_checkin_list_pdf
+        pdf = build_external_checkin_list_pdf("Corrida", [make_ticket(price_name="VIP")])
+        self.assertIn("VIP", fitz.open(stream=pdf, filetype="pdf")[0].get_text())
