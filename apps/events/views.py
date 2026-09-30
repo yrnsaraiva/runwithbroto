@@ -85,6 +85,9 @@ def _build_event_context(event_data):
         "is_free": is_free,
         "is_preregistration": event_data.get("registrationMode") == "preregistration",
         "confirmation_deadline": _parse_datetime(event_data.get("confirmationDeadline")),
+        "confirmation_opens_at": _parse_datetime(event_data.get("confirmationOpensAt")),
+        # Só a organização abre a confirmação (na API); o site não decide.
+        "confirmation_open": bool(event_data.get("confirmationOpen")),
         "priceId": active_price.get("id") if active_price else None,
         "confirmed_count": event_data.get("totalTicketsPurchased") or 0,
     }
@@ -304,8 +307,12 @@ def register_form(request, event_id):
         ticket = _save_ticket_locally(ticket_data, cleaned, response_data, event_data)
         if event["is_preregistration"]:
             deadline = event["confirmation_deadline"]
-            success_msg = "Pré-inscrição registada. Volte ao site para confirmar a sua presença" + (
-                f" até {timezone.localtime(deadline):%d/%m/%Y %H:%M}." if deadline else "."
+            success_msg = (
+                "Pré-inscrição registada. A confirmação de presença será aberta "
+                "mais perto do evento" + (
+                    f" e terá de ser feita até {timezone.localtime(deadline):%d/%m/%Y %H:%M}."
+                    if deadline else "."
+                )
             )
         elif event["is_free"]:
             success_msg = "Inscrição confirmada."
@@ -363,7 +370,18 @@ def register_success(request, token):
     """Página de sucesso após inscrição (acesso por token não adivinhável)."""
     ticket = get_object_or_404(ExternalTicket, public_token=token)
 
+    # O link de confirmação só aparece quando a organização abriu a confirmação.
+    confirmation_open = False
+    if ticket.payment_status.lower() == "preregistered":
+        try:
+            confirmation_open = _build_event_context(
+                _get_event_from_api(ticket.event_id_external)
+            )["confirmation_open"]
+        except Exception as e:
+            logger.warning("Não foi possível ler o evento %s: %s", ticket.event_id_external, e)
+
     context = {
+        "confirmation_open": confirmation_open,
         "ticket": ticket,
         "event_name": ticket.event_name,
         "event_date": ticket.event_date,
@@ -476,13 +494,16 @@ def confirm_presence(request, event_id):
     event = _build_event_context(event_data)
     deadline = event["confirmation_deadline"]
     closed = bool(deadline and deadline < timezone.now())
-    ctx = {"event": event, "closed": closed}
+    not_open = not closed and not event["confirmation_open"]
+    ctx = {"event": event, "closed": closed, "not_open": not_open}
     template = "events/confirm_presence.html"
 
     if not event["is_preregistration"]:
         messages.info(request, "Este evento não tem confirmação de presença.")
         return redirect("events:event_detail", event_id=event_id)
-    if request.method == "GET":
+    if request.method == "GET" or closed or not_open:
+        # Fechada (ainda não aberta, ou prazo terminado): nada é consultado
+        # nem confirmado — a API recusa de qualquer forma.
         return render(request, template, ctx)
 
     phone = _normalize_phone(request.POST.get("phone"))

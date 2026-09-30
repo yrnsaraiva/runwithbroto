@@ -140,6 +140,7 @@ class FreeTicketFormTests(TestCase):
 
 PRE_EVENT = {**EVENT, "registrationMode": "preregistration",
              "confirmationDeadline": "2099-01-05T08:00:00Z",
+             "confirmationOpensAt": "2000-01-01T00:00:00Z", "confirmationOpen": True,
              "prices": [{"id": "PRC1", "amount": 0, "status": "active"}]}
 
 
@@ -221,6 +222,33 @@ class PreRegistrationTests(TestCase):
         with mock.patch("apps.events.views._get_event_from_api", return_value=EVENT):
             r = self.client.get(self.url)
         self.assertEqual(r.status_code, 302)
+
+    def test_confirmation_link_hidden_until_organizer_opens_it(self, _):
+        shut = {**PRE_EVENT, "confirmationOpen": False, "confirmationOpensAt": None}
+        t = make_ticket(external_id="TKP", payment_status="preregistered", event_id_external="EV1")
+        with mock.patch("apps.events.views._get_event_from_api", return_value=shut):
+            detail = self.client.get("/events/event/EV1/")
+            success = self.client.get(reverse("events:registration_success", args=[t.public_token]))
+        self.assertNotIn("/confirmar/", detail.content.decode())
+        self.assertContains(detail, "será aberta mais perto do evento")
+        self.assertNotIn("Confirmar presença", success.content.decode())
+        # e com a confirmação aberta o link aparece nas duas páginas
+        detail = self.client.get("/events/event/EV1/")
+        success = self.client.get(reverse("events:registration_success", args=[t.public_token]))
+        self.assertIn("/confirmar/", detail.content.decode())
+        self.assertContains(success, "Confirmar presença")
+
+    def test_confirmation_page_does_nothing_until_open(self, _):
+        shut = {**PRE_EVENT, "confirmationOpen": False, "confirmationOpensAt": None}
+        with mock.patch("apps.events.views._get_event_from_api", return_value=shut), \
+             mock.patch("apps.events.views.etk_client.list_tickets") as lst, \
+             mock.patch("apps.events.views.etk_client.confirm_ticket") as conf:
+            get = self.client.get(self.url)
+            post = self.client.post(self.url, {"phone": "841111111", "ticket_ids": ["TK1"]})
+        self.assertContains(get, "ainda não está aberta")
+        self.assertContains(post, "ainda não está aberta")
+        lst.assert_not_called()
+        conf.assert_not_called()
 
     def test_closed_after_deadline(self, _):
         past = {**PRE_EVENT, "confirmationDeadline": "2000-01-01T00:00:00Z"}
