@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 ETK_BASE = "https://eticketsmz.site"
-ETK_TOKEN = os.environ.get("ETK_TOKEN", "etk_live_3SZPEA7FNCZAdqjIaBIIbI7j")
+ETK_TOKEN = os.environ.get("ETK_TOKEN", "etk_live_kODJNV-uHmdMKwBc40MTcNvn")
 TIMEOUT_READ = 10
 CACHE_HOME_KEY = "core:home_events"
 CACHE_HOME_TTL = 60 * 5  # 5 minutos

@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 ETK_BASE = "https://etk-api.up.railway.app"
-ETK_TOKEN = "etk_live_2btldp22PSu8AmsSyhdeDE-s"
+ETK_TOKEN = "etk_live_kODJNV-uHmdMKwBc40MTcNvn"
 TIMEOUT = 120
 
 # =============================================================================
