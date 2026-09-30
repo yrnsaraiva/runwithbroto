@@ -251,7 +251,7 @@ UNFOLD = {
     "SHOW_HISTORY": True, # show/hide "History" button, default: True
     "SHOW_VIEW_ON_SITE": True, # show/hide "View on site" button, default: True
 
-    "DASHBOARD_CALLBACK": "apps.core.views.dashboard_callback",
+    "DASHBOARD_CALLBACK": "apps.core.dashboard.dashboard_callback",
 
     "BORDER_RADIUS": "6px",
     "COLORS": {

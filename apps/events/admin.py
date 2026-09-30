@@ -7,7 +7,7 @@ from django.utils import timezone
 import json
 from django.db.models import Count, Sum, Q, Avg
 from datetime import timedelta
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .models import ExternalTicket, Provincia
 from .pdfs_external_checkin import build_external_checkin_list_pdf
@@ -286,24 +286,8 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         return custom_urls + urls
 
     def dashboard_view(self, request):
-        # 1. TOTAL DE PESSOAS QUE COMPRARAM BILHETES
-        total_compradores = ExternalTicket.objects.values('buyer_phone').distinct().count()
-        total_tickets = ExternalTicket.objects.count()
-
-        # 2. RECEITA TOTAL
-        receita_total = ExternalTicket.objects.filter(
-            payment_status__iexact='paid'
-        ).aggregate(total=Sum('price_amount'))['total'] or 0
-
-
-        context = {
-            'title': 'Dashboard',
-            'total_compradores': total_compradores,
-            'total_tickets': total_tickets,
-            'receita_total': receita_total,
-        }
-
-        return render(request, 'admin/events/externalticket/dashboard.html', context)
+        # O dashboard único vive no índice do admin (apps.core.dashboard).
+        return redirect("admin:index")
 
     @admin.display(description="Ticket PDF")
     def download_ticket_link(self, obj):
