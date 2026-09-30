@@ -10,19 +10,34 @@
             </div>
 
             <h1 id="statusTitle" class="mt-6 font-display text-5xl leading-[0.95]">
-                {% if is_paid %}Pagamento Confirmado{% else %}A aguardar pagamento{% endif %}
+                {% if is_paid %}{% if price_amount and price_amount > 0 %}Pagamento Confirmado{% else %}Inscrição Confirmada{% endif %}{% elif is_preregistered %}{% if deadline_passed %}Prazo de confirmação terminado{% else %}Pré-inscrição registada{% endif %}{% else %}A aguardar pagamento{% endif %}
             </h1>
 
             <p id="statusText" class="mt-4 muted max-w-xl mx-auto">
                 {% if is_paid %}
                     Sua inscrição foi concluída com sucesso. O ingresso já está disponível para download.
+                {% elif is_preregistered %}
+                    {% if deadline_passed %}
+                        A vaga foi libertada por falta de confirmação.
+                    {% else %}
+                        A sua vaga está reservada. Falta confirmar a presença
+                        {% if confirmation_deadline %}até <strong>{{ confirmation_deadline|date:"d/m/Y H:i" }}</strong>{% endif %}:
+                        volte ao site com o seu telefone para a confirmar.
+                    {% endif %}
                 {% else %}
                     Confirme o pagamento no seu telemóvel. Esta página atualiza sozinha assim que for confirmado.
                     {% if ticket.payment_instructions %}<br>{{ ticket.payment_instructions }}{% endif %}
                 {% endif %}
             </p>
 
-            {% if not is_paid and ticket.checkout_url %}
+            {% if is_preregistered and not deadline_passed %}
+                <a href="{{ confirm_url }}"
+                   class="inline-block mt-6 bg-[var(--brand)] text-black rounded-2xl px-8 py-4 font-semibold">
+                    Confirmar presença
+                </a>
+            {% endif %}
+
+            {% if not is_paid and not is_preregistered and ticket.checkout_url %}
                 <a id="checkoutLink" href="{{ ticket.checkout_url }}" rel="noopener"
                    class="inline-block mt-6 bg-[var(--brand)] text-black rounded-2xl px-8 py-4 font-semibold">
                     Pagar com cartão
@@ -57,10 +72,12 @@
                     <div class="mt-4 text-[11px] muted label">ticket</div>
                     <div class="mt-2 font-mono">{{ ticket }}</div>
 
+                    {% if price_amount and price_amount > 0 %}
                     <div class="mt-4 text-[11px] muted label">total pago</div>
                     <div class="mt-2 font-semibold">
                         {{ price_amount }} MZN
                     </div>
+                    {% endif %}
                 </div>
 
             </div>
@@ -82,7 +99,7 @@
 
     </section>
 
-    {% if not is_paid %}
+    {% if not is_paid and not is_preregistered %}
     <script>
         (function () {
             const url = "{% url 'events:ticket_status' ticket.public_token %}";

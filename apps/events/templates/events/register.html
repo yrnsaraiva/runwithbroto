@@ -76,7 +76,10 @@
                             🛡️
                         </div>
                         <div class="text-sm">
-                            {% if event.is_free %}
+                            {% if event.is_preregistration %}
+                            <div class="font-semibold text-white">Pré-inscrição gratuita</div>
+                            <div class="text-white/70 text-xs">A vaga fica reservada até confirmar a presença.</div>
+                            {% elif event.is_free %}
                             <div class="font-semibold text-white">Inscrição gratuita</div>
                             <div class="text-white/70 text-xs">Sem pagamento — confirmação imediata.</div>
                             {% else %}
@@ -93,11 +96,16 @@
             <section class="lg:col-span-7">
 
                 <h1 class="font-display uppercase text-4xl sm:text-5xl md:text-6xl leading-[0.9] text-ink">
-                    Finalizar Inscrição
+                    {% if event.is_preregistration %}Pré-inscrição{% else %}Finalizar Inscrição{% endif %}
                 </h1>
 
                 <p class="mt-4 muted">
-                    Preencha os seus dados para confirmar a sua participação.
+                    {% if event.is_preregistration %}
+                        Reserve a sua vaga agora.{% if event.confirmation_deadline %} Terá de confirmar a sua presença até
+                        <strong>{{ event.confirmation_deadline|date:"d/m/Y H:i" }}</strong>, senão a vaga é libertada.{% else %} Terá de confirmar a sua presença mais tarde, senão a vaga é libertada.{% endif %}
+                    {% else %}
+                        Preencha os seus dados para confirmar a sua participação.
+                    {% endif %}
                 </p>
 
                 <form class="mt-10 grid gap-8" method="post" action="{% url 'events:register' event.id %}">
@@ -151,11 +159,11 @@
 
                     <button class="mt-2 bg-[var(--brand)] text-black py-5 font-semibold hover:opacity-90 transition"
                             type="submit">
-                        {% if event.is_free %}Confirmar Inscrição{% else %}Confirmar &amp; Pagar{% endif %}
+                        {% if event.is_preregistration %}Pré-inscrever-me{% elif event.is_free %}Confirmar Inscrição{% else %}Confirmar &amp; Pagar{% endif %}
                     </button>
 
                     <p class="text-xs muted leading-relaxed">
-                        {% if event.is_free %}Você receberá o bilhete por email assim que confirmar.{% else %}Você receberá confirmação automática após o pagamento.{% endif %}
+                        {% if event.is_preregistration %}O bilhete só é emitido depois de confirmar a presença.{% elif event.is_free %}Você receberá o bilhete por email assim que confirmar.{% else %}Você receberá confirmação automática após o pagamento.{% endif %}
                     </p>
 
                     <script>

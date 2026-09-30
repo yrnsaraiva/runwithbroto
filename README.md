@@ -5,7 +5,7 @@
 | Variável | Obrigatória | Descrição |
 |---|---|---|
 | `SECRET_KEY` | sim (produção) | chave secreta do Django |
-| `DATABASE_URL` | sim (produção) | URL do Postgres; sem ela usa SQLite local |
+| `DATABASE_URL` | sim (produção) | URL do Postgres; em produção (`DEBUG` desligado) a app recusa arrancar sem ela. Só em desenvolvimento cai para SQLite local |
 | `ETICKETS_BEARER_TOKEN` | sim | token da API ETickets |
 | `ETICKETS_WEBHOOK_SECRET` | recomendada | `webhook_secret` do organizador na API; valida `X-ETK-Signature` |
 | `ETICKETS_BASE_URL` | não | default `https://etk-api.up.railway.app` |
