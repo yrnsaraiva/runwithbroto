@@ -91,6 +91,18 @@
                 </label>
 
                 <label style="display:grid; gap:.25rem; font-size:.75rem;">
+                    <span class="text-gray-500 dark:text-gray-400">Camisete (só eventos com camisetes)</span>
+                    <select name="size"
+                            class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                            style="padding:.5rem .75rem; font-size:.875rem;">
+                        <option value="">—</option>
+                        {% for value, label in sizes %}
+                            <option value="{{ value }}" {% if form.size == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label style="display:grid; gap:.25rem; font-size:.75rem;">
                     <span class="text-gray-500 dark:text-gray-400">Quantidade *</span>
                     <input type="number" name="quantity" min="1" max="200" value="{{ form.quantity|default:1 }}" required
                            class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"

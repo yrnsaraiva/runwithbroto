@@ -14,7 +14,7 @@ from datetime import timedelta
 from django.shortcuts import get_object_or_404, redirect, render
 
 from . import etk_client
-from .models import ExternalTicket, Provincia
+from .models import ExternalTicket, Provincia, TamanhoCamisete
 from .pdfs_external_checkin import build_external_checkin_list_pdf
 from .pdf import build_external_ticket_pdf
 
@@ -316,7 +316,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
             **self.admin_site.each_context(request),
             "title": "Convites", "events": events, "events_error": events_error,
             "rows": rows, "email_enabled": invites.email_enabled(),
-            "form": {"quantity": 1},
+            "form": {"quantity": 1}, "sizes": TamanhoCamisete.choices,
         }
         context.update(extra or {})
         return context
@@ -331,7 +331,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
                           self._invite_context(request))
 
         form = {k: request.POST.get(k, "").strip() for k in
-                ("lote", "quantity", "name", "email", "phone", "note")}
+                ("lote", "quantity", "name", "email", "phone", "note", "size")}
         errors = []
         event_id, _, price_id = form["lote"].partition("|")
         if not event_id or not price_id:
@@ -348,6 +348,8 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
             phone = invites.normalize_phone(form["phone"])
             if not phone:
                 errors.append("Telefone inválido. Use 9 dígitos (ex.: 84xxxxxxx).")
+        if form["size"] and form["size"] not in TamanhoCamisete.values:
+            errors.append("Tamanho de camisete inválido.")
         if form["email"]:
             try:
                 validate_email(form["email"])
@@ -365,7 +367,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         try:
             tickets = invites.create_invites(
                 event_id=event_id, price_id=price_id, quantity=quantity, name=form["name"],
-                email=form["email"], phone=phone, note=form["note"])
+                email=form["email"], phone=phone, note=form["note"], shirt_size=form["size"])
         except requests.HTTPError as exc:
             detail = ""
             try:

@@ -3,6 +3,7 @@
 {% block content %}
 
     <section class="max-w-6xl mx-auto px-4 pt-8 pb-16">
+        {% include "events/_messages.html" %}
         <nav class="text-[11px] muted label">
             <a class="hover:opacity-70" href="{% url 'events:event_list' %}">schedule</a> <span class="mx-2">/</span>
             <span>{{ event.city }}</span> <span class="mx-2">/</span>

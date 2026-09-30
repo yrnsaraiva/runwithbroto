@@ -1,0 +1,10 @@
+{% if messages %}
+    <div class="grid gap-3 mb-6" role="alert" aria-live="polite">
+        {% for message in messages %}
+            <div class="border hairline px-4 py-3 text-sm"
+                 style="{% if message.tags == 'error' %}border-color:#e34948; color:#b42323;{% elif message.tags == 'success' %}border-color:#1baf7a; color:#0f7a55;{% elif message.tags == 'warning' %}border-color:#eda100;{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

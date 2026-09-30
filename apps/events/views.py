@@ -83,6 +83,8 @@ def _build_event_context(event_data):
         "get_event_type_display": event_type_display,
         "ticket_price_display": ticket_price_display,
         "is_free": is_free,
+        # Nem todos os eventos têm camisetes: só nesses o formulário pede o tamanho.
+        "offers_shirts": bool(event_data.get("offersShirts")),
         "is_preregistration": event_data.get("registrationMode") == "preregistration",
         "confirmation_deadline": _parse_datetime(event_data.get("confirmationDeadline")),
         "confirmation_opens_at": _parse_datetime(event_data.get("confirmationOpensAt")),
@@ -102,10 +104,11 @@ PAYMENT_METHODS = [("mpesa", "M-Pesa"), ("emola", "e-Mola"), ("mkesh", "mKesh")]
 DEFAULT_PAYMENT = "mpesa"
 
 
-def _form_context(event, tamanhos, reference, selected=DEFAULT_PAYMENT):
+def _form_context(event, tamanhos, reference, selected=DEFAULT_PAYMENT, size=""):
     return {
         "event": event,
         "tamanhos": tamanhos,
+        "selected_size": size,
         "external_reference": reference,
         "payment_methods": PAYMENT_METHODS,
         "selected_payment": selected,
@@ -139,7 +142,7 @@ def _normalize_phone(value):
     return phone if phone.startswith("258") else f"258{phone}"
 
 
-def _validate_registration_data(post_data, is_free=False):
+def _validate_registration_data(post_data, is_free=False, offers_shirts=False):
     """
     Valida os dados do formulário de inscrição.
     Retorna um dicionário com os dados limpos ou erros.
@@ -166,11 +169,15 @@ def _validate_registration_data(post_data, is_free=False):
     else:
         cleaned["email"] = email
 
-    tamanho = (post_data.get("tamanho_camisete") or "").strip()
-    if tamanho and tamanho not in TamanhoCamisete.values:
-        errors["tamanho_camisete"] = "Tamanho de camisete inválido."
-    else:
-        cleaned["tamanho_camisete"] = tamanho
+    # Tamanho: obrigatório nos eventos com camisetes; nos outros é ignorado
+    # (nunca gravar um tamanho por omissão).
+    cleaned["tamanho_camisete"] = ""
+    if offers_shirts:
+        tamanho = (post_data.get("tamanho_camisete") or "").strip()
+        if tamanho not in TamanhoCamisete.values:
+            errors["tamanho_camisete"] = "Escolha o tamanho da camisete."
+        else:
+            cleaned["tamanho_camisete"] = tamanho
     if is_free:
         return cleaned, errors
     payment = (post_data.get("payment") or "").strip().lower()
@@ -260,19 +267,20 @@ def register_form(request, event_id):
         return render(request, "events/register.html", _form_context(event, tamanhos, _new_reference()))
 
     # POST: valida e processa
-    cleaned, errors = _validate_registration_data(request.POST, is_free=event["is_free"])
+    cleaned, errors = _validate_registration_data(
+        request.POST, is_free=event["is_free"], offers_shirts=event["offers_shirts"])
     reference = _clean_reference(request.POST.get("external_reference"))
     selected = request.POST.get("payment") or DEFAULT_PAYMENT
     if errors:
         for field, msg in errors.items():
-            messages.error(request, f"{field}: {msg}")
-        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
+            messages.error(request, msg)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected, request.POST.get("tamanho_camisete", "")), status=400)
 
     # Verifica se o evento tem priceId
     price_id = event.get("priceId")
     if not price_id:
         messages.error(request, "Este evento não tem preço ativo.")
-        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected, request.POST.get("tamanho_camisete", "")), status=400)
 
     # Monta payload para API
     payload = {
@@ -295,11 +303,11 @@ def register_form(request, event_id):
         logger.error(f"Erro ao criar ticket: {e}")
         code = getattr(e.response, "status_code", 502)
         messages.error(request, _api_error_message(e, "Não foi possível processar o pagamento. Tente novamente."))
-        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=code if code in (400, 402, 404, 409, 422) else 502)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected, request.POST.get("tamanho_camisete", "")), status=code if code in (400, 402, 404, 409, 422) else 502)
     except Exception as e:
         logger.error(f"Erro ao criar ticket: {e}")
         messages.error(request, "Não foi possível processar o pagamento. Tente novamente.")
-        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=502)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected, request.POST.get("tamanho_camisete", "")), status=502)
 
     # Verifica resposta da API
     if response_data.get("status") == "success":
@@ -323,7 +331,7 @@ def register_form(request, event_id):
     else:
         error_msg = response_data.get("message") or "Falha ao iniciar o pagamento."
         messages.error(request, error_msg)
-        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected, request.POST.get("tamanho_camisete", "")), status=400)
 
 
 def _save_ticket_locally(ticket_data, cleaned_data, raw_payload, event_data):
