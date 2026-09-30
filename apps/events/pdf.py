@@ -134,7 +134,7 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     c.roundRect(qr_x - 5, qr_y - 5, qr_size + 10, qr_size + 10, 0, stroke=0, fill=1)
 
     # QR
-    qr_value = f"RWB|{ticket.external_id}"
+    qr_value = ticket.qr_value or f"RWB|{ticket.external_id}"  # QR assinado pela API; RWB| só p/ bilhetes antigos
     _draw_qr(c, qr_value, qr_x, qr_y, qr_size)
 
     # Poster (direita)

@@ -42,6 +42,9 @@ class ExternalTicket(models.Model):
     price_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
     entered = models.BooleanField(default=False)
+    qr_value = models.CharField(max_length=255, blank=True)  # QR assinado pela API
+    checkout_url = models.URLField(max_length=500, blank=True)  # pagamento por cartão
+    payment_instructions = models.TextField(blank=True)
     status = models.CharField(max_length=50, blank=True)
     payment_status = models.CharField(max_length=50, blank=True)
 

@@ -832,7 +832,7 @@
 
     // ── Validação ──────────────────────────────────────────
     function handleQR(raw) {
-        const qr = raw.startsWith("RWB|") ? raw : `RWB|${raw}`;
+        const qr = raw.includes("|") ? raw : `RWB|${raw}`;  // QR assinado da API traz "|"; ID solto = formato antigo
         doValidate(qr);
     }
 

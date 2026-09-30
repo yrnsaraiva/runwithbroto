@@ -8,7 +8,9 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 from django.db.models import Count, Q
 
+from apps.events import etk_client
 from apps.events.models import ExternalTicket
+from apps.events.sync import apply_api_ticket
 from .models import CheckInLog
 
 logger = logging.getLogger(__name__)
@@ -42,14 +44,11 @@ def validate_ticket(request):
     if not qr_value:
         return JsonResponse({"status": "error", "message": "QR vazio."}, status=400)
 
-    # ── Validar prefixo ──────────────────────────────────
+    # ── QR assinado pela API (TCKT…|assinatura): validação autoritativa lá ──
     if not qr_value.startswith("RWB|"):
-        _log(request, qr_value, "", CheckInLog.Result.INVALID_QR)
-        return JsonResponse({
-            "status": "invalid_qr",
-            "message": "QR code não reconhecido. Não é um bilhete válido.",
-        })
+        return _validate_via_api(request, qr_value)
 
+    # ── QR antigo (RWB|<id>): bilhetes emitidos antes da API assinar QR ──
     external_id = qr_value[4:].strip()
 
     # ── Buscar ticket + check-in atómico ─────────────────
@@ -80,6 +79,49 @@ def validate_ticket(request):
     response = {"status": status, "message": message}
     if ticket is not None:
         response["ticket"] = _ticket_info(ticket)
+    return JsonResponse(response)
+
+
+_API_RESULT = {
+    "ok": CheckInLog.Result.OK,
+    "already_entered": CheckInLog.Result.ALREADY_ENTERED,
+    "not_paid": CheckInLog.Result.NOT_PAID,
+    "not_found": CheckInLog.Result.NOT_FOUND,
+    "invalid_qr": CheckInLog.Result.INVALID_QR,
+}
+
+
+def _validate_via_api(request, qr_value):
+    """Check-in na API (verifica a assinatura do QR e evita entradas duplicadas
+    entre dispositivos) e espelha o resultado na base local."""
+    try:
+        message, data = etk_client.check_in(qr_value)
+    except Exception as exc:
+        logger.error("check-in na API falhou: %s", exc)
+        return JsonResponse({
+            "status": "error",
+            "message": "Sem ligação à API de bilhetes. Tente novamente.",
+        }, status=502)
+
+    status = data.get("result") or "invalid_qr"
+    api_ticket = data.get("ticket") or {}
+    external_id = api_ticket.get("id", "")
+    _log(request, qr_value, external_id, _API_RESULT.get(status, CheckInLog.Result.INVALID_QR))
+
+    response = {"status": status, "message": message}
+    if api_ticket:
+        local = apply_api_ticket(api_ticket)
+        response["ticket"] = _ticket_info(local) if local else {
+            "external_id": external_id,
+            "buyer_name": api_ticket.get("fullName") or "—",
+            "buyer_phone": api_ticket.get("phone") or "—",
+            "event_name": (api_ticket.get("event") or {}).get("name") or "—",
+            "event_date": "—",
+            "payment_status": api_ticket.get("payment", ""),
+            "entered": bool(api_ticket.get("entered")),
+            "price_amount": str(api_ticket.get("amount", 0)),
+            "tamanho_camisete": "—",
+        }
     return JsonResponse(response)
 
 

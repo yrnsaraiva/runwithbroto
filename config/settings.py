@@ -38,6 +38,8 @@ if not SECRET_KEY:
 
 ETICKETS_BASE_URL = os.getenv("ETICKETS_BASE_URL", "https://etk-api.up.railway.app")
 ETICKETS_BEARER_TOKEN = os.getenv("ETICKETS_BEARER_TOKEN")  # ex: etk_live_...
+# Segredo para validar X-ETK-Signature nos avisos da API (webhook_secret do organizador)
+ETICKETS_WEBHOOK_SECRET = os.getenv("ETICKETS_WEBHOOK_SECRET", "")
 ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "25"))
 
 ALLOWED_HOSTS = [

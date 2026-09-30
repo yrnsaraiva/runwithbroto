@@ -98,6 +98,7 @@
                 <form class="mt-10 grid gap-8" method="post" action="{% url 'events:register' event.id %}">
 
                     {% csrf_token %}
+                    <input type="hidden" name="external_reference" value="{{ external_reference }}">
 
                     <div>
                         <label class="text-[10px] font-semibold uppercase tracking-widest muted">nome completo *</label>
