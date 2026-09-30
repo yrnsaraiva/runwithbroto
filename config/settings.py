@@ -137,6 +137,14 @@ if os.getenv("DATABASE_URL"):
     DATABASES['default'] = dj_database_url.parse(
         os.environ["DATABASE_URL"], conn_max_age=600
     )
+elif not DEBUG:
+    # O SQLite vive no disco do contentor, que é apagado a cada deploy/restart:
+    # os dados "desaparecem" e o migrate do arranque recria tudo do zero.
+    # Falhar alto é melhor do que perder dados em silêncio.
+    raise ImproperlyConfigured(
+        "Defina DATABASE_URL (Postgres) em produção; sem ela os dados ficam "
+        "num SQLite efémero e perdem-se a cada deploy."
+    )
 
 
 # Password validation
