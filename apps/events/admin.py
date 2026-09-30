@@ -1,5 +1,9 @@
 import csv
-from django.contrib import admin
+import logging
+import requests
+from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.validators import validate_email
 from django.http import HttpResponse
 from django.urls import path, reverse
 from django.utils.html import format_html
@@ -9,6 +13,7 @@ from django.db.models import Count, Sum, Q, Avg
 from datetime import timedelta
 from django.shortcuts import get_object_or_404, redirect, render
 
+from . import etk_client
 from .models import ExternalTicket, Provincia
 from .pdfs_external_checkin import build_external_checkin_list_pdf
 from .pdf import build_external_ticket_pdf
@@ -18,6 +23,9 @@ from unfold.admin import ModelAdmin
 from unfold.contrib.filters.admin import RangeDateFilter, RangeDateTimeFilter
 
 from import_export.admin import ImportExportModelAdmin
+
+
+logger = logging.getLogger(__name__)
 
 
 class CustomAdminSite(AdminSite):
@@ -130,26 +138,11 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         }),
     )
 
-    def get_urls(self):
-        urls = super().get_urls()
-        custom_urls = [
-            path(
-                "event/<path:event_name>/checkin-list/pdf/",
-                self.admin_site.admin_view(self.event_checkin_pdf_view),
-                name="externalticket_event_checkin_pdf",
-            ),
-            path(
-                "event/<path:event_name>/checkin-list/csv/",
-                self.admin_site.admin_view(self.event_checkin_csv_view),
-                name="externalticket_event_checkin_csv",
-            ),
-        ]
-        return custom_urls + urls
-
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
 
         extra_context['dashboard_url'] = reverse('admin:externalticket_dashboard')
+        extra_context['invites_url'] = reverse('admin:externalticket_invites')
 
         event_name = request.GET.get("event_name__exact")
         if event_name:
@@ -271,11 +264,30 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom_urls = [
-            # ... suas URLs existentes ...
+            path(
+                "event/<path:event_name>/checkin-list/pdf/",
+                self.admin_site.admin_view(self.event_checkin_pdf_view),
+                name="externalticket_event_checkin_pdf",
+            ),
+            path(
+                "event/<path:event_name>/checkin-list/csv/",
+                self.admin_site.admin_view(self.event_checkin_csv_view),
+                name="externalticket_event_checkin_csv",
+            ),
             path(
                 "dashboard/",
                 self.admin_site.admin_view(self.dashboard_view),
                 name="externalticket_dashboard",
+            ),
+            path(
+                "invites/",
+                self.admin_site.admin_view(self.invites_view),
+                name="externalticket_invites",
+            ),
+            path(
+                "invites/<int:ticket_id>/send/",
+                self.admin_site.admin_view(self.invite_send_view),
+                name="externalticket_invite_send",
             ),
             path(
                 "<int:ticket_id>/download-ticket-pdf/",
@@ -284,6 +296,122 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
             ),
         ]
         return custom_urls + urls
+
+    def _invite_context(self, request, extra=None):
+        from . import invites
+        try:
+            events = [e for e in etk_client.get_events() if e.get("prices")]
+            events_error = ""
+        except Exception as exc:
+            logger.warning("Convites: não foi possível ler os eventos: %s", exc)
+            events, events_error = [], "Não foi possível carregar os eventos da API."
+        rows = []
+        for t in ExternalTicket.objects.filter(payment_status="invited").order_by("-created_at")[:100]:
+            link = invites.invite_link(request, t)
+            rows.append({
+                "ticket": t, "link": link, "whatsapp": invites.whatsapp_url(t, link),
+                "pdf": reverse("admin:externalticket_download_ticket_pdf", args=[t.pk]),
+            })
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Convites", "events": events, "events_error": events_error,
+            "rows": rows, "email_enabled": invites.email_enabled(),
+            "form": {"quantity": 1},
+        }
+        context.update(extra or {})
+        return context
+
+    def invites_view(self, request):
+        """Criar convites (bilhetes gratuitos que ocupam vaga) e enviá-los."""
+        from . import invites
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+        if request.method != "POST":
+            return render(request, "admin/events/externalticket/invites.html",
+                          self._invite_context(request))
+
+        form = {k: request.POST.get(k, "").strip() for k in
+                ("lote", "quantity", "name", "email", "phone", "note")}
+        errors = []
+        event_id, _, price_id = form["lote"].partition("|")
+        if not event_id or not price_id:
+            errors.append("Escolha o evento e o lote.")
+        try:
+            quantity = int(form["quantity"] or 1)
+            if not 1 <= quantity <= 200:
+                raise ValueError
+        except ValueError:
+            quantity = 1
+            errors.append("A quantidade tem de estar entre 1 e 200.")
+        phone = ""
+        if form["phone"]:
+            phone = invites.normalize_phone(form["phone"])
+            if not phone:
+                errors.append("Telefone inválido. Use 9 dígitos (ex.: 84xxxxxxx).")
+        if form["email"]:
+            try:
+                validate_email(form["email"])
+            except ValidationError:
+                errors.append("E-mail inválido.")
+        if not (form["name"] or form["email"] or phone or form["note"]) and quantity == 1:
+            errors.append("Indique pelo menos o nome, o contacto ou uma nota do convidado.")
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(request, "admin/events/externalticket/invites.html",
+                          self._invite_context(request, {"form": {**form, "quantity": form["quantity"]}}),
+                          status=400)
+
+        try:
+            tickets = invites.create_invites(
+                event_id=event_id, price_id=price_id, quantity=quantity, name=form["name"],
+                email=form["email"], phone=phone, note=form["note"])
+        except requests.HTTPError as exc:
+            detail = ""
+            try:
+                detail = exc.response.json().get("message", "")
+            except Exception:
+                pass
+            messages.error(request, detail or "A API recusou o pedido de convites.")
+            return render(request, "admin/events/externalticket/invites.html",
+                          self._invite_context(request, {"form": form}), status=400)
+        except Exception as exc:
+            logger.error("Convites: erro ao criar: %s", exc)
+            messages.error(request, "Não foi possível criar os convites. Tente novamente.")
+            return render(request, "admin/events/externalticket/invites.html",
+                          self._invite_context(request, {"form": form}), status=502)
+
+        messages.success(request, f"{len(tickets)} convite(s) criado(s).")
+        if form["email"]:
+            self._send_email(request, tickets)
+        return redirect("admin:externalticket_invites")
+
+    def _send_email(self, request, tickets):
+        from . import invites
+        if not invites.email_enabled():
+            messages.warning(
+                request, "Envio por e-mail não configurado (EMAIL_HOST): partilhe o link ou use o WhatsApp.")
+            return
+        links = {t.pk: invites.invite_link(request, t) for t in tickets}
+        try:
+            invites.send_invite_email(tickets, links)
+            messages.success(request, f"E-mail enviado para {tickets[0].buyer_email}.")
+        except Exception as exc:
+            logger.error("Convites: falha ao enviar e-mail: %s", exc)
+            messages.error(request, "Os convites foram criados, mas o e-mail falhou. Tente reenviar.")
+
+    def invite_send_view(self, request, ticket_id):
+        """(Re)enviar o e-mail de um convite."""
+        if request.method != "POST":
+            return redirect("admin:externalticket_invites")
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        ticket = get_object_or_404(ExternalTicket, pk=ticket_id, payment_status="invited")
+        if not ticket.buyer_email:
+            messages.error(request, "Este convite não tem e-mail.")
+        else:
+            self._send_email(request, [ticket])
+        return redirect("admin:externalticket_invites")
 
     def dashboard_view(self, request):
         # O dashboard único vive no índice do admin (apps.core.dashboard).

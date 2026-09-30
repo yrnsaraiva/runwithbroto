@@ -3,6 +3,12 @@
 {% block object-tools-items %}
     {{ block.super }}
 
+    {% if invites_url %}
+        <li>
+            <a href="{{ invites_url }}">Convites</a>
+        </li>
+    {% endif %}
+
     {% if checkin_pdf_url %}
         <li>
             <a href="{{ checkin_pdf_url }}" target="_blank">Lista PDF</a>

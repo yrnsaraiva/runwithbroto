@@ -78,6 +78,11 @@ def create_ticket(payload):
     return request("POST", "/back/borrow/external/tickets", json=payload)
 
 
+def create_invites(payload):
+    """Emite convites gratuitos (ocupam vaga; nascem `invited`). Devolve a lista de bilhetes."""
+    return request("POST", "/back/borrow/external/invites", json=payload).get("data", [])
+
+
 def get_ticket(ticket_id):
     """Sonda o estado atual de um bilhete (pagamento, entrada...)."""
     return request("GET", f"/back/borrow/external/tickets/{ticket_id}").get("data", {})

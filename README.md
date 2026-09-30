@@ -6,6 +6,8 @@
 |---|---|---|
 | `SECRET_KEY` | sim (produção) | chave secreta do Django |
 | `DATABASE_URL` | sim (produção) | URL do Postgres; em produção (`DEBUG` desligado) a app recusa arrancar sem ela. Só em desenvolvimento cai para SQLite local |
+| `EMAIL_HOST` (+ `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`) | não | SMTP para enviar convites por e-mail no painel; sem `EMAIL_HOST` só há link/WhatsApp |
+| `SITE_BASE_URL` | não | Base dos links dos convites (ex.: `https://runwithbroto.com`); vazio = domínio do painel |
 | `ETICKETS_BEARER_TOKEN` | sim | token da API ETickets |
 | `ETICKETS_WEBHOOK_SECRET` | recomendada | `webhook_secret` do organizador na API; valida `X-ETK-Signature` |
 | `ETICKETS_BASE_URL` | não | default `https://etk-api.up.railway.app` |

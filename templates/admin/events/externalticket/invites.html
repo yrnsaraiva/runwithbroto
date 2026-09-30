@@ -1,0 +1,191 @@
+{% extends 'unfold/layouts/base_simple.html' %}
+
+{% load i18n unfold %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    <h1 id="site-name">
+        <a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a>
+    </h1>
+{% endblock %}
+
+{% block content %}
+    {% component "unfold/components/container.html" %}
+
+        {% if messages %}
+            <div style="display:grid; gap:.5rem; margin-bottom:1.5rem;">
+                {% for message in messages %}
+                    <div class="border border-base-200 dark:border-base-700 rounded-default bg-white dark:bg-base-900"
+                         style="padding:.75rem 1rem; font-size:.875rem;
+                                {% if message.tags == 'error' %}border-color:#e34948;{% elif message.tags == 'success' %}border-color:#1baf7a;{% elif message.tags == 'warning' %}border-color:#eda100;{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if events_error %}
+            <div class="border border-base-200 rounded-default" style="padding:.75rem 1rem; margin-bottom:1.5rem; border-color:#e34948; font-size:.875rem;">
+                {{ events_error }}
+            </div>
+        {% endif %}
+
+        <!-- Criar convites -->
+        {% component "unfold/components/card.html" with title="Novo convite" %}
+            <p class="text-gray-500 dark:text-gray-400" style="font-size:.8rem; margin-bottom:1rem;">
+                Os convites são gratuitos, ocupam vaga no lote e dão entrada directa (não passam por pagamento).
+                Depois de criados pode enviá-los por e-mail ou pelo WhatsApp.
+            </p>
+
+            <form method="post" action="{% url 'admin:externalticket_invites' %}"
+                  style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; align-items:end;">
+                {% csrf_token %}
+
+                <label style="display:grid; gap:.25rem; font-size:.75rem; grid-column:1 / -1;">
+                    <span class="text-gray-500 dark:text-gray-400">Evento e lote *</span>
+                    <select name="lote" required
+                            class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                            style="padding:.5rem .75rem; font-size:.875rem;">
+                        <option value="">Escolha…</option>
+                        {% for e in events %}
+                            <optgroup label="{{ e.name }}">
+                                {% for p in e.prices %}
+                                    <option value="{{ e.id }}|{{ p.id }}" {% if form.lote == e.id|add:'|'|add:p.id %}selected{% endif %}>
+                                        {{ p.name }} — {{ p.available }} vaga{{ p.available|pluralize }}
+                                    </option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endfor %}
+                    </select>
+                </label>
+
+                <label style="display:grid; gap:.25rem; font-size:.75rem;">
+                    <span class="text-gray-500 dark:text-gray-400">Nome do convidado</span>
+                    <input type="text" name="name" value="{{ form.name|default:'' }}" maxlength="200"
+                           class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                           style="padding:.5rem .75rem; font-size:.875rem;">
+                </label>
+
+                <label style="display:grid; gap:.25rem; font-size:.75rem;">
+                    <span class="text-gray-500 dark:text-gray-400">E-mail</span>
+                    <input type="email" name="email" value="{{ form.email|default:'' }}"
+                           class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                           style="padding:.5rem .75rem; font-size:.875rem;">
+                </label>
+
+                <label style="display:grid; gap:.25rem; font-size:.75rem;">
+                    <span class="text-gray-500 dark:text-gray-400">Telefone (WhatsApp)</span>
+                    <input type="tel" name="phone" value="{{ form.phone|default:'' }}" placeholder="84 xxx xxxx"
+                           class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                           style="padding:.5rem .75rem; font-size:.875rem;">
+                </label>
+
+                <label style="display:grid; gap:.25rem; font-size:.75rem;">
+                    <span class="text-gray-500 dark:text-gray-400">Nota (ex.: Patrocinador X)</span>
+                    <input type="text" name="note" value="{{ form.note|default:'' }}" maxlength="255"
+                           class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                           style="padding:.5rem .75rem; font-size:.875rem;">
+                </label>
+
+                <label style="display:grid; gap:.25rem; font-size:.75rem;">
+                    <span class="text-gray-500 dark:text-gray-400">Quantidade *</span>
+                    <input type="number" name="quantity" min="1" max="200" value="{{ form.quantity|default:1 }}" required
+                           class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                           style="padding:.5rem .75rem; font-size:.875rem;">
+                </label>
+
+                <div style="display:grid; gap:.5rem;">
+                    <button type="submit" class="bg-primary-600 text-white rounded-default font-medium"
+                            style="padding:.6rem 1rem; font-size:.875rem;">
+                        Criar convite(s){% if email_enabled %} e enviar{% endif %}
+                    </button>
+                </div>
+            </form>
+
+            <p class="text-gray-500 dark:text-gray-400" style="font-size:.75rem; margin-top:1rem;">
+                {% if email_enabled %}
+                    Com e-mail preenchido, o convite segue logo por e-mail (link + PDF); vários convites para a mesma pessoa vão num só e-mail.
+                {% else %}
+                    Envio por e-mail desligado (falta configurar <code>EMAIL_HOST</code>): use o link ou o WhatsApp abaixo.
+                {% endif %}
+            </p>
+        {% endcomponent %}
+
+        <!-- Convites emitidos -->
+        <div style="margin-top:1.5rem;">
+            {% component "unfold/components/card.html" with title="Convites emitidos" %}
+                {% if rows %}
+                    <div style="overflow-x:auto;">
+                        <table class="w-full text-sm text-left" style="border-collapse:collapse;">
+                            <thead>
+                                <tr class="text-gray-500 dark:text-gray-400" style="font-size:.75rem;">
+                                    <th style="padding:.5rem;">Convidado</th>
+                                    <th style="padding:.5rem;">Evento</th>
+                                    <th style="padding:.5rem;">Contacto</th>
+                                    <th style="padding:.5rem;">Nota</th>
+                                    <th style="padding:.5rem;">Enviado</th>
+                                    <th style="padding:.5rem;">Entrou</th>
+                                    <th style="padding:.5rem;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in rows %}
+                                    <tr class="border-t border-base-200 dark:border-base-800">
+                                        <td style="padding:.5rem;">
+                                            <div class="font-medium">{{ r.ticket.buyer_name|default:"—" }}</div>
+                                            <div class="text-gray-500 dark:text-gray-400" style="font-size:.7rem; font-family:monospace;">{{ r.ticket.external_id }}</div>
+                                        </td>
+                                        <td style="padding:.5rem;">{{ r.ticket.event_name }}</td>
+                                        <td style="padding:.5rem;">
+                                            {{ r.ticket.buyer_email|default:"" }}
+                                            {% if r.ticket.buyer_email and r.ticket.buyer_phone %}<br>{% endif %}
+                                            {{ r.ticket.buyer_phone|default:"" }}
+                                            {% if not r.ticket.buyer_email and not r.ticket.buyer_phone %}—{% endif %}
+                                        </td>
+                                        <td style="padding:.5rem;">{{ r.ticket.note|default:"—" }}</td>
+                                        <td style="padding:.5rem; white-space:nowrap;">
+                                            {% if r.ticket.invite_sent_at %}{{ r.ticket.invite_sent_at|date:"d/m H:i" }}{% else %}<span class="text-gray-500 dark:text-gray-400">por enviar</span>{% endif %}
+                                        </td>
+                                        <td style="padding:.5rem;">{% if r.ticket.entered %}Sim{% else %}—{% endif %}</td>
+                                        <td style="padding:.5rem; white-space:nowrap;">
+                                            <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;">
+                                                <a href="{{ r.link }}" target="_blank" rel="noopener" class="text-primary-600 dark:text-primary-500">Ver</a>
+                                                <a href="{{ r.pdf }}" class="text-primary-600 dark:text-primary-500">PDF</a>
+                                                <button type="button" class="text-primary-600 dark:text-primary-500 copy-link" data-link="{{ r.link }}">Copiar link</button>
+                                                {% if r.whatsapp %}<a href="{{ r.whatsapp }}" target="_blank" rel="noopener" class="text-primary-600 dark:text-primary-500">WhatsApp</a>{% endif %}
+                                                {% if email_enabled and r.ticket.buyer_email %}
+                                                    <form method="post" action="{% url 'admin:externalticket_invite_send' r.ticket.pk %}" style="display:inline;">
+                                                        {% csrf_token %}
+                                                        <button type="submit" class="text-primary-600 dark:text-primary-500">{% if r.ticket.invite_sent_at %}Reenviar e-mail{% else %}Enviar e-mail{% endif %}</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 dark:text-gray-400" style="font-size:.875rem;">Ainda não há convites emitidos.</p>
+                {% endif %}
+            {% endcomponent %}
+        </div>
+
+        <script>
+            document.querySelectorAll(".copy-link").forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    navigator.clipboard.writeText(btn.dataset.link).then(function () {
+                        var old = btn.textContent;
+                        btn.textContent = "Copiado ✓";
+                        setTimeout(function () { btn.textContent = old; }, 1500);
+                    });
+                });
+            });
+        </script>
+
+    {% endcomponent %}
+{% endblock %}

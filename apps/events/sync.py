@@ -61,6 +61,7 @@ def ensure_local_ticket(data):
         status=data.get("status") or "",
         payment_status=data.get("payment") or "",
         confirmation_deadline=parse_datetime(data.get("expiresAt")),
+        note=data.get("note") or "",
         buyer_phone=data.get("phone") or "",
         buyer_name=data.get("fullName") or "",
         buyer_email=data.get("email") or "",
