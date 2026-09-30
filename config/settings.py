@@ -42,6 +42,22 @@ ETICKETS_BEARER_TOKEN = os.getenv("ETICKETS_BEARER_TOKEN")  # ex: etk_live_...
 ETICKETS_WEBHOOK_SECRET = os.getenv("ETICKETS_WEBHOOK_SECRET", "")
 ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "25"))
 
+# E-mail (envio de convites). Sem EMAIL_HOST o envio por e-mail fica desligado no
+# painel (continua possível partilhar o link ou enviar por WhatsApp).
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = _env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "no-reply@runwithbroto.com")
+EMAIL_BACKEND = (
+    "django.core.mail.backends.smtp.EmailBackend" if EMAIL_HOST
+    else "django.core.mail.backends.console.EmailBackend"
+)
+# Base dos links enviados nos convites (ex.: https://runwithbroto.com). Vazio = o
+# domínio do pedido ao painel.
+SITE_BASE_URL = os.getenv("SITE_BASE_URL", "").rstrip("/")
+
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
@@ -326,6 +342,11 @@ UNFOLD = {
                         "title": _("Tickets"),
                         "icon": "mobile_ticket",
                         "link": reverse_lazy("admin:events_externalticket_changelist"),
+                    },
+                    {
+                        "title": _("Convites"),
+                        "icon": "card_giftcard",
+                        "link": reverse_lazy("admin:externalticket_invites"),
                     },
 
                 ],

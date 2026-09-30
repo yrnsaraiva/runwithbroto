@@ -255,3 +255,135 @@ class PreRegistrationTests(TestCase):
         with mock.patch("apps.events.views._get_event_from_api", return_value=past):
             r = self.client.get(self.url)
         self.assertContains(r, "prazo de confirmação terminou")
+
+
+# ---------------------------------------------------------------------------
+# Painel de convites (admin)
+# ---------------------------------------------------------------------------
+from django.contrib.auth import get_user_model
+from django.core import mail
+from django.test import override_settings
+
+INVITE_EVENT = {**EVENT, "prices": [{"id": "PRC1", "name": "Geral", "amount": 0,
+                                     "status": "active", "available": 5}]}
+
+
+def api_invite(tid, name="Ana", email="ana@x.co", phone="258841111111", note="Patrocinador"):
+    return {"id": tid, "eventId": "EV1", "priceId": "PRC1", "payment": "invited", "status": "valid",
+            "isInvite": True, "phone": phone, "fullName": name, "email": email, "note": note,
+            "amount": 0, "qrValue": f"{tid}|sig",
+            "event": {"id": "EV1", "name": "Corrida", "date": "2099-01-01T08:00:00Z",
+                      "location": {"province": "Maputo", "details": "Marginal"}}}
+
+
+@mock.patch("apps.events.admin.etk_client.get_events", return_value=[INVITE_EVENT])
+class InvitePanelTests(TestCase):
+    url = "/admin/events/externalticket/invites/"
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_superuser("root", "r@x.co", "Pa$$w0rd!123")
+        self.client.force_login(self.admin)
+        self.data = {"lote": "EV1|PRC1", "quantity": "2", "name": "Ana", "email": "ana@x.co",
+                     "phone": "84 111 1111", "note": "Patrocinador"}
+
+    def post(self, **over):
+        return self.client.post(self.url, {**self.data, **over})
+
+    def test_form_lists_events_and_lots_with_spots(self, _):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn('value="EV1|PRC1"', html)
+        self.assertIn("5 vagas", html)
+
+    def test_requires_staff_login(self, _):
+        self.client.logout()
+        r = self.client.get(self.url)
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("/login/", r["Location"])
+
+    def test_creates_invites_via_api_and_saves_them_locally(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        return_value=[api_invite("TKI1"), api_invite("TKI2")]) as api:
+            r = self.post()
+        self.assertRedirects(r, self.url, fetch_redirect_response=False)
+        payload = api.call_args.args[0]
+        self.assertEqual(payload, {"eventId": "EV1", "priceId": "PRC1", "quantity": 2,
+                                   "holderName": "Ana", "holderEmail": "ana@x.co",
+                                   "phone": "258841111111", "note": "Patrocinador"})
+        tickets = ExternalTicket.objects.filter(payment_status="invited")
+        self.assertEqual(tickets.count(), 2)
+        self.assertEqual(tickets[0].note, "Patrocinador")
+        self.assertEqual(tickets[0].buyer_email, "ana@x.co")
+
+    def test_api_refusal_is_shown_and_nothing_saved(self, _):
+        import requests
+        resp = mock.Mock(); resp.json.return_value = {"message": "Só restam 1 vaga(s) neste lote."}
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        side_effect=requests.HTTPError(response=resp)):
+            r = self.post()
+        self.assertEqual(r.status_code, 400)
+        self.assertContains(r, "Só restam 1 vaga(s)", status_code=400)
+        self.assertFalse(ExternalTicket.objects.exists())
+
+    def test_validation_blocks_the_api_call(self, _):
+        for bad in ({"lote": ""}, {"quantity": "0"}, {"quantity": "999"}, {"phone": "123"},
+                    {"email": "nao-e-email"},
+                    {"quantity": "1", "name": "", "email": "", "phone": "", "note": ""}):
+            with mock.patch("apps.events.invites.etk_client.create_invites") as api:
+                r = self.post(**bad)
+            self.assertEqual(r.status_code, 400, bad)
+            api.assert_not_called()
+
+    @override_settings(EMAIL_HOST="smtp.test", EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_email_sent_once_with_link_and_a_pdf_per_invite(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        return_value=[api_invite("TKI1"), api_invite("TKI2")]):
+            self.post()
+        self.assertEqual(len(mail.outbox), 1)
+        msg = mail.outbox[0]
+        self.assertEqual(msg.to, ["ana@x.co"])
+        self.assertEqual(len(msg.attachments), 2)
+        self.assertEqual(msg.body.count("/tickets/"), 2)
+        self.assertTrue(all(t.invite_sent_at for t in ExternalTicket.objects.all()))
+
+    @override_settings(EMAIL_HOST="")
+    def test_no_email_when_not_configured(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        return_value=[api_invite("TKI1")]):
+            r = self.post(quantity="1")
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertFalse(ExternalTicket.objects.get().invite_sent_at)
+        page = self.client.get(self.url).content.decode()
+        self.assertIn("EMAIL_HOST", page)
+        self.assertNotIn("Enviar e-mail", page)
+
+    @override_settings(EMAIL_HOST="smtp.test", EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+                       SITE_BASE_URL="https://runwithbroto.test")
+    def test_list_has_link_pdf_whatsapp_and_resend(self, _):
+        t = make_ticket(external_id="TKI9", payment_status="invited", buyer_name="Rui",
+                        buyer_email="rui@x.co", buyer_phone="258842222222", note="Imprensa",
+                        event_name="Corrida")
+        html = self.client.get(self.url).content.decode()
+        self.assertIn(f"https://runwithbroto.test/events/tickets/{t.public_token}/success/", html)
+        self.assertIn("https://wa.me/258842222222?text=", html)
+        self.assertIn("Enviar e-mail", html)
+        self.assertIn("Imprensa", html)
+        r = self.client.post(f"{self.url}{t.pk}/send/")
+        self.assertRedirects(r, self.url, fetch_redirect_response=False)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Reenviar e-mail", self.client.get(self.url).content.decode())
+
+    def test_only_invites_are_listed(self, _):
+        make_ticket(external_id="TKP", payment_status="paid", buyer_name="Comprador")
+        make_ticket(external_id="TKI", payment_status="invited", buyer_name="Convidado")
+        html = self.client.get(self.url).content.decode()
+        self.assertIn("Convidado", html)
+        self.assertNotIn("Comprador", html)
+
+    def test_changelist_with_event_filter_still_works(self, _):
+        """Regressão: o get_urls duplicado escondia as rotas da lista de check-in."""
+        make_ticket(external_id="TKX", event_name="Corrida")
+        r = self.client.get("/admin/events/externalticket/", {"event_name__exact": "Corrida"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("/checkin-list/pdf/", r.context["checkin_pdf_url"])
+        self.assertEqual(self.client.get(r.context["checkin_csv_url"]).status_code, 200)

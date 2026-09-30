@@ -47,6 +47,9 @@ class ExternalTicket(models.Model):
     payment_instructions = models.TextField(blank=True)
     status = models.CharField(max_length=50, blank=True)
     payment_status = models.CharField(max_length=50, blank=True)
+    # Convites: nota do organizador (ex.: "Patrocinador X") e quando foi enviado por e-mail.
+    note = models.CharField(max_length=255, blank=True)
+    invite_sent_at = models.DateTimeField(null=True, blank=True)
     # Pré-inscrição: limite para confirmar presença (expiresAt do bilhete na API).
     confirmation_deadline = models.DateTimeField(null=True, blank=True)
 
