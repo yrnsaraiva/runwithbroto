@@ -1,4 +1,5 @@
 import json
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -27,9 +28,30 @@ class ValidateTicketTests(TestCase):
         ExternalTicket.objects.filter(pk=self.ticket.pk).update(payment_status="pending")
         self.assertEqual(self.scan("RWB|TK1"), "not_paid")
         self.assertEqual(self.scan("RWB|NOPE"), "not_found")
-        self.assertEqual(self.scan("xxx"), "invalid_qr")
+        api = ("QR não reconhecido.", {"result": "invalid_qr", "ticket": None})
+        with mock.patch("apps.scanner.views.etk_client.check_in", return_value=api):
+            self.assertEqual(self.scan("xxx"), "invalid_qr")
 
     def test_requires_staff(self):
         self.client.logout()
         r = self.client.post(reverse("scanner:validate"), "{}", content_type="application/json")
         self.assertEqual(r.status_code, 302)
+
+
+class ApiCheckInTests(TestCase):
+    setUp = ValidateTicketTests.setUp
+    scan = ValidateTicketTests.scan
+    def test_signed_qr_goes_through_api(self):
+        api = ("Entrada autorizada.", {"result": "ok", "ticket": {
+            "id": "TK1", "payment": "paid", "status": "valid", "entered": True}})
+        with mock.patch("apps.scanner.views.etk_client.check_in", return_value=api) as m:
+            self.assertEqual(self.scan("TK1|abc123"), "ok")
+        m.assert_called_once_with("TK1|abc123")
+        self.ticket.refresh_from_db()
+        self.assertTrue(self.ticket.entered)  # espelhado localmente
+
+    def test_api_down_returns_502(self):
+        with mock.patch("apps.scanner.views.etk_client.check_in", side_effect=Exception("down")):
+            r = self.client.post(reverse("scanner:validate"), json.dumps({"qr_value": "TK1|x"}),
+                                 content_type="application/json")
+        self.assertEqual(r.status_code, 502)

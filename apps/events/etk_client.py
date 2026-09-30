@@ -63,8 +63,9 @@ def parse_datetime(value):
     return dt
 
 
-def get_events():
-    data = request("GET", "/back/borrow/external/events")
+def get_events(upcoming=False):
+    path = "/back/borrow/external/events" + ("?upcoming=true" if upcoming else "")
+    data = request("GET", path)
     return [apply_event_overrides(e) for e in data.get("data", [])]
 
 
@@ -75,3 +76,23 @@ def get_event(event_id):
 
 def create_ticket(payload):
     return request("POST", "/back/borrow/external/tickets", json=payload)
+
+
+def get_ticket(ticket_id):
+    """Sonda o estado atual de um bilhete (pagamento, entrada...)."""
+    return request("GET", f"/back/borrow/external/tickets/{ticket_id}").get("data", {})
+
+
+def list_tickets(since=None, event_id=None, payment=None):
+    """Bilhetes da chave; `since` (ISO 8601) devolve só os alterados desde então."""
+    from urllib.parse import urlencode
+    params = {k: v for k, v in
+              {"since": since, "eventId": event_id, "payment": payment}.items() if v}
+    path = "/back/borrow/external/tickets" + (f"?{urlencode(params)}" if params else "")
+    return request("GET", path).get("data", [])
+
+
+def check_in(qr_value):
+    """Check-in autoritativo na API (valida a assinatura do QR)."""
+    data = request("POST", "/back/borrow/external/tickets/check-in", json={"qrValue": qr_value})
+    return data.get("message", ""), data.get("data") or {}

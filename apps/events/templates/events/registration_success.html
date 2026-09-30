@@ -4,18 +4,30 @@
     <section class="max-w-4xl mx-auto px-4 pt-16 pb-24">
 
         <!-- Status -->
-        <div class="text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--brand)]/15 text-[var(--brand)] text-2xl">
-                ✓
+        <div class="text-center" id="statusBox">
+            <div id="statusIcon" class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--brand)]/15 text-[var(--brand)] text-2xl">
+                {% if is_paid %}✓{% else %}…{% endif %}
             </div>
 
-            <h1 class="mt-6 font-display text-5xl leading-[0.95]">
-                Pagamento Confirmado
+            <h1 id="statusTitle" class="mt-6 font-display text-5xl leading-[0.95]">
+                {% if is_paid %}Pagamento Confirmado{% else %}A aguardar pagamento{% endif %}
             </h1>
 
-            <p class="mt-4 muted max-w-xl mx-auto">
-                Sua inscrição foi concluída com sucesso. O ingresso já está disponível para download.
+            <p id="statusText" class="mt-4 muted max-w-xl mx-auto">
+                {% if is_paid %}
+                    Sua inscrição foi concluída com sucesso. O ingresso já está disponível para download.
+                {% else %}
+                    Confirme o pagamento no seu telemóvel. Esta página atualiza sozinha assim que for confirmado.
+                    {% if ticket.payment_instructions %}<br>{{ ticket.payment_instructions }}{% endif %}
+                {% endif %}
             </p>
+
+            {% if not is_paid and ticket.checkout_url %}
+                <a id="checkoutLink" href="{{ ticket.checkout_url }}" rel="noopener"
+                   class="inline-block mt-6 bg-[var(--brand)] text-black rounded-2xl px-8 py-4 font-semibold">
+                    Pagar com cartão
+                </a>
+            {% endif %}
         </div>
 
         <!-- Card -->
@@ -55,7 +67,7 @@
 
             <!-- Actions -->
             <div class="mt-8 flex flex-col sm:flex-row gap-4">
-                <a href="{% url 'events:download_external_ticket_pdf' ticket.public_token %}"
+                <a id="downloadBtn" {% if not is_paid %}style="display:none"{% endif %} href="{% url 'events:download_external_ticket_pdf' ticket.public_token %}"
                    class="flex-1 bg-[var(--brand)] text-black rounded-2xl py-4 text-center font-semibold hover:opacity-90 transition">
                     Baixar Ingresso (PDF)
                 </a>
@@ -69,4 +81,29 @@
         </div>
 
     </section>
+
+    {% if not is_paid %}
+    <script>
+        (function () {
+            const url = "{% url 'events:ticket_status' ticket.public_token %}";
+            let tries = 0;
+            const timer = setInterval(async () => {
+                if (++tries > 100) return clearInterval(timer);  // ~5 min
+                try {
+                    const d = await (await fetch(url, {cache: "no-store"})).json();
+                    if (d.paid) {
+                        clearInterval(timer);
+                        document.getElementById("statusIcon").textContent = "✓";
+                        document.getElementById("statusTitle").textContent = "Pagamento Confirmado";
+                        document.getElementById("statusText").textContent =
+                            "Sua inscrição foi concluída com sucesso. O ingresso já está disponível para download.";
+                        const c = document.getElementById("checkoutLink");
+                        if (c) c.style.display = "none";
+                        document.getElementById("downloadBtn").style.display = "";
+                    }
+                } catch (e) { /* tenta de novo */ }
+            }, 3000);
+        })();
+    </script>
+    {% endif %}
 {% endblock %}

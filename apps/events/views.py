@@ -1,18 +1,25 @@
+import hashlib
+import hmac
+import json
 import re
 import logging
+import uuid
 from types import SimpleNamespace
 
 import requests
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
-from django.http import Http404, HttpResponse
+from django.conf import settings
+from django.http import Http404, HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 
 from . import etk_client
 from .models import ExternalTicket, TamanhoCamisete
 from .pdf import build_external_ticket_pdf
+from .sync import apply_api_ticket
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +87,42 @@ def _build_event_context(event_data):
 # VALIDAÇÃO DE FORMULÁRIO
 # =============================================================================
 
+# Métodos oferecidos no formulário (valores aceites pela API em paymentMethod).
+PAYMENT_METHODS = [("mpesa", "M-Pesa"), ("emola", "e-Mola"), ("mkesh", "mKesh")]
+DEFAULT_PAYMENT = "mpesa"
+
+
+def _form_context(event, tamanhos, reference, selected=DEFAULT_PAYMENT):
+    return {
+        "event": event,
+        "tamanhos": tamanhos,
+        "external_reference": reference,
+        "payment_methods": PAYMENT_METHODS,
+        "selected_payment": selected,
+    }
+
+
+def _new_reference():
+    return uuid.uuid4().hex
+
+
+def _clean_reference(value):
+    """Referência de idempotência vinda do formulário; gera outra se inválida."""
+    value = (value or "").strip()
+    return value if re.fullmatch(r"[0-9a-f]{32}", value) else _new_reference()
+
+
+def _api_error_message(exc, default):
+    """Mensagem legível de um erro HTTP da API (ex.: 402 pagamento recusado)."""
+    response = getattr(exc, "response", None)
+    if response is not None:
+        try:
+            return response.json().get("message") or default
+        except ValueError:
+            pass
+    return default
+
+
 def _validate_registration_data(post_data):
     """
     Valida os dados do formulário de inscrição.
@@ -113,7 +156,11 @@ def _validate_registration_data(post_data):
         errors["tamanho_camisete"] = "Tamanho de camisete inválido."
     else:
         cleaned["tamanho_camisete"] = tamanho
-    cleaned["payment"] = (post_data.get("payment") or "").strip()[:30]
+    payment = (post_data.get("payment") or "").strip().lower()
+    if payment not in dict(PAYMENT_METHODS):
+        errors["payment"] = "Escolha o método de pagamento."
+    else:
+        cleaned["payment"] = payment
 
     return cleaned, errors
 
@@ -193,35 +240,30 @@ def register_form(request, event_id):
 
     # GET: apenas exibe o formulário
     if request.method == "GET":
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-        })
+        return render(request, "events/register.html", _form_context(event, tamanhos, _new_reference()))
 
     # POST: valida e processa
     cleaned, errors = _validate_registration_data(request.POST)
+    reference = _clean_reference(request.POST.get("external_reference"))
+    selected = request.POST.get("payment") or DEFAULT_PAYMENT
     if errors:
         for field, msg in errors.items():
             messages.error(request, f"{field}: {msg}")
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-        }, status=400)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
 
     # Verifica se o evento tem priceId
     price_id = event.get("priceId")
     if not price_id:
         messages.error(request, "Este evento não tem preço ativo.")
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-        }, status=400)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
 
     # Monta payload para API
     payload = {
         "priceId": price_id,
         "eventId": event_id,
         "phone": cleaned["phone"],
+        # A API deduplica por externalReference: retry/duplo clique não cobra duas vezes.
+        "externalReference": reference,
     }
     if cleaned.get("email"):
         payload["email"] = cleaned["email"]
@@ -232,30 +274,29 @@ def register_form(request, event_id):
 
     try:
         response_data = _create_ticket_in_api(payload)
+    except requests.HTTPError as e:
+        logger.error(f"Erro ao criar ticket: {e}")
+        code = getattr(e.response, "status_code", 502)
+        messages.error(request, _api_error_message(e, "Não foi possível processar o pagamento. Tente novamente."))
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=code if code in (400, 402, 404, 409, 422) else 502)
     except Exception as e:
         logger.error(f"Erro ao criar ticket: {e}")
         messages.error(request, "Não foi possível processar o pagamento. Tente novamente.")
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-        }, status=502)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=502)
 
     # Verifica resposta da API
-    if response_data.get("status") == "success" and response_data.get("message") == "Ticket created successfully":
+    if response_data.get("status") == "success":
         ticket_data = response_data.get("data", {})
         ticket = _save_ticket_locally(ticket_data, cleaned, response_data, event_data)
         messages.success(
             request,
-            "Inscrição confirmada com sucesso. Confirme o pagamento no seu telefone."
+            "Inscrição registada. Confirme o pagamento no seu telefone."
         )
         return redirect("events:registration_success", token=ticket.public_token)
     else:
         error_msg = response_data.get("message") or "Falha ao iniciar o pagamento."
         messages.error(request, error_msg)
-        return render(request, "events/register.html", {
-            "event": event,
-            "tamanhos": tamanhos,
-        }, status=400)
+        return render(request, "events/register.html", _form_context(event, tamanhos, reference, selected), status=400)
 
 
 def _save_ticket_locally(ticket_data, cleaned_data, raw_payload, event_data):
@@ -275,6 +316,9 @@ def _save_ticket_locally(ticket_data, cleaned_data, raw_payload, event_data):
         "price_id_external": ticket_data.get("priceId") or "",
         "price_amount": price.get("amount") or 0,
         "entered": ticket_data.get("entered", False),
+        "qr_value": ticket_data.get("qrValue") or "",
+        "checkout_url": ticket_data.get("checkoutUrl") or "",
+        "payment_instructions": ticket_data.get("paymentInstructions") or "",
         "status": ticket_data.get("status") or "",
         "payment_status": ticket_data.get("payment") or "",
         "buyer_phone": cleaned_data["phone"],
@@ -305,8 +349,49 @@ def register_success(request, token):
         "event_city": ticket.event_province,
         "buyer_name": ticket.buyer_name,
         "price_amount": ticket.price_amount,
+        "is_paid": ticket.payment_status.lower() in ("paid", "invited"),
     }
     return render(request, "events/registration_success.html", context)
+
+
+@never_cache
+@require_http_methods(["GET"])
+def ticket_status(request, token):
+    """Estado do pagamento (JSON), usado pela página de sucesso para atualizar sozinha.
+
+    Enquanto o bilhete não está pago, sonda a API; depois de pago responde só
+    com o que está na base local.
+    """
+    ticket = get_object_or_404(ExternalTicket, public_token=token)
+    if ticket.payment_status.lower() not in ("paid", "invited", "refunded"):
+        try:
+            ticket = apply_api_ticket(etk_client.get_ticket(ticket.external_id)) or ticket
+        except Exception as e:
+            logger.warning("Não foi possível sondar o bilhete %s: %s", ticket.external_id, e)
+    return JsonResponse({
+        "payment": ticket.payment_status,
+        "paid": ticket.payment_status.lower() in ("paid", "invited"),
+        "checkoutUrl": ticket.checkout_url,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def etk_webhook(request):
+    """Aviso da API (ticket.paid, reembolsos...), assinado com HMAC-SHA256 em X-ETK-Signature."""
+    secret = settings.ETICKETS_WEBHOOK_SECRET
+    if not secret:
+        return JsonResponse({"error": "webhook não configurado"}, status=503)
+    expected = hmac.new(secret.encode(), request.body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, request.headers.get("X-ETK-Signature", "")):
+        return JsonResponse({"error": "assinatura inválida"}, status=401)
+    try:
+        payload = json.loads(request.body)
+        data = payload["data"]
+    except (ValueError, KeyError, TypeError):
+        return JsonResponse({"error": "payload inválido"}, status=400)
+    ticket = apply_api_ticket(data)
+    return JsonResponse({"processed": bool(ticket)})
 
 
 @never_cache

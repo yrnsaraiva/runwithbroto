@@ -98,6 +98,7 @@
                 <form class="mt-10 grid gap-8" method="post" action="{% url 'events:register' event.id %}">
 
                     {% csrf_token %}
+                    <input type="hidden" name="external_reference" value="{{ external_reference }}">
 
                     <div>
                         <label class="text-[10px] font-semibold uppercase tracking-widest muted">nome completo *</label>
@@ -115,6 +116,21 @@
                                type="tel"
                                pattern="(258)?8[4-7][0-9]{7}"
                                required>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-semibold uppercase tracking-widest muted">método de pagamento *</label>
+                        <div class="mt-3 grid grid-cols-3 gap-3">
+                            {% for value, label in payment_methods %}
+                                <label class="cursor-pointer">
+                                    <input class="peer sr-only" type="radio" name="payment" value="{{ value }}"
+                                           {% if value == selected_payment %}checked{% endif %} required>
+                                    <span class="block text-center border hairline px-3 py-4 text-sm font-semibold peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-focus-visible:ring-2 transition">
+                                        {{ label }}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
                     </div>
 
                     <div>
