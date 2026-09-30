@@ -59,7 +59,10 @@ def _build_event_context(event_data):
         prices[0] if prices else None,
     )
     amount = active_price.get("amount") if active_price else None
-    ticket_price_display = f"{amount} MTn" if amount is not None else "—"
+    is_free = amount is not None and float(amount) <= 0
+    ticket_price_display = (
+        "Grátis" if is_free else f"{amount} MTn" if amount is not None else "—"
+    )
 
     category = event_data.get("category", "")
     event_type_display = category.replace("_", " ").title() if category else "—"
@@ -78,6 +81,7 @@ def _build_event_context(event_data):
         "poster": SimpleNamespace(url=image_url) if image_url else None,
         "get_event_type_display": event_type_display,
         "ticket_price_display": ticket_price_display,
+        "is_free": is_free,
         "priceId": active_price.get("id") if active_price else None,
         "confirmed_count": event_data.get("totalTicketsPurchased") or 0,
     }
@@ -123,10 +127,12 @@ def _api_error_message(exc, default):
     return default
 
 
-def _validate_registration_data(post_data):
+def _validate_registration_data(post_data, is_free=False):
     """
     Valida os dados do formulário de inscrição.
     Retorna um dicionário com os dados limpos ou erros.
+
+    Num bilhete gratuito não há pagamento: o método não é pedido nem enviado.
     """
     errors = {}
     cleaned = {}
@@ -156,6 +162,8 @@ def _validate_registration_data(post_data):
         errors["tamanho_camisete"] = "Tamanho de camisete inválido."
     else:
         cleaned["tamanho_camisete"] = tamanho
+    if is_free:
+        return cleaned, errors
     payment = (post_data.get("payment") or "").strip().lower()
     if payment not in dict(PAYMENT_METHODS):
         errors["payment"] = "Escolha o método de pagamento."
@@ -243,7 +251,7 @@ def register_form(request, event_id):
         return render(request, "events/register.html", _form_context(event, tamanhos, _new_reference()))
 
     # POST: valida e processa
-    cleaned, errors = _validate_registration_data(request.POST)
+    cleaned, errors = _validate_registration_data(request.POST, is_free=event["is_free"])
     reference = _clean_reference(request.POST.get("external_reference"))
     selected = request.POST.get("payment") or DEFAULT_PAYMENT
     if errors:
@@ -290,7 +298,8 @@ def register_form(request, event_id):
         ticket = _save_ticket_locally(ticket_data, cleaned, response_data, event_data)
         messages.success(
             request,
-            "Inscrição registada. Confirme o pagamento no seu telefone."
+            "Inscrição confirmada." if event["is_free"]
+            else "Inscrição registada. Confirme o pagamento no seu telefone."
         )
         return redirect("events:registration_success", token=ticket.public_token)
     else:

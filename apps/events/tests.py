@@ -111,3 +111,24 @@ class RegisterFormTests(TestCase):
                 r = self.client.post(self.url, {**self.data, "payment": bad})
             self.assertEqual(r.status_code, 400)
             m.assert_not_called()
+
+
+FREE_EVENT = {**EVENT, "prices": [{"id": "PRC1", "amount": 0, "status": "active"}]}
+
+
+@mock.patch("apps.events.views._get_event_from_api", return_value=FREE_EVENT)
+class FreeTicketFormTests(TestCase):
+    url = "/events/event/EV1/inscrever/"
+    data = {"full_name": "Ana", "phone": "841234567", "email": "a@b.co",
+            "external_reference": "a" * 32}
+
+    def test_form_hides_payment_methods(self, _):
+        html = self.client.get(self.url).content.decode()
+        for m in ("mpesa", "emola", "mkesh"):
+            self.assertNotIn(f'value="{m}"', html)
+
+    def test_no_payment_method_needed_or_sent(self, _):
+        with mock.patch("apps.events.views._create_ticket_in_api", return_value=API_TICKET) as m:
+            r = self.client.post(self.url, self.data)
+        self.assertEqual(r.status_code, 302)
+        self.assertNotIn("paymentMethod", m.call_args.args[0])
