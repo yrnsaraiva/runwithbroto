@@ -1,6 +1,8 @@
 from io import BytesIO
+from pathlib import Path
 import requests
 
+from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -96,92 +98,145 @@ def _draw_wrapped_text(c, text, x, y, max_width, font_name="Helvetica", font_siz
     return y - ((len(lines) - 1) * line_height)
 
 
+# Marca (static/css/app.css): preto + amarelo.
+INK = colors.HexColor("#0B0B0B")
+YELLOW = colors.HexColor("#FABB00")
+MUTED = colors.HexColor("#5B5B5B")
+LINE = colors.HexColor("#D9D9D9")
+PAPER = colors.white
+
+
+def _logo():
+    """Logótipo (amarelo com transparência): fica bem sobre o cabeçalho preto."""
+    path = Path(settings.BASE_DIR) / "static" / "img" / "logo.png"
+    try:
+        return ImageReader(str(path)) if path.exists() else None
+    except Exception:
+        return None
+
+
+def _caps_text(c, x, y, text, font="Helvetica-Bold", size=6.5, space=0.8, color=MUTED, align="left"):
+    """Texto em maiúsculas com espaçamento entre letras (rótulos)."""
+    text = text.upper()
+    width = c.stringWidth(text, font, size) + space * max(len(text) - 1, 0)
+    if align == "right":
+        x -= width
+    t = c.beginText(x, y)
+    t.setFont(font, size)
+    t.setCharSpace(space)
+    t.setFillColor(color)
+    t.textOut(text)
+    t.setCharSpace(0)          # o espaçamento faz parte do estado gráfico: não pode "vazar"
+    c.drawText(t)
+    return width
+
+
+def _fit_lines(c, text, font, size, max_width, max_lines):
+    """Quebra em linhas; se passar de `max_lines`, corta a última com reticências."""
+    words, lines, cur = str(text).split(), [], ""
+    for w in words:
+        test = f"{cur} {w}".strip()
+        if c.stringWidth(test, font, size) <= max_width or not cur:
+            cur = test
+        else:
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        last = lines[-1]
+        while last and c.stringWidth(last + "…", font, size) > max_width:
+            last = last[:-1]
+        lines[-1] = last.rstrip() + "…"
+    return lines
+
+
+def _field(c, label, value, x, y, max_width, size=10.5):
+    """Rótulo pequeno + valor (até 2 linhas). Devolve a altura ocupada."""
+    _caps_text(c, x, y, label)
+    lines = _fit_lines(c, value or "—", "Helvetica-Bold", size, max_width, 2)
+    c.setFillColor(INK)
+    c.setFont("Helvetica-Bold", size)
+    for n, line in enumerate(lines):
+        c.drawString(x, y - 5 * mm - n * (size + 2.5), line)
+    return 5 * mm + len(lines) * (size + 2.5)
+
+
 def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
     """
-    Gera PDF A4 do ingresso de ExternalTicket.
+    PDF A4 do ingresso: cabeçalho da marca com o tipo em destaque, dados do
+    evento, picotado e talão com o QR (o que o porteiro lê).
     """
-
-    # Paleta
-    INK = colors.HexColor("#0B0B0B")
-    MUTED = colors.HexColor("#444444")
-    PAPER = colors.white
-    BRAND = colors.HexColor("#C98B56")
-
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
     W, H = A4
 
-    # fundo
     c.setFillColor(PAPER)
     c.rect(0, 0, W, H, stroke=0, fill=1)
 
-    # ====== TICKET BAND ======
-    band_h = 72 * mm
-    band_y = H - band_h - 20 * mm
-    band_x = 18 * mm
-    band_w = W - 36 * mm
+    # ---- geometria do cartão
+    cx, cw = 18 * mm, W - 36 * mm
+    right = cx + cw
+    top = H - 16 * mm
+    header_h = 28 * mm
+    body_h = 68 * mm
+    stub_h = 68 * mm
+    footer_h = 9 * mm
+    pad = 9 * mm
+    card_bottom = top - header_h - body_h - stub_h - footer_h
+    y_perf = top - header_h - body_h
 
-    c.setFillColor(BRAND)
-    c.roundRect(band_x, band_y, band_w, band_h, 0, stroke=0, fill=1)
-
-    pad = 8 * mm
-    qr_size = 45 * mm
-    qr_x = band_x + pad
-    qr_y = band_y + (band_h - qr_size) / 2
-
-    # caixa branca do QR
-    c.setFillColor(colors.white)
-    c.roundRect(qr_x - 5, qr_y - 5, qr_size + 10, qr_size + 10, 0, stroke=0, fill=1)
-
-    # QR
-    qr_value = ticket.qr_value or f"RWB|{ticket.external_id}"  # QR assinado pela API; RWB| só p/ bilhetes antigos
-    _draw_qr(c, qr_value, qr_x, qr_y, qr_size)
-
-    # Poster (direita)
-    poster_w = 20 * mm
-    poster_h = 35 * mm
-    poster_x = band_x + band_w - pad - poster_w
-    poster_y = band_y + (band_h - poster_h) / 2
-
-    poster_image = _load_remote_image(ticket.event_image_url)
-    if poster_image:
-        try:
-            c.drawImage(
-                poster_image,
-                poster_x + 2,
-                poster_y + 2,
-                poster_w - 4,
-                poster_h - 4,
-                preserveAspectRatio=True,
-                anchor="c",
-                mask="auto",
-            )
-        except Exception:
-            c.setFillColor(colors.HexColor("#f3f3f3"))
-            c.rect(poster_x + 2, poster_y + 2, poster_w - 4, poster_h - 4, stroke=0, fill=1)
-            c.setFillColor(MUTED)
-            c.setFont("Helvetica", 8)
-            c.drawCentredString(poster_x + poster_w / 2, poster_y + poster_h / 2, "POSTER")
+    # ---- cabeçalho (preto)
+    c.setFillColor(INK)
+    c.rect(cx, top - header_h, cw, header_h, stroke=0, fill=1)
+    logo = _logo()
+    logo_h = 15 * mm
+    if logo:
+        logo_w = logo_h * 411 / 179
+        c.drawImage(logo, cx + pad, top - header_h / 2 - logo_h / 2, logo_w, logo_h,
+                    mask="auto", preserveAspectRatio=True)
     else:
-        c.setFillColor(colors.HexColor("#f3f3f3"))
-        c.rect(poster_x + 2, poster_y + 2, poster_w - 4, poster_h - 4, stroke=0, fill=1)
-        c.setFillColor(MUTED)
-        c.setFont("Helvetica", 8)
-        c.drawCentredString(poster_x + poster_w / 2, poster_y + poster_h / 2, "POSTER")
+        c.setFillColor(YELLOW)
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(cx + pad, top - header_h / 2 - 5, "RUN WITH BROTO")
 
-    # textos (centro)
-    text_x = qr_x + qr_size + 10 * mm
-    text_right_limit = poster_x - 8 * mm
-    col_w = (text_right_limit - text_x) / 2
+    # tipo do bilhete (lote da API): a informação que o participante e o porteiro procuram
+    tipo = ticket.ticket_type.upper()
+    _caps_text(c, right - pad, top - 9 * mm, "Tipo de bilhete", size=6.5, color=colors.HexColor("#BBBBBB"),
+               align="right")
+    pill_font, pill_size = "Helvetica-Bold", 12
+    pill_w = c.stringWidth(tipo, pill_font, pill_size) + 10 * mm
+    pill_h = 9 * mm
+    pill_y = top - 12 * mm - pill_h
+    c.setFillColor(YELLOW)
+    c.rect(right - pad - pill_w, pill_y, pill_w, pill_h, stroke=0, fill=1)
+    c.setFillColor(INK)
+    c.setFont(pill_font, pill_size)
+    c.drawCentredString(right - pad - pill_w / 2, pill_y + 2.7 * mm, tipo)
 
-    def draw_pair(label, value, cx, cy):
-        c.setFillColor(colors.white)
-        c.setFont("Helvetica-Bold", 9)
-        c.drawString(cx, cy, label)
+    # ---- corpo: título, poster e dados
+    body_top = top - header_h
+    poster = _load_remote_image(ticket.event_image_url)
+    poster_w, poster_h = 30 * mm, 40 * mm
+    title_w = cw - 2 * pad - ((poster_w + 6 * mm) if poster else 0)
 
-        # Usa a função de quebra de linha para o valor
-        max_width = col_w - 2 * mm  # Margem pequena
-        _draw_wrapped_text(c, value or "—", cx, cy - 11, max_width, "Helvetica", 9, 11)
+    c.setFillColor(YELLOW)
+    c.rect(cx + pad, body_top - 11 * mm, 14 * mm, 1.6 * mm, stroke=0, fill=1)   # barra da marca
+    title_size = 22
+    lines = _fit_lines(c, (ticket.event_name or "Evento").upper(), "Helvetica-Bold", title_size, title_w, 2)
+    c.setFillColor(INK)
+    c.setFont("Helvetica-Bold", title_size)
+    ty = body_top - 20 * mm
+    for n, line in enumerate(lines):
+        c.drawString(cx + pad, ty - n * (title_size + 3), line)
+
+    if poster:
+        try:
+            c.drawImage(poster, right - pad - poster_w, body_top - 8 * mm - poster_h, poster_w, poster_h,
+                        preserveAspectRatio=True, anchor="ne", mask="auto")
+        except Exception:
+            pass
 
     start_local = None
     if ticket.event_date:
@@ -189,37 +244,59 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
         if is_naive(dt):
             dt = make_aware(dt)
         start_local = timezone.localtime(dt)
+    date_str = start_local.strftime("%d/%m/%Y") if start_local else "—"
+    time_str = start_local.strftime("%H:%M") if start_local else "—"
 
-    start_str = start_local.strftime("%d-%m-%Y %H:%M") if start_local else "—"
+    col_w = (cw - 2 * pad - 8 * mm) / 2
+    col1, col2 = cx + pad, cx + pad + col_w + 8 * mm
+    row1 = body_top - 43 * mm
+    row2 = body_top - 57 * mm
+    # a 2.ª coluna não pode invadir o poster
+    col2_w = min(col_w, (right - pad - poster_w - 4 * mm) - col2) if poster else col_w
+    _field(c, "Data", date_str, col1, row1, col_w)
+    _field(c, "Hora", time_str, col2, row1, col2_w)
+    _field(c, "Local", _ticket_location(ticket), col1, row2, col_w)
+    _field(c, "Cidade", ticket.event_province or "—", col2, row2, col2_w)
 
-    left_col_x = text_x
-    right_col_x = text_x + col_w + 6 * mm
-    top_line_y = band_y + band_h - 16 * mm
-    gap = 14 * mm          # coluna do evento (4 linhas, valores que quebram)
-    rgap = 12 * mm         # coluna do participante (até 5 linhas)
+    # ---- picotado
+    c.setStrokeColor(LINE)
+    c.setLineWidth(0.8)
+    c.setDash(2.5, 2.5)
+    c.line(cx + 6 * mm, y_perf, right - 6 * mm, y_perf)
+    c.setDash()
 
-    # esquerda (evento)
-    draw_pair("EVENTO", ticket.event_name, left_col_x, top_line_y)
-    draw_pair("CIDADE", ticket.event_province, left_col_x, top_line_y - gap)
-    draw_pair("LOCAL", _ticket_location(ticket), left_col_x, top_line_y - 2 * gap)
-    draw_pair("DATA / HORA", start_str, left_col_x, top_line_y - 3 * gap)
+    # ---- talão: QR + participante
+    stub_top = y_perf
+    qr_size = 46 * mm
+    qr_x = cx + pad + 3 * mm
+    qr_y = stub_top - stub_h / 2 - qr_size / 2 + 2 * mm
+    c.setStrokeColor(INK)
+    c.setLineWidth(1)
+    c.rect(qr_x - 3 * mm, qr_y - 3 * mm, qr_size + 6 * mm, qr_size + 6 * mm, stroke=1, fill=0)
+    qr_value = ticket.qr_value or f"RWB|{ticket.external_id}"  # QR assinado pela API; RWB| só p/ bilhetes antigos
+    _draw_qr(c, qr_value, qr_x, qr_y, qr_size)
+    c.setFillColor(MUTED)
+    c.setFont("Helvetica", 7)
+    c.drawCentredString(qr_x + qr_size / 2, qr_y - 8 * mm, "Apresente este QR na entrada")
 
-    # direita (participante) — o tipo vem do lote na API (Geral, VIP, Convite…)
-    draw_pair("NOME", ticket.buyer_name or "Participante", right_col_x, top_line_y)
-    draw_pair("TIPO", ticket.ticket_type.upper(), right_col_x, top_line_y - rgap)
+    info_x = qr_x + qr_size + 16 * mm
+    info_w = right - pad - info_x
+    y = stub_top - 12 * mm
+    y -= _field(c, "Participante", ticket.buyer_name or "Participante", info_x, y, info_w, size=13) + 5 * mm
 
-    # Para o TICKET ID, que pode ser longo, também usa quebra de linha
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(right_col_x, top_line_y - 2 * rgap, "TICKET")
-    _draw_wrapped_text(c, ticket.external_id, right_col_x, top_line_y - 2 * rgap - 11,
-                       max_width=col_w - 2 * mm, font_name="Helvetica", font_size=9, line_height=11)
+    # código do bilhete (também serve para o check-in manual)
+    _caps_text(c, info_x, y, "Bilhete")
+    c.setFillColor(INK)
+    c.setFont("Courier-Bold", 9)
+    c.drawString(info_x, y - 4.6 * mm, ticket.external_id)
+    y -= 12 * mm
 
-    row = 3
+    half = info_w / 2
     if ticket.tamanho_camisete:
-        draw_pair("CAMISETE", ticket.get_tamanho_camisete_display(), right_col_x,
-                  top_line_y - row * rgap)
-        row += 1
+        _field(c, "Camisete", ticket.get_tamanho_camisete_display(), info_x, y, half - 2 * mm, size=10)
+        price_x = info_x + half
+    else:
+        price_x = info_x
 
     # preço: gratuito/convite não mostram "0,00 MZN"
     price = ticket.price_amount or 0
@@ -232,44 +309,46 @@ def build_external_ticket_pdf(ticket: ExternalTicket) -> bytes:
             price_str = f"{float(price):,.2f} MZN".replace(",", "X").replace(".", ",").replace("X", ".")
         except Exception:
             price_str = f"{price} MZN"
-    draw_pair("PREÇO", price_str, right_col_x, top_line_y - row * rgap)
+    _field(c, "Preço", price_str, price_x, y, half if ticket.tamanho_camisete else info_w, size=10)
 
-    # footer logo
-    c.setFillColor(MUTED)
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(W / 2, band_y - 10 * mm, "Powered by Shakes")
-
-    # ====== Termos ======
-    tc_top = band_y - 22 * mm
+    # ---- rodapé do cartão + contorno
+    foot_y = card_bottom
     c.setFillColor(INK)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawCentredString(W / 2, tc_top, "TERMOS E CONDIÇÕES")
+    c.rect(cx, foot_y, cw, footer_h, stroke=0, fill=1)
+    c.setFillColor(YELLOW)
+    c.rect(cx, foot_y + footer_h, cw, 1.2 * mm, stroke=0, fill=1)
+    c.setFillColor(colors.HexColor("#DDDDDD"))
+    c.setFont("Helvetica", 7.5)
+    c.drawCentredString(cx + cw / 2, foot_y + 3.2 * mm, "runwithbroto.com   ·   Powered by Shakes")
+    c.setStrokeColor(INK)
+    c.setLineWidth(1)
+    c.rect(cx, card_bottom, cw, top - card_bottom, stroke=1, fill=0)
 
+    # entalhes do picotado (por cima do contorno)
+    c.setFillColor(PAPER)
+    c.setStrokeColor(INK)
+    for nx in (cx, right):
+        c.circle(nx, y_perf, 3.6 * mm, stroke=1, fill=1)
+    c.setFillColor(PAPER)
+    c.setStrokeColor(PAPER)
+    c.rect(cx - 3.8 * mm, y_perf - 3.8 * mm, 3.8 * mm, 7.6 * mm, stroke=0, fill=1)
+    c.rect(right, y_perf - 3.8 * mm, 3.8 * mm, 7.6 * mm, stroke=0, fill=1)
+
+    # ---- termos
+    tc_top = card_bottom - 12 * mm
+    _caps_text(c, cx, tc_top, "Termos e condições", size=8, color=INK)
     terms = [
-        "1. O ingresso é pessoal e válido apenas para o evento descrito.",
-        "",
-        "2. O acesso ao evento depende da validação no check-in"
+        "O ingresso é pessoal e válido apenas para o evento descrito.",
+        "O acesso ao evento depende da validação no check-in"
         + ("." if not ticket.price_amount or ticket.is_invite else " e da confirmação de pagamento."),
-        "",
-        "3. Guarde este PDF/QR para apresentação na entrada.",
-        "",
-        "4. Em caso de cancelamento do evento, a política aplicável será comunicada pelo organizador.",
-        "",
-        "5. Os dados pessoais recolhidos são usados apenas para gestão de inscrições e controlo de acesso.",
+        "Guarde este PDF/QR para apresentação na entrada.",
+        "Em caso de cancelamento do evento, a política aplicável será comunicada pelo organizador.",
+        "Os dados pessoais recolhidos são usados apenas para gestão de inscrições e controlo de acesso.",
     ]
-
+    y = tc_top - 6 * mm
     c.setFillColor(MUTED)
-    c.setFont("Helvetica", 8.5)
-
-    x = 22 * mm
-    y = tc_top - 10 * mm
-    line_h = 5.2 * mm
-
-    # Para os termos, também podemos usar quebra de linha se necessário
-    max_term_width = W - 44 * mm  # Largura disponível para os termos
-    for t in terms:
-        y = _draw_wrapped_text(c, t, x, y, max_term_width, "Helvetica", 8.5, line_h)
-        y -= line_h / 2  # Espaço extra entre parágrafos
+    for n, t in enumerate(terms, start=1):
+        y = _draw_wrapped_text(c, f"{n}. {t}", cx, y, cw, "Helvetica", 7.8, 10) - 5.4 * mm
 
     c.showPage()
     c.save()

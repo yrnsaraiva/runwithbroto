@@ -601,3 +601,44 @@ class FlashMessagesTests(TestCase):
                 "full_name": "Ana", "phone": "841234567", "email": "a@b.co", "payment": "mpesa",
                 "external_reference": "a" * 32})
         self.assertContains(r, "Saldo insuficiente.", status_code=402)
+
+
+class TicketDesignTests(TestCase):
+    def pdf(self, **kw):
+        from .pdf import build_external_ticket_pdf
+        defaults = dict(event_name="Corrida", price_name="VIP", price_amount=500, tamanho_camisete="M")
+        defaults.update(kw)
+        return build_external_ticket_pdf(make_ticket(external_id="TD1", **defaults))
+
+    @needs_fitz
+    def test_single_page_with_brand_logo_and_qr_stub(self):
+        doc = fitz.open(stream=self.pdf(), filetype="pdf")
+        self.assertEqual(len(doc), 1)
+        text = doc[0].get_text()
+        for expected in ("TIPO DE BILHETE", "VIP", "PARTICIPANTE", "Apresente este QR na entrada",
+                         "TERMOS E CONDIÇÕES", "runwithbroto.com"):
+            self.assertIn(expected, text)
+        self.assertGreaterEqual(len(doc[0].get_images()), 1)          # o logótipo
+
+    @needs_fitz
+    def test_long_names_stay_on_one_page(self):
+        doc = fitz.open(stream=self.pdf(
+            event_name="Grande Corrida Solidária do Broto — Edição Especial de Verão 2026 em Maputo",
+            buyer_name="Convidado Com Nome Muito Comprido Da Silva Pereira " * 3,
+            event_location_details="Marginal, Praça da Independência, junto ao Mercado Central " * 3),
+            filetype="pdf")
+        self.assertEqual(len(doc), 1)
+        self.assertIn("…", doc[0].get_text())                         # título cortado com reticências
+
+    def test_renders_without_the_logo_file(self):
+        with mock.patch("apps.events.pdf._logo", return_value=None):
+            self.assertTrue(self.pdf().startswith(b"%PDF"))
+
+    def test_renders_with_a_poster(self):
+        import io
+        from PIL import Image
+        img = io.BytesIO()
+        Image.new("RGB", (300, 400), (40, 90, 160)).save(img, "PNG")
+        from reportlab.lib.utils import ImageReader
+        with mock.patch("apps.events.pdf._load_remote_image", return_value=ImageReader(io.BytesIO(img.getvalue()))):
+            self.assertTrue(self.pdf(event_image_url="https://x/y.png").startswith(b"%PDF"))
