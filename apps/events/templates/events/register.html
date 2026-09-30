@@ -101,8 +101,10 @@
 
                 <p class="mt-4 muted">
                     {% if event.is_preregistration %}
-                        Reserve a sua vaga agora.{% if event.confirmation_deadline %} Terá de confirmar a sua presença até
-                        <strong>{{ event.confirmation_deadline|date:"d/m/Y H:i" }}</strong>, senão a vaga é libertada.{% else %} Terá de confirmar a sua presença mais tarde, senão a vaga é libertada.{% endif %}
+                        Reserve a sua vaga agora. A confirmação de presença será aberta mais perto do evento
+                        {% if event.confirmation_deadline %}e terá de ser feita até
+                        <strong>{{ event.confirmation_deadline|date:"d/m/Y H:i" }}</strong>{% endif %}
+                        — as vagas não confirmadas são libertadas.
                     {% else %}
                         Preencha os seus dados para confirmar a sua participação.
                     {% endif %}

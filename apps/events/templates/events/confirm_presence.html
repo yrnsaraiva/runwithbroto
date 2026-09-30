@@ -15,6 +15,11 @@
             <div class="mt-8 border hairline p-6 text-sm">
                 O prazo de confirmação terminou. As vagas não confirmadas foram libertadas.
             </div>
+        {% elif not_open %}
+            <div class="mt-8 border hairline p-6 text-sm">
+                A confirmação de presença ainda não está aberta. Será aberta mais perto do evento
+                — volte então a esta página.
+            </div>
         {% elif results %}
             <!-- Resultado da confirmação -->
             <div class="mt-8 grid gap-3">

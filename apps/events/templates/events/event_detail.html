@@ -77,8 +77,12 @@
                         <div class="mt-4 grid gap-3">
                         <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:register' event.id %}">{% if event.is_preregistration %}Pré-inscrever-me{% else %}Inscrever-se{% endif %}</a>
                         {% if event.is_preregistration %}
-                            <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:confirm_presence' event.id %}">Já me pré-inscrevi — confirmar presença</a>
-                            {% if event.confirmation_deadline %}<div class="text-xs text-white/60">Confirmação até {{ event.confirmation_deadline|date:"d/m/Y H:i" }}</div>{% endif %}
+                            {% if event.confirmation_open %}
+                                <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:confirm_presence' event.id %}">Já me pré-inscrevi — confirmar presença</a>
+                                {% if event.confirmation_deadline %}<div class="text-xs text-white/60">Confirmação até {{ event.confirmation_deadline|date:"d/m/Y H:i" }}</div>{% endif %}
+                            {% else %}
+                                <div class="text-xs text-white/60">A confirmação de presença será aberta mais perto do evento.</div>
+                            {% endif %}
                         {% endif %}
 {#                            <a class="btn-solid text-center" style="border-radius:0" href="#">Vendas encerradas</a>#}
                         </div>

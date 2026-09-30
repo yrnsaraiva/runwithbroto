@@ -21,8 +21,12 @@
                         A vaga foi libertada por falta de confirmação.
                     {% else %}
                         A sua vaga está reservada. Falta confirmar a presença
-                        {% if confirmation_deadline %}até <strong>{{ confirmation_deadline|date:"d/m/Y H:i" }}</strong>{% endif %}:
-                        volte ao site com o seu telefone para a confirmar.
+                        {% if confirmation_deadline %}até <strong>{{ confirmation_deadline|date:"d/m/Y H:i" }}</strong>{% endif %}.
+                        {% if confirmation_open %}
+                            Já pode confirmar com o seu telefone.
+                        {% else %}
+                            A confirmação será aberta mais perto do evento — volte então a este site.
+                        {% endif %}
                     {% endif %}
                 {% else %}
                     Confirme o pagamento no seu telemóvel. Esta página atualiza sozinha assim que for confirmado.
@@ -30,7 +34,7 @@
                 {% endif %}
             </p>
 
-            {% if is_preregistered and not deadline_passed %}
+            {% if is_preregistered and not deadline_passed and confirmation_open %}
                 <a href="{{ confirm_url }}"
                    class="inline-block mt-6 bg-[var(--brand)] text-black rounded-2xl px-8 py-4 font-semibold">
                     Confirmar presença
