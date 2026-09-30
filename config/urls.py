@@ -16,7 +16,6 @@ urlpatterns = [
     path("events/", include("apps.events.urls")),
     path("scanner/", include("apps.scanner.urls")),
     path("store/", include("apps.store.urls")),
-    path("gameon/", include("apps.gameon.urls")),
     path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}),
     re_path(

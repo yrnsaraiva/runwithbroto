@@ -76,7 +76,6 @@ INSTALLED_APPS = [
     "apps.events.apps.EventsConfig",
     "apps.scanner.apps.ScannerConfig",
     "apps.store.apps.StoreConfig",
-    "apps.gameon.apps.GameonConfig",
 ]
 
 MIDDLEWARE = [
