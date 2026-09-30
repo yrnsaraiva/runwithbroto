@@ -476,3 +476,128 @@ class TicketTypeTests(TestCase):
         from .pdfs_external_checkin import build_external_checkin_list_pdf
         pdf = build_external_checkin_list_pdf("Corrida", [make_ticket(price_name="VIP")])
         self.assertIn("VIP", fitz.open(stream=pdf, filetype="pdf")[0].get_text())
+
+
+# ---------------------------------------------------------------------------
+# Camisetes: nem todos os eventos têm
+# ---------------------------------------------------------------------------
+SHIRT_EVENT = {**EVENT, "offersShirts": True}
+
+
+class ShirtTests(TestCase):
+    reg_url = "/events/event/EV1/inscrever/"
+    data = {"full_name": "Ana", "phone": "841234567", "email": "a@b.co",
+            "payment": "mpesa", "external_reference": "a" * 32}
+
+    def post(self, event, **over):
+        with mock.patch("apps.events.views._get_event_from_api", return_value=event), \
+             mock.patch("apps.events.views._create_ticket_in_api", return_value=API_TICKET) as api:
+            r = self.client.post(self.reg_url, {**self.data, **over})
+        return r, api
+
+    def test_form_asks_for_the_size_only_when_the_event_has_shirts(self):
+        with mock.patch("apps.events.views._get_event_from_api", return_value=SHIRT_EVENT):
+            with_shirts = self.client.get(self.reg_url).content.decode()
+        with mock.patch("apps.events.views._get_event_from_api", return_value=EVENT):
+            without = self.client.get(self.reg_url).content.decode()
+        self.assertIn('name="tamanho_camisete"', with_shirts)
+        for size in ("S", "M", "L", "XL"):
+            self.assertIn(f'value="{size}"', with_shirts)
+        self.assertNotIn("tamanho_camisete", without)
+
+    def test_size_is_required_when_the_event_has_shirts(self):
+        for bad in ("", "XXL"):
+            r, api = self.post(SHIRT_EVENT, tamanho_camisete=bad)
+            self.assertEqual(r.status_code, 400, bad)
+            api.assert_not_called()
+        self.assertContains(r, "Escolha o tamanho da camisete", status_code=400)
+
+    def test_size_is_saved_for_events_with_shirts(self):
+        r, _ = self.post(SHIRT_EVENT, tamanho_camisete="L")
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(ExternalTicket.objects.get(external_id="TK9").tamanho_camisete, "L")
+
+    def test_chosen_size_survives_a_validation_error(self):
+        with mock.patch("apps.events.views._get_event_from_api", return_value=SHIRT_EVENT):
+            r = self.client.post(self.reg_url, {**self.data, "phone": "123", "tamanho_camisete": "XL"})
+        self.assertEqual(r.status_code, 400)
+        self.assertRegex(r.content.decode(), r'value="XL"\s+checked')
+
+    def test_no_size_is_stored_for_events_without_shirts(self):
+        r, _ = self.post(EVENT, tamanho_camisete="L")          # valor forçado no POST é ignorado
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(ExternalTicket.objects.get(external_id="TK9").tamanho_camisete, "")
+
+    def test_tickets_created_by_sync_have_no_default_size(self):
+        from .sync import ensure_local_ticket
+        t = ensure_local_ticket({"id": "TKN", "eventId": "EV1", "payment": "invited", "event": {}})
+        self.assertEqual(t.tamanho_camisete, "")
+        self.assertEqual(ExternalTicket().tamanho_camisete, "")
+
+    def test_sync_clears_the_old_default_size_only_for_events_without_shirts(self):
+        from .sync import apply_api_ticket
+        a = make_ticket(external_id="A", tamanho_camisete="M")
+        b = make_ticket(external_id="B", tamanho_camisete="M")
+        c = make_ticket(external_id="C", tamanho_camisete="M")
+        apply_api_ticket({"id": "A", "payment": "paid", "event": {"offersShirts": False}})
+        apply_api_ticket({"id": "B", "payment": "paid", "event": {"offersShirts": True}})
+        apply_api_ticket({"id": "C", "payment": "paid"})                   # API antiga: não sabemos
+        for t in (a, b, c):
+            t.refresh_from_db()
+        self.assertEqual((a.tamanho_camisete, b.tamanho_camisete, c.tamanho_camisete), ("", "M", "M"))
+
+    def test_pdf_and_scanner_hide_the_size_when_there_is_none(self):
+        from apps.scanner.views import _ticket_info
+        self.assertEqual(_ticket_info(make_ticket(tamanho_camisete=""))["tamanho_camisete"], "—")
+        self.assertEqual(_ticket_info(make_ticket(external_id="B", tamanho_camisete="L"))["tamanho_camisete"],
+                         "Grande (L)")
+
+
+@mock.patch("apps.events.admin.etk_client.get_events", return_value=[INVITE_EVENT])
+class InviteShirtTests(TestCase):
+    url = "/admin/events/externalticket/invites/"
+
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_superuser("root", "r@x.co", "Pa$$w0rd!123"))
+        self.data = {"lote": "EV1|PRC1", "quantity": "1", "name": "Ana", "size": "XL"}
+
+    def test_form_offers_an_optional_size(self, _):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn('name="size"', html)
+        self.assertIn("só eventos com camisetes", html)
+
+    def test_size_is_saved_on_the_invites(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites", return_value=[api_invite("TKI1")]):
+            self.client.post(self.url, self.data)
+        self.assertEqual(ExternalTicket.objects.get().tamanho_camisete, "XL")
+
+    def test_no_size_by_default(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites", return_value=[api_invite("TKI1")]):
+            self.client.post(self.url, {**self.data, "size": ""})
+        self.assertEqual(ExternalTicket.objects.get().tamanho_camisete, "")
+
+    def test_invalid_size_is_rejected(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites") as api:
+            r = self.client.post(self.url, {**self.data, "size": "XXL"})
+        self.assertEqual(r.status_code, 400)
+        api.assert_not_called()
+
+
+class FlashMessagesTests(TestCase):
+    """Os erros de validação do formulário chegam mesmo ao utilizador."""
+
+    @mock.patch("apps.events.views._get_event_from_api", return_value=EVENT)
+    def test_validation_errors_are_shown_on_the_form(self, _):
+        r = self.client.post("/events/event/EV1/inscrever/", {"phone": "123", "payment": "mpesa"})
+        self.assertContains(r, "Número inválido", status_code=400)
+
+    @mock.patch("apps.events.views._get_event_from_api", return_value=EVENT)
+    def test_api_refusal_is_shown_on_the_form(self, _):
+        import requests
+        resp = mock.Mock(status_code=402); resp.json.return_value = {"message": "Saldo insuficiente."}
+        with mock.patch("apps.events.views._create_ticket_in_api",
+                        side_effect=requests.HTTPError(response=resp)):
+            r = self.client.post("/events/event/EV1/inscrever/", {
+                "full_name": "Ana", "phone": "841234567", "email": "a@b.co", "payment": "mpesa",
+                "external_reference": "a" * 32})
+        self.assertContains(r, "Saldo insuficiente.", status_code=402)

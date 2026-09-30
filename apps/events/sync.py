@@ -28,12 +28,16 @@ def apply_api_ticket(data):
     ticket.qr_value = data.get("qrValue") or ticket.qr_value
     ticket.checkout_url = data.get("checkoutUrl") or ticket.checkout_url
     ticket.price_name = (data.get("price") or {}).get("name") or ticket.price_name
+    if (data.get("event") or {}).get("offersShirts") is False:
+        # Evento sem camisetes: limpa o "M" que o valor por omissão antigo gravava.
+        ticket.tamanho_camisete = ""
     if "expiresAt" in data:
         ticket.confirmation_deadline = parse_datetime(data.get("expiresAt"))
     ticket.external_updated_at = parse_datetime(data.get("updatedAt")) or ticket.external_updated_at
     ticket.save(update_fields=[
         "payment_status", "status", "entered", "qr_value", "checkout_url",
-        "external_updated_at", "confirmation_deadline", "price_name", "updated_at",
+        "external_updated_at", "confirmation_deadline", "price_name",
+        "tamanho_camisete", "updated_at",
     ])
     return ticket
 

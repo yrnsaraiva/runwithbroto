@@ -110,7 +110,9 @@
                     {% endif %}
                 </p>
 
-                <form class="mt-10 grid gap-8" method="post" action="{% url 'events:register' event.id %}">
+                <div class="mt-8">{% include "events/_messages.html" %}</div>
+
+                <form class="mt-6 grid gap-8" method="post" action="{% url 'events:register' event.id %}">
 
                     {% csrf_token %}
                     <input type="hidden" name="external_reference" value="{{ external_reference }}">
@@ -132,6 +134,23 @@
                                pattern="(258)?8[4-7][0-9]{7}"
                                required>
                     </div>
+
+                    {% if event.offers_shirts %}
+                    <div>
+                        <label class="text-[10px] font-semibold uppercase tracking-widest muted">tamanho da camisete *</label>
+                        <div class="mt-3 grid grid-cols-4 gap-3">
+                            {% for value, label in tamanhos %}
+                                <label class="cursor-pointer">
+                                    <input class="peer sr-only" type="radio" name="tamanho_camisete" value="{{ value }}"
+                                           {% if value == selected_size %}checked{% endif %} required>
+                                    <span class="block text-center border hairline px-3 py-4 text-sm font-semibold peer-checked:border-[var(--brand)] peer-checked:text-[var(--brand)] peer-focus-visible:ring-2 transition">
+                                        {{ value }}
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
 
                     {% if not event.is_free %}
                     <div>

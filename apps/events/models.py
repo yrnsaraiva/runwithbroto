@@ -58,7 +58,7 @@ class ExternalTicket(models.Model):
     buyer_phone = models.CharField(max_length=20, blank=True)
     buyer_name = models.CharField(max_length=255, blank=True)
     buyer_email = models.EmailField(blank=True)
-    tamanho_camisete = models.CharField(max_length=3, choices=TamanhoCamisete.choices, default=TamanhoCamisete.M, blank=True)
+    tamanho_camisete = models.CharField(max_length=3, choices=TamanhoCamisete.choices, default="", blank=True)
 
     external_created_at = models.DateTimeField(null=True, blank=True)
     external_updated_at = models.DateTimeField(null=True, blank=True)

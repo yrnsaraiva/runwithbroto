@@ -16,7 +16,8 @@ from .sync import ensure_local_ticket
 logger = logging.getLogger(__name__)
 
 
-def create_invites(*, event_id, price_id, quantity, name="", email="", phone="", note=""):
+def create_invites(*, event_id, price_id, quantity, name="", email="", phone="", note="",
+                   shirt_size=""):
     """Pede à API `quantity` convites e guarda-os localmente. Levanta
     `requests.HTTPError` se a API recusar (ex.: sem vagas)."""
     payload = {"eventId": event_id, "priceId": price_id, "quantity": quantity}
@@ -24,7 +25,14 @@ def create_invites(*, event_id, price_id, quantity, name="", email="", phone="",
                        ("phone", phone), ("note", note)):
         if value:
             payload[key] = value
-    return [ensure_local_ticket(t) for t in etk_client.create_invites(payload)]
+    tickets = [ensure_local_ticket(t) for t in etk_client.create_invites(payload)]
+    if shirt_size:
+        # O tamanho é só do site (a API não o guarda).
+        ExternalTicket.objects.filter(pk__in=[t.pk for t in tickets]).update(
+            tamanho_camisete=shirt_size)
+        for t in tickets:
+            t.tamanho_camisete = shirt_size
+    return tickets
 
 
 def email_enabled():

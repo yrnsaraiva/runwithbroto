@@ -11,6 +11,8 @@
             <strong>{{ event.confirmation_deadline|date:"d/m/Y H:i" }}</strong>{% endif %}.
         </p>
 
+        <div class="mt-6">{% include "events/_messages.html" %}</div>
+
         {% if closed %}
             <div class="mt-8 border hairline p-6 text-sm">
                 O prazo de confirmação terminou. As vagas não confirmadas foram libertadas.
