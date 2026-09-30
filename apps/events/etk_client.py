@@ -83,13 +83,21 @@ def get_ticket(ticket_id):
     return request("GET", f"/back/borrow/external/tickets/{ticket_id}").get("data", {})
 
 
-def list_tickets(since=None, event_id=None, payment=None):
-    """Bilhetes da chave; `since` (ISO 8601) devolve só os alterados desde então."""
+def list_tickets(since=None, event_id=None, payment=None, phone=None):
+    """Bilhetes da chave; `since` (ISO 8601) devolve só os alterados desde então.
+    `phone` devolve todos os bilhetes desse telefone (pode haver vários)."""
     from urllib.parse import urlencode
     params = {k: v for k, v in
-              {"since": since, "eventId": event_id, "payment": payment}.items() if v}
+              {"since": since, "eventId": event_id, "payment": payment,
+               "phone": phone}.items() if v}
     path = "/back/borrow/external/tickets" + (f"?{urlencode(params)}" if params else "")
     return request("GET", path).get("data", [])
+
+
+def confirm_ticket(ticket_id, phone):
+    """Confirma a presença de uma pré-inscrição (a API exige o telefone do bilhete)."""
+    return request("POST", f"/back/borrow/external/tickets/{ticket_id}/confirm",
+                   json={"phone": phone}).get("data", {})
 
 
 def check_in(qr_value):

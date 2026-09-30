@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import requests
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
@@ -19,7 +20,7 @@ from django.views.decorators.cache import never_cache
 from . import etk_client
 from .models import ExternalTicket, TamanhoCamisete
 from .pdf import build_external_ticket_pdf
-from .sync import apply_api_ticket
+from .sync import apply_api_ticket, ensure_local_ticket
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,8 @@ def _build_event_context(event_data):
         "get_event_type_display": event_type_display,
         "ticket_price_display": ticket_price_display,
         "is_free": is_free,
+        "is_preregistration": event_data.get("registrationMode") == "preregistration",
+        "confirmation_deadline": _parse_datetime(event_data.get("confirmationDeadline")),
         "priceId": active_price.get("id") if active_price else None,
         "confirmed_count": event_data.get("totalTicketsPurchased") or 0,
     }
@@ -127,6 +130,12 @@ def _api_error_message(exc, default):
     return default
 
 
+def _normalize_phone(value):
+    """Só dígitos, com o prefixo 258 (aceita 84xxxxxxx ou 25884xxxxxxx)."""
+    phone = re.sub(r"\D", "", (value or "").strip())
+    return phone if phone.startswith("258") else f"258{phone}"
+
+
 def _validate_registration_data(post_data, is_free=False):
     """
     Valida os dados do formulário de inscrição.
@@ -138,10 +147,7 @@ def _validate_registration_data(post_data, is_free=False):
     cleaned = {}
 
     # Telefone
-    phone = (post_data.get("phone") or "").strip()
-    phone = re.sub(r"\D", "", phone)
-    if not phone.startswith("258"):
-        phone = f"258{phone}"
+    phone = _normalize_phone(post_data.get("phone"))
     if not re.fullmatch(r"258\d{9}", phone):
         errors["phone"] = "Número inválido. Use 9 dígitos (ex.: 84xxxxxxx) ou já com 258."
     else:
@@ -296,11 +302,16 @@ def register_form(request, event_id):
     if response_data.get("status") == "success":
         ticket_data = response_data.get("data", {})
         ticket = _save_ticket_locally(ticket_data, cleaned, response_data, event_data)
-        messages.success(
-            request,
-            "Inscrição confirmada." if event["is_free"]
-            else "Inscrição registada. Confirme o pagamento no seu telefone."
-        )
+        if event["is_preregistration"]:
+            deadline = event["confirmation_deadline"]
+            success_msg = "Pré-inscrição registada. Volte ao site para confirmar a sua presença" + (
+                f" até {timezone.localtime(deadline):%d/%m/%Y %H:%M}." if deadline else "."
+            )
+        elif event["is_free"]:
+            success_msg = "Inscrição confirmada."
+        else:
+            success_msg = "Inscrição registada. Confirme o pagamento no seu telefone."
+        messages.success(request, success_msg)
         return redirect("events:registration_success", token=ticket.public_token)
     else:
         error_msg = response_data.get("message") or "Falha ao iniciar o pagamento."
@@ -330,6 +341,8 @@ def _save_ticket_locally(ticket_data, cleaned_data, raw_payload, event_data):
         "payment_instructions": ticket_data.get("paymentInstructions") or "",
         "status": ticket_data.get("status") or "",
         "payment_status": ticket_data.get("payment") or "",
+        "confirmation_deadline": _parse_datetime(ticket_data.get("expiresAt"))
+        if ticket_data.get("payment") == "preregistered" else None,
         "buyer_phone": cleaned_data["phone"],
         "buyer_name": cleaned_data.get("full_name", ""),
         "buyer_email": cleaned_data.get("email", ""),
@@ -359,6 +372,12 @@ def register_success(request, token):
         "buyer_name": ticket.buyer_name,
         "price_amount": ticket.price_amount,
         "is_paid": ticket.payment_status.lower() in ("paid", "invited"),
+        "is_preregistered": ticket.payment_status.lower() == "preregistered",
+        "confirmation_deadline": ticket.confirmation_deadline,
+        "deadline_passed": bool(
+            ticket.confirmation_deadline and ticket.confirmation_deadline < timezone.now()
+        ),
+        "confirm_url": reverse("events:confirm_presence", args=[ticket.event_id_external]),
     }
     return render(request, "events/registration_success.html", context)
 
@@ -372,7 +391,7 @@ def ticket_status(request, token):
     com o que está na base local.
     """
     ticket = get_object_or_404(ExternalTicket, public_token=token)
-    if ticket.payment_status.lower() not in ("paid", "invited", "refunded"):
+    if ticket.payment_status.lower() not in ("paid", "invited", "refunded", "preregistered"):
         try:
             ticket = apply_api_ticket(etk_client.get_ticket(ticket.external_id)) or ticket
         except Exception as e:
@@ -407,7 +426,109 @@ def etk_webhook(request):
 def download_external_ticket_pdf(request, token):
     """Baixa o PDF do ticket (acesso por token não adivinhável)."""
     ticket = get_object_or_404(ExternalTicket, public_token=token)
+    if ticket.payment_status.lower() not in ("paid", "invited"):
+        raise Http404("Bilhete ainda não confirmado.")
     pdf_bytes = build_external_ticket_pdf(ticket)
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="ticket-{ticket.external_id}.pdf"'
     return response
+
+
+# =============================================================================
+# CONFIRMAÇÃO DE PRESENÇA (eventos em pré-inscrição)
+# =============================================================================
+
+def _mask_name(name):
+    """'Ana Sousa Silva' -> 'Ana S. S.' — o telefone é a única credencial, por
+    isso não se mostra o nome completo a quem só sabe o número."""
+    parts = (name or "").split()
+    if not parts:
+        return "—"
+    return " ".join([parts[0]] + [f"{p[0]}." for p in parts[1:]])
+
+
+def _ticket_row(data):
+    return {
+        "id": data["id"],
+        "name": _mask_name(data.get("fullName")),
+        "payment": data.get("payment"),
+        "created_at": _parse_datetime(data.get("createdAt")),
+    }
+
+
+@require_http_methods(["GET", "POST"])
+def confirm_presence(request, event_id):
+    """Confirmação de presença por telefone.
+
+    Um mesmo telefone pode ter vários bilhetes (ex.: inscreveu amigos): lista
+    todos, e o participante marca quais confirma.
+    """
+    if event_id in DISABLED_EVENT_IDS:
+        raise Http404("Inscrições encerradas.")
+    try:
+        event_data = _get_event_from_api(event_id)
+    except Exception:
+        messages.error(request, "Serviço indisponível. Tente novamente em instantes.")
+        return redirect("events:event_detail", event_id=event_id)
+    if not event_data:
+        raise Http404("Evento inválido")
+
+    event = _build_event_context(event_data)
+    deadline = event["confirmation_deadline"]
+    closed = bool(deadline and deadline < timezone.now())
+    ctx = {"event": event, "closed": closed}
+    template = "events/confirm_presence.html"
+
+    if not event["is_preregistration"]:
+        messages.info(request, "Este evento não tem confirmação de presença.")
+        return redirect("events:event_detail", event_id=event_id)
+    if request.method == "GET":
+        return render(request, template, ctx)
+
+    phone = _normalize_phone(request.POST.get("phone"))
+    ctx["phone"] = phone
+    if not re.fullmatch(r"258\d{9}", phone):
+        messages.error(request, "Número inválido. Use 9 dígitos (ex.: 84xxxxxxx).")
+        return render(request, template, ctx, status=400)
+
+    try:
+        tickets = etk_client.list_tickets(event_id=event_id, phone=phone)
+    except Exception as e:
+        logger.error("Erro ao listar bilhetes de %s: %s", phone, e)
+        messages.error(request, "Serviço indisponível. Tente novamente em instantes.")
+        return render(request, template, ctx, status=502)
+    by_id = {t["id"]: t for t in tickets}
+
+    # Passo 2: confirmar os bilhetes marcados
+    selected = request.POST.getlist("ticket_ids")
+    if selected:
+        results = []
+        for ticket_id in selected:
+            data = by_id.get(ticket_id)
+            if not data or data.get("payment") != "preregistered":
+                continue        # id que não é deste telefone/evento: ignora
+            row = _ticket_row(data)
+            try:
+                confirmed = etk_client.confirm_ticket(ticket_id, phone)
+                local = ensure_local_ticket(confirmed)
+                row.update(ok=True, token=local.public_token)
+            except requests.HTTPError as e:
+                row.update(ok=False, error=_api_error_message(e, "Não foi possível confirmar."))
+            except Exception as e:
+                logger.error("Erro ao confirmar %s: %s", ticket_id, e)
+                row.update(ok=False, error="Não foi possível confirmar. Tente novamente.")
+            results.append(row)
+        ctx["results"] = results
+        return render(request, template, ctx)
+
+    # Passo 1: mostrar os bilhetes deste telefone
+    pending, done = [], []
+    for data in tickets:
+        row = _ticket_row(data)
+        if data.get("payment") == "preregistered":
+            pending.append(row)
+        elif data.get("payment") in ("paid", "invited"):
+            row["token"] = ensure_local_ticket(data).public_token
+            done.append(row)
+    ctx.update(pending=pending, done=done, searched=True)
+    return render(request, template, ctx)
