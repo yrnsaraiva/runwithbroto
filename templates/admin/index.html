@@ -23,10 +23,37 @@
 {% block content %}
     {% component "unfold/components/container.html" %}
 
+        <!-- Filtros: o evento filtra tudo; o período só afecta os gráficos ao longo do tempo -->
+        <form method="get" action="{% url 'admin:index' %}" id="dash-filtros"
+              style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; margin-bottom:1.5rem;">
+            <label style="display:grid; gap:.25rem; font-size:.75rem;">
+                <span class="text-gray-500 dark:text-gray-400">Evento</span>
+                <select name="evento" onchange="this.form.submit()"
+                        class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                        style="padding:.5rem .75rem; min-width:14rem; font-size:.875rem;">
+                    <option value="">Todos os eventos</option>
+                    {% for e in filtro_eventos %}
+                        <option value="{{ e.event_id_external }}" {% if e.event_id_external == filtro_evento %}selected{% endif %}>{{ e.event_name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label style="display:grid; gap:.25rem; font-size:.75rem;">
+                <span class="text-gray-500 dark:text-gray-400">Período dos gráficos</span>
+                <select name="dias" onchange="this.form.submit()"
+                        class="border border-base-200 dark:border-base-700 bg-white dark:bg-base-900 rounded-default"
+                        style="padding:.5rem .75rem; min-width:10rem; font-size:.875rem;">
+                    {% for valor, rotulo in filtro_periodos %}
+                        <option value="{{ valor }}" {% if valor == filtro_dias %}selected{% endif %}>{{ rotulo }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <noscript><button type="submit">Aplicar</button></noscript>
+        </form>
+
         <!-- KPIs -->
-        {% component "unfold/components/flex.html" with class="gap-8 mb-8 flex-col lg:flex-row flex-wrap" %}
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:1.5rem; margin-bottom:1.5rem;">
             {% for card in kpis %}
-                {% component "unfold/components/card.html" with class="lg:w-1/5" %}
+                {% component "unfold/components/card.html" %}
                     {% component "unfold/components/text.html" %}
                         {{ card.title }}
                     {% endcomponent %}
@@ -34,51 +61,84 @@
                     {% component "unfold/components/title.html" %}
                         {{ card.metric }}
                     {% endcomponent %}
+
+                    {% if card.footer %}
+                        <div class="text-gray-500 dark:text-gray-400" style="margin-top:.5rem; font-size:.75rem;">{{ card.footer }}</div>
+                    {% endif %}
                 {% endcomponent %}
             {% endfor %}
-        {% endcomponent %}
+        </div>
 
-        <!-- Charts -->
-        {% component "unfold/components/flex.html" with class="gap-8 mb-8 flex-col lg:flex-row" %}
+        <!-- Evolução das inscrições -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:1.5rem; margin-bottom:1.5rem;">
+            {% component "unfold/components/card.html" with title="Inscrições por dia" %}
+                {% component "unfold/components/chart/bar.html" with data=diarioChartData options=diarioChartOptions %}{% endcomponent %}
+            {% endcomponent %}
 
-            {% component "unfold/components/flex.html" with class="gap-8 flex-col lg:flex-row lg:w-1/2" %}
-                {% component "unfold/components/card.html" with class="lg:w-[100%]" %}
-                    {% component "unfold/components/title.html" with class="font-medium text-2xl text-gray-900 dark:text-gray-100" %}
-                        Tickets por Dia
-                    {% endcomponent %}
+            {% component "unfold/components/card.html" with title="Inscrições acumuladas" %}
+                {% component "unfold/components/chart/line.html" with data=acumuladoChartData options=acumuladoChartOptions %}{% endcomponent %}
+            {% endcomponent %}
+        </div>
 
-                    {% component "unfold/components/text.html" with class="text-gray-500 dark:text-gray-400 mb-8" %}
-                        Últimos 7 dias
-                    {% endcomponent %}
-
-                    {% component "unfold/components/chart/line.html" with data=pedidosChartData %}{% endcomponent %}
+        <!-- Estado das inscrições e camisetes -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:1.5rem; margin-bottom:1.5rem;">
+            {% if tem_estados %}
+                {% component "unfold/components/card.html" with title="Estado das inscrições" %}
+                    {% component "unfold/components/chart/bar.html" with data=estadoChartData options=estadoChartOptions %}{% endcomponent %}
                 {% endcomponent %}
-            {% endcomponent %}
+            {% endif %}
 
-            {% component "unfold/components/flex.html" with class="gap-8 flex-col lg:flex-row lg:w-1/2" %}
-                {% component "unfold/components/card.html" with class="lg:w-[100%]" %}
-                    {% component "unfold/components/title.html" with class="font-medium text-2xl text-gray-900 dark:text-gray-100" %}
-                        Vendas por Dia
-                    {% endcomponent %}
-
-                    {% component "unfold/components/text.html" with class="text-gray-500 dark:text-gray-400 mb-8" %}
-                        Últimos 7 dias
-                    {% endcomponent %}
-
-                    {% component "unfold/components/chart/line.html" with data=vendasChartData %}{% endcomponent %}
+            {% if tem_camisetes %}
+                {% component "unfold/components/card.html" with title="Camisetes a preparar" %}
+                    {% component "unfold/components/chart/bar.html" with data=camisetesChartData options=camisetesChartOptions %}{% endcomponent %}
+                    <div class="text-gray-500 dark:text-gray-400" style="margin-top:.5rem; font-size:.75rem;">
+                        Inscrições que ocupam vaga (confirmadas, por confirmar e por pagar).
+                        {% if sem_tamanho %}{{ sem_tamanho }} sem tamanho indicado.{% endif %}
+                    </div>
                 {% endcomponent %}
-            {% endcomponent %}
+            {% endif %}
+        </div>
 
-        {% endcomponent %}
-        
+        <!-- Check-in -->
+        {% if horasChartData or tem_scans or tem_porteiros %}
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:1.5rem; margin-bottom:1.5rem;">
+                {% if horasChartData %}
+                    {% component "unfold/components/card.html" with title="Check-ins por hora" %}
+                        {% component "unfold/components/chart/bar.html" with data=horasChartData options=horasChartOptions %}{% endcomponent %}
+                    {% endcomponent %}
+                {% endif %}
 
-        <!-- Tabela resumo -->
-        {% component "unfold/components/flex.html" with class="gap-8 mb-8 flex-col lg:flex-row" %}
-            {% component "unfold/components/card.html" with title="Resumo por Evento" %}
-                {% component "unfold/components/table.html" with table=table_tickets_por_evento card_included=1 striped=0 %}{% endcomponent %}
+                {% if tem_scans %}
+                    {% component "unfold/components/card.html" with title="Resultado dos scans" %}
+                        {% component "unfold/components/table.html" with table=table_scans card_included=1 striped=0 %}{% endcomponent %}
+                    {% endcomponent %}
+                {% endif %}
+
+                {% if tem_porteiros %}
+                    {% component "unfold/components/card.html" with title="Check-ins por porteiro" %}
+                        {% component "unfold/components/table.html" with table=table_porteiros card_included=1 striped=0 %}{% endcomponent %}
+                    {% endcomponent %}
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <!-- Resumo por evento -->
+        <div style="margin-bottom:1.5rem;">
+            {% component "unfold/components/card.html" with title="Resumo por evento" %}
+                {% component "unfold/components/table.html" with table=table_eventos card_included=1 striped=0 %}{% endcomponent %}
             {% endcomponent %}
-        {% endcomponent %}
-        
+        </div>
+
+        <!-- Últimas inscrições -->
+        <div style="margin-bottom:1.5rem;">
+            {% component "unfold/components/card.html" with title="Últimas inscrições" %}
+                {% component "unfold/components/table.html" with table=table_recentes card_included=1 striped=0 %}{% endcomponent %}
+            {% endcomponent %}
+        </div>
+
+        <div class="text-gray-500 dark:text-gray-400" style="text-align:right; font-size:.75rem;">
+            Atualizado em {{ atualizado_em|date:"d/m/Y H:i" }}
+        </div>
 
     {% endcomponent %}
 {% endblock %}

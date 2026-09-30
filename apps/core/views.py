@@ -1,18 +1,12 @@
-import json
 import logging
-from datetime import datetime, timezone as dt_timezone, timedelta
-from decimal import Decimal
-from types import SimpleNamespace
+from datetime import timezone as dt_timezone
 
 from django.core.cache import cache
-from django.db.models import Count, Sum, Q
-from django.db.models.functions import TruncDate
 from django.shortcuts import render
 from django.utils import timezone
 
 from apps.events import etk_client
 from apps.events.etk_client import parse_datetime
-from apps.events.models import ExternalTicket
 
 logger = logging.getLogger(__name__)
 
@@ -101,92 +95,6 @@ def our_story(request):
 # =============================================================================
 # DASHBOARD (ADMIN)
 # =============================================================================
-
-def dashboard_callback(request, context):
-    """
-    Callback para o dashboard do admin.
-    Gera KPIs, gráficos e tabela de tickets por evento.
-    """
-    tickets = ExternalTicket.objects.all()
-    hoje = timezone.now()
-    ultimos_7_dias = hoje - timedelta(days=6)
-
-    tickets_pagos = tickets.filter(payment_status="paid", entered=False).count()
-    total_eventos = tickets.values("event_id_external").distinct().count()
-    receita_total = (
-        tickets.filter(payment_status="paid")
-        .aggregate(total=Sum("price_amount"))
-        .get("total") or Decimal("0.00")
-    )
-
-    tickets_por_dia_qs = (
-        tickets.filter(
-            external_created_at__date__gte=ultimos_7_dias.date(),
-            external_created_at__date__lte=hoje.date(),
-        )
-        .annotate(dia=TruncDate("external_created_at"))
-        .values("dia")
-        .annotate(total=Count("id"))
-        .order_by("dia")
-    )
-    tickets_por_dia_map = {item["dia"]: item["total"] for item in tickets_por_dia_qs}
-
-    vendas_por_dia_qs = (
-        tickets.filter(
-            payment_status="paid",
-            external_created_at__date__gte=ultimos_7_dias.date(),
-            external_created_at__date__lte=hoje.date(),
-        )
-        .annotate(dia=TruncDate("external_created_at"))
-        .values("dia")
-        .annotate(total=Sum("price_amount"))
-        .order_by("dia")
-    )
-    vendas_por_dia_map = {item["dia"]: float(item["total"] or 0) for item in vendas_por_dia_qs}
-
-    labels_7_dias, dados_tickets_7_dias, dados_vendas_7_dias = [], [], []
-    for i in range(7):
-        dia = ultimos_7_dias.date() + timedelta(days=i)
-        labels_7_dias.append(dia.strftime("%d/%m"))
-        dados_tickets_7_dias.append(tickets_por_dia_map.get(dia, 0))
-        dados_vendas_7_dias.append(vendas_por_dia_map.get(dia, 0))
-
-    tickets_por_evento = list(
-        tickets.values("event_name")
-        .annotate(
-            total=Count("id"),
-            pagos=Count("id", filter=Q(payment_status="paid")),
-            entrados=Count("id", filter=Q(entered=True)),
-            receita=Sum("price_amount", filter=Q(payment_status="paid")),
-        )
-        .order_by("-total")
-    )
-
-    context.update({
-        "kpis": [
-            {"title": "Eventos", "metric": total_eventos},
-            {"title": "Tickets Pagos", "metric": tickets_pagos},
-            {"title": "Receita Total", "metric": f"{receita_total:.2f} MZN"},
-        ],
-        "pedidosChartData": json.dumps({
-            "labels": labels_7_dias,
-            "datasets": [{"label": "Tickets", "data": dados_tickets_7_dias}],
-        }),
-        "vendasChartData": json.dumps({
-            "labels": labels_7_dias,
-            "datasets": [{"label": "Vendas (MZN)", "data": dados_vendas_7_dias}],
-        }),
-        "table_tickets_por_evento": {
-            "headers": ["Evento", "Tickets Pagos", "Receita"],
-            "rows": [
-                [item["event_name"], item["pagos"], f'{item["receita"] or Decimal("0.00"):.2f} MZN']
-                for item in tickets_por_evento
-            ],
-        },
-    })
-
-    return context
-
 
 def not_found(request, exception):
     return render(request, 'core/not_found.html', status=404)
