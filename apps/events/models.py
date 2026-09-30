@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 
@@ -24,13 +26,15 @@ class TamanhoCamisete(models.TextChoices):
 
 class ExternalTicket(models.Model):
     external_id = models.CharField(max_length=50, unique=True)
+    # Token não adivinhável usado nos links públicos (sucesso / download do PDF).
+    public_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
 
     event_id_external = models.CharField(max_length=50)
     event_name = models.CharField(max_length=255)
     event_category = models.CharField(max_length=100, blank=True)
 
     event_province = models.CharField(max_length=100, blank=True)
-    event_location_details = models.TextField(max_length=255, blank=True)
+    event_location_details = models.CharField(max_length=255, blank=True)
     event_image_url = models.URLField(blank=True)
     event_date = models.DateTimeField(null=True, blank=True)
 

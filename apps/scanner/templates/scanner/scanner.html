@@ -908,12 +908,12 @@
         ${row("Telefone", t.buyer_phone)}
         ${row("Evento", t.event_name)}
         ${row("Data", t.event_date)}
-        ${row("Pagamento", badge(t.payment_status))}
+        ${row("Pagamento", badge(t.payment_status), true)}
         ${t.tamanho_camisete && t.tamanho_camisete !== "—" ? row("T-shirt", t.tamanho_camisete) : ""}
-        ${row("Ticket ID", `<span style="font-size:12px;color:#888">${t.external_id}</span>`)}
+        ${row("Ticket ID", `<span style="font-size:12px;color:#888">${esc(t.external_id)}</span>`, true)}
       `;
         } else {
-            body.innerHTML = `<p style="font-size:13px;color:#666;padding:12px 0;text-align:center">${data.message || ""}</p>`;
+            body.innerHTML = `<p style="font-size:13px;color:#666;padding:12px 0;text-align:center">${esc(data.message)}</p>`;
         }
 
         const wrap = document.getElementById("cameraWrap");
@@ -923,14 +923,19 @@
         if (navigator.vibrate) navigator.vibrate(data.status === "ok" ? [100] : [80, 60, 80]);
     }
 
-    function row(label, value) {
-        return `<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${value || "—"}</span></div>`;
+    function esc(v) {
+        return String(v ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+    }
+
+    // `value` é escapado, a não ser que venha marcado como HTML seguro (html=true).
+    function row(label, value, html = false) {
+        return `<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${html ? value : esc(value) || "—"}</span></div>`;
     }
 
     function badge(s) {
         const m = {paid: ["var(--green)", "PAGO"], pending: ["var(--yellow)", "PENDENTE"]};
         const [c, l] = m[(s || "").toLowerCase()] || ["var(--muted)", s || "—"];
-        return `<span style="color:${c};font-weight:700">${l}</span>`;
+        return `<span style="color:${c};font-weight:700">${esc(l)}</span>`;
     }
 
     // ── Tabs ──────────────────────────────────────────────
@@ -956,9 +961,9 @@
             }
             list.innerHTML = data.logs.map(l => `
         <div class="log-item">
-          <div class="log-dot ${l.result}"></div>
-          <span class="log-id">${l.ticket_id || "—"}</span>
-          <span style="font-size:12px;color:#888">${l.result_display}</span>
+          <div class="log-dot ${esc(l.result)}"></div>
+          <span class="log-id">${esc(l.ticket_id) || "—"}</span>
+          <span style="font-size:12px;color:#888">${esc(l.result_display)}</span>
           <span class="log-time">${l.scanned_at}</span>
         </div>
       `).join("");
@@ -989,7 +994,7 @@
                 document.getElementById("eventFilterWrap").style.display = "block";
                 const cur = sel.value;
                 sel.innerHTML = '<option value="">Todos os eventos</option>' +
-                    data.events.map(e => `<option value="${e}" ${e === cur ? "selected" : ""}>${e}</option>`).join("");
+                    data.events.map(e => `<option value="${esc(e)}" ${e === cur ? "selected" : ""}>${esc(e)}</option>`).join("");
             }
             const pct = data.total_paid > 0 ? Math.round(data.total_entered / data.total_paid * 100) : 0;
             document.getElementById("statsContent").innerHTML = `

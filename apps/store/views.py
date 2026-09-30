@@ -1,4 +1,5 @@
 import json
+import re
 from decimal import Decimal
 
 from django.db import transaction
@@ -8,6 +9,9 @@ from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
 from .models import Order, Product, ProductVariant
+
+MAX_ITEMS = 30
+MAX_QTY = 20
 
 
 def store_list(request):
@@ -64,14 +68,24 @@ def create_order(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "payload inválido"}, status=400)
 
+    if not isinstance(payload, dict):
+        return JsonResponse({"error": "payload inválido"}, status=400)
+
     items = payload.get("items", [])
-    if not items:
+    if not isinstance(items, list) or not items:
         return JsonResponse({"error": "carrinho vazio"}, status=400)
+    if len(items) > MAX_ITEMS or not all(isinstance(i, dict) for i in items):
+        return JsonResponse({"error": "carrinho inválido"}, status=400)
+
+    name = str(payload.get("name") or "").strip()[:120]
+    phone = re.sub(r"[^\d+]", "", str(payload.get("phone") or ""))
+    if not name or not 9 <= len(phone.lstrip("+")) <= 15:
+        return JsonResponse({"error": "nome ou telefone inválido"}, status=400)
 
     slugs = [i.get("productId") for i in items]
 
     with transaction.atomic():
-        products = {p.slug: p for p in Product.objects.filter(slug__in=slugs)}
+        products = {p.slug: p for p in Product.objects.filter(slug__in=slugs, is_active=True)}
 
         sizes = [i.get("size") for i in items if i.get("size")]
         variants_qs = (
@@ -89,9 +103,14 @@ def create_order(request):
             slug = item.get("productId")
             product = products.get(slug)
             if not product:
-                continue
+                return JsonResponse({"error": f"produto inexistente: {slug}"}, status=400)
 
-            qty = max(1, int(item.get("qty", 1)))
+            try:
+                qty = int(item.get("qty", 1))
+            except (TypeError, ValueError):
+                return JsonResponse({"error": "quantidade inválida"}, status=400)
+            if not 1 <= qty <= MAX_QTY:
+                return JsonResponse({"error": "quantidade inválida"}, status=400)
             size = item.get("size")
             variant = variants_by_key.get((slug, size))
 
@@ -136,8 +155,8 @@ def create_order(request):
                 ProductVariant.objects.filter(pk=variant.pk).update(stock_qty=F("stock_qty") - item["qty"])
 
         order = Order.objects.create(
-            customer_name=payload.get("name", ""),
-            customer_phone=payload.get("phone", ""),
+            customer_name=name,
+            customer_phone=phone,
             items_snapshot=snapshot,
             subtotal=subtotal,
         )

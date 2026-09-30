@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
@@ -17,27 +18,35 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+def _env_bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-m@98y4fg_3j_c-_z7kq(fyqjzagr63e1g3^use=y@!vn^r-ce!'
 
-ETICKETS_BASE_URL = os.getenv("ETICKETS_BASE_URL", "https://eticketsmz.site")
-ETICKETS_BEARER_TOKEN = os.getenv("ETICKETS_BEARER_TOKEN")  # ex: etk_live_...
-ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "15"))
+def _env_list(name, default=""):
+    return [v.strip() for v in os.getenv(name, default).split(",") if v.strip()]
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = _env_bool("DEBUG", False)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured("Defina a variável de ambiente SECRET_KEY.")
+    SECRET_KEY = "django-insecure-dev-only"
+
+ETICKETS_BASE_URL = os.getenv("ETICKETS_BASE_URL", "https://etk-api.up.railway.app")
+ETICKETS_BEARER_TOKEN = os.getenv("ETICKETS_BEARER_TOKEN")  # ex: etk_live_...
+ETICKETS_TIMEOUT = int(os.getenv("ETICKETS_TIMEOUT", "25"))
 
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    'config.com',
-    'www.config.com',
-    'nqhgstr.up.railway.app',  # domínio do Railway
-    '.railway.app',  # permite qualquer subdomínio do Railway
-    '*'
+    'runwithbroto.com',
+    'www.runwithbroto.com',
+    '.railway.app',
+    *_env_list("ALLOWED_HOSTS"),
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -121,10 +130,11 @@ DATABASES = {
     }
 }
 
-POSTGRES_LOCALLY = True
-if not DEBUG or POSTGRES_LOCALLY:
+# Em produção (e localmente, se quiser) defina DATABASE_URL.
+if os.getenv("DATABASE_URL"):
     DATABASES['default'] = dj_database_url.parse(
-        'postgresql://postgres:WQKNszCbpLWwdnSARMgwulCUNrXsoOpi@tramway.proxy.rlwy.net:50885/railway')
+        os.environ["DATABASE_URL"], conn_max_age=600
+    )
 
 
 # Password validation
@@ -145,24 +155,32 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-if DEBUG:
-    CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        }
-    }
-else:
+if os.getenv("REDIS_URL"):
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
+            "LOCATION": os.environ["REDIS_URL"],
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
             }
         }
     }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage" if DEBUG
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        )
+    },
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
@@ -193,7 +211,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # MEDIA FILES (uploads)
 
 MEDIA_URL = "/media/"
-MEDIA_ROOT = "/app/media"
+MEDIA_ROOT = os.getenv("MEDIA_ROOT") or ("/app/media" if not DEBUG else BASE_DIR / "media")
 
 
 LOGGING = {
@@ -306,6 +324,13 @@ UNFOLD = {
     },
 }
 
-SESSION_COOKIE_AGE = 1800  # 30 minutos
+# Sessão longa o bastante para o scanner ficar aberto durante um evento.
+SESSION_COOKIE_AGE = 60 * 60 * 12  # 12 horas
 
-SESSION_SAVE_EVERY_REQUEST = True
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = _env_bool("SECURE_SSL_REDIRECT", True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "3600"))
+    SECURE_CONTENT_TYPE_NOSNIFF = True

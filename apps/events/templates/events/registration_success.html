@@ -55,7 +55,7 @@
 
             <!-- Actions -->
             <div class="mt-8 flex flex-col sm:flex-row gap-4">
-                <a href="{% url 'events:download_external_ticket_pdf' ticket.id %}"
+                <a href="{% url 'events:download_external_ticket_pdf' ticket.public_token %}"
                    class="flex-1 bg-[var(--brand)] text-black rounded-2xl py-4 text-center font-semibold hover:opacity-90 transition">
                     Baixar Ingresso (PDF)
                 </a>
