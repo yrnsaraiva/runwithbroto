@@ -27,8 +27,6 @@ db.sqlite3
 enviar_bilhetes.py
 teste_unitario_envio_tickets.py
 
-
-# temp
-config/settings.py
-apps/core/views.py
-apps/events/views.py
+# local
+db.sqlite3
+.env

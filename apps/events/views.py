@@ -1,6 +1,5 @@
 import re
 import logging
-from datetime import datetime
 from types import SimpleNamespace
 
 import requests
@@ -9,7 +8,9 @@ from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.http import Http404, HttpResponse
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 
+from . import etk_client
 from .models import ExternalTicket, TamanhoCamisete
 from .pdf import build_external_ticket_pdf
 
@@ -19,106 +20,19 @@ logger = logging.getLogger(__name__)
 # CONSTANTES E CONFIGURAÇÕES
 # =============================================================================
 
-ETK_BASE = "https://etk-api.up.railway.app"
-ETK_TOKEN = "etk_live_kODJNV-uHmdMKwBc40MTcNvn"
-TIMEOUT = 120
-
-# =============================================================================
-# OVERRIDES TEMPORÁRIOS PARA EVENTOS
-# =============================================================================
-
-EVENT_OVERRIDES = {
-
-}
-
 # =============================================================================
 # EVENTOS COM ROTA TEMPORARIAMENTE DESATIVADA
 # =============================================================================
 # IDs de eventos cujas páginas (detalhe, inscrição, sucesso) devem devolver 404.
 # Para reativar, basta remover o ID desta lista.
 
-DISABLED_EVENT_IDS = {
+DISABLED_EVENT_IDS = set()
 
-}
-
-
-# =============================================================================
-# FUNÇÕES AUXILIARES - API CLIENT
-# =============================================================================
-
-def _etk_request(method, path, json=None, timeout=TIMEOUT):
-    """Faz requisição à API da ETickets e retorna o JSON decodificado."""
-    url = f"{ETK_BASE}{path}"
-    headers = {"Authorization": f"Bearer {ETK_TOKEN}"}
-    if json is not None:
-        headers["Content-Type"] = "application/json"
-    resp = requests.request(method, url, headers=headers, json=json, timeout=timeout)
-    try:
-        resp.raise_for_status()
-    except requests.HTTPError as e:
-        # O raise_for_status() disparava antes de lermos o corpo, por isso o
-        # motivo real do 400/422 (ex.: qual campo é inválido) nunca aparecia
-        # no log — só "400 Client Error: Bad Request". Agora capturamos e
-        # registamos o corpo da resposta antes de relançar.
-        try:
-            detail = resp.json()
-        except ValueError:
-            detail = resp.text
-        logger.error(f"Erro na requisição para {url}: {e} — resposta: {detail}")
-        raise
-    except requests.RequestException as e:
-        logger.error(f"Erro na requisição para {url}: {e}")
-        raise
-    return resp.json()
-
-
-def _apply_event_overrides(event_data):
-    """Aplica overrides temporários a um evento, se existirem."""
-    event_id = str(event_data.get("id"))
-    if event_id in EVENT_OVERRIDES:
-        overrides = EVENT_OVERRIDES[event_id]
-        for key, value in overrides.items():
-            if isinstance(value, dict) and key in event_data and isinstance(event_data[key], dict):
-                # Mescla dicionários aninhados (ex: location)
-                event_data[key].update(value)
-            else:
-                event_data[key] = value
-    return event_data
-
-
-def _get_events_from_api():
-    """Retorna a lista de eventos da API, com overrides aplicados."""
-    data = _etk_request("GET", "/back/borrow/external/events")
-    events = data.get("data", [])
-    for e in events:
-        _apply_event_overrides(e)
-    return events
-
-
-def _get_event_from_api(event_id):
-    """Retorna os dados de um evento específico, com overrides aplicados."""
-    data = _etk_request("GET", f"/back/borrow/external/events/{event_id}")
-    event = data.get("data", {})
-    _apply_event_overrides(event)
-    return event
-
-
-def _create_ticket_in_api(payload):
-    """Cria um ticket na API e retorna a resposta."""
-    return _etk_request("POST", "/back/borrow/external/tickets", json=payload)
-
-
-def _parse_datetime(value):
-    """Converte string ISO 8601 para datetime (suporta Z e offset)."""
-    if not value:
-        return None
-    try:
-        # Se terminar com Z, substitui por +00:00 para compatibilidade
-        if value.endswith('Z'):
-            value = value[:-1] + '+00:00'
-        return datetime.fromisoformat(value)
-    except ValueError:
-        return None
+# Cliente da API partilhado (ver etk_client.py)
+_get_events_from_api = etk_client.get_events
+_get_event_from_api = etk_client.get_event
+_create_ticket_in_api = etk_client.create_ticket
+_parse_datetime = etk_client.parse_datetime
 
 
 # =============================================================================
@@ -180,7 +94,7 @@ def _validate_registration_data(post_data):
     if not phone.startswith("258"):
         phone = f"258{phone}"
     if not re.fullmatch(r"258\d{9}", phone):
-        errors["phone"] = "Número inválido. Use 84xxxxxxx, 85xxxxxxx, 86xxxxxxx, 87xxxxxxx ou já com 258."
+        errors["phone"] = "Número inválido. Use 9 dígitos (ex.: 84xxxxxxx) ou já com 258."
     else:
         cleaned["phone"] = phone
 
@@ -189,13 +103,17 @@ def _validate_registration_data(post_data):
 
     # Email (opcional)
     email = (post_data.get("email") or "").strip()
-    if email and "@" not in email:
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
         errors["email"] = "E-mail inválido."
     else:
         cleaned["email"] = email
 
-    cleaned["tamanho_camisete"] = (post_data.get("tamanho_camisete") or "").strip()
-    cleaned["payment"] = (post_data.get("payment") or "").strip()
+    tamanho = (post_data.get("tamanho_camisete") or "").strip()
+    if tamanho and tamanho not in TamanhoCamisete.values:
+        errors["tamanho_camisete"] = "Tamanho de camisete inválido."
+    else:
+        cleaned["tamanho_camisete"] = tamanho
+    cleaned["payment"] = (post_data.get("payment") or "").strip()[:30]
 
     return cleaned, errors
 
@@ -231,7 +149,7 @@ def event_list(request):
             "image": e.get("imageUrl"),
         })
 
-    events.sort(key=lambda x: x["start_at"] or datetime.max)
+    events.sort(key=lambda x: (x["start_at"] is None, x["start_at"] or now))
     return render(request, "events/agenda.html", {"events": events})
 
 
@@ -325,12 +243,12 @@ def register_form(request, event_id):
     # Verifica resposta da API
     if response_data.get("status") == "success" and response_data.get("message") == "Ticket created successfully":
         ticket_data = response_data.get("data", {})
-        _save_ticket_locally(ticket_data, cleaned, response_data, event_data)
+        ticket = _save_ticket_locally(ticket_data, cleaned, response_data, event_data)
         messages.success(
             request,
             "Inscrição confirmada com sucesso. Confirme o pagamento no seu telefone."
         )
-        return redirect("events:registration_success", event_id=event_id)
+        return redirect("events:registration_success", token=ticket.public_token)
     else:
         error_msg = response_data.get("message") or "Falha ao iniciar o pagamento."
         messages.error(request, error_msg)
@@ -367,19 +285,17 @@ def _save_ticket_locally(ticket_data, cleaned_data, raw_payload, event_data):
         "external_updated_at": _parse_datetime(ticket_data.get("updatedAt")),
         "raw_payload": raw_payload,
     }
-    ExternalTicket.objects.update_or_create(
+    ticket, _ = ExternalTicket.objects.update_or_create(
         external_id=ticket_data.get("id"),
         defaults=defaults,
     )
+    return ticket
 
 
-def register_success(request, event_id):
-    """Página de sucesso após inscrição."""
-    ticket = ExternalTicket.objects.filter(
-        event_id_external=event_id
-    ).order_by("-created_at").first()
-    if not ticket:
-        raise Http404("Ticket não encontrado")
+@never_cache
+def register_success(request, token):
+    """Página de sucesso após inscrição (acesso por token não adivinhável)."""
+    ticket = get_object_or_404(ExternalTicket, public_token=token)
 
     context = {
         "ticket": ticket,
@@ -393,9 +309,10 @@ def register_success(request, event_id):
     return render(request, "events/registration_success.html", context)
 
 
-def download_external_ticket_pdf(request, ticket_id):
-    """Baixa o PDF do ticket."""
-    ticket = get_object_or_404(ExternalTicket, id=ticket_id)
+@never_cache
+def download_external_ticket_pdf(request, token):
+    """Baixa o PDF do ticket (acesso por token não adivinhável)."""
+    ticket = get_object_or_404(ExternalTicket, public_token=token)
     pdf_bytes = build_external_ticket_pdf(ticket)
     response = HttpResponse(pdf_bytes, content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="ticket-{ticket.external_id}.pdf"'

@@ -5,6 +5,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
+from django.db import transaction
 from django.db.models import Count, Q
 
 from apps.events.models import ExternalTicket
@@ -51,49 +52,35 @@ def validate_ticket(request):
 
     external_id = qr_value[4:].strip()
 
-    # ── Buscar ticket ────────────────────────────────────
-    try:
-        ticket = ExternalTicket.objects.get(external_id=external_id)
-    except ExternalTicket.DoesNotExist:
-        _log(request, qr_value, external_id, CheckInLog.Result.NOT_FOUND)
-        return JsonResponse({
-            "status": "not_found",
-            "message": f"Bilhete '{external_id}' não encontrado.",
-        })
+    # ── Buscar ticket + check-in atómico ─────────────────
+    # select_for_update serializa scanners concorrentes no mesmo bilhete.
+    with transaction.atomic():
+        try:
+            ticket = ExternalTicket.objects.select_for_update().get(external_id=external_id)
+        except ExternalTicket.DoesNotExist:
+            ticket = None
 
-    ticket_info = _ticket_info(ticket)
+        if ticket is None:
+            result, status, message = CheckInLog.Result.NOT_FOUND, "not_found", f"Bilhete '{external_id}' não encontrado."
+        elif ticket.payment_status.lower() != "paid":
+            result, status = CheckInLog.Result.NOT_PAID, "not_paid"
+            message = f"Pagamento não confirmado (status: {ticket.payment_status})."
+        elif ticket.entered:
+            result, status = CheckInLog.Result.ALREADY_ENTERED, "already_entered"
+            message = "Este bilhete já foi utilizado para entrada."
+        else:
+            ticket.entered = True
+            ticket.save(update_fields=["entered", "updated_at"])
+            result, status, message = CheckInLog.Result.OK, "ok", "Entrada autorizada!"
 
-    # ── Verificar pagamento ──────────────────────────────
-    if ticket.payment_status.lower() != "paid":
-        _log(request, qr_value, external_id, CheckInLog.Result.NOT_PAID)
-        return JsonResponse({
-            "status": "not_paid",
-            "message": f"Pagamento não confirmado (status: {ticket.payment_status}).",
-            "ticket": ticket_info,
-        })
+    _log(request, qr_value, external_id, result)
+    if status == "ok":
+        logger.info("check-in OK | %s | %s | staff=%s", external_id, ticket.event_name, request.user)
 
-    # ── Verificar se já entrou ───────────────────────────
-    if ticket.entered:
-        _log(request, qr_value, external_id, CheckInLog.Result.ALREADY_ENTERED)
-        return JsonResponse({
-            "status": "already_entered",
-            "message": "Este bilhete já foi utilizado para entrada.",
-            "ticket": ticket_info,
-        })
-
-    # ── Check-in ─────────────────────────────────────────
-    ticket.entered = True
-    ticket.save(update_fields=["entered", "updated_at"])
-    ticket_info["entered"] = True
-
-    _log(request, qr_value, external_id, CheckInLog.Result.OK)
-    logger.info("check-in OK | %s | %s | staff=%s", external_id, ticket.event_name, request.user)
-
-    return JsonResponse({
-        "status": "ok",
-        "message": "Entrada autorizada!",
-        "ticket": ticket_info,
-    })
+    response = {"status": status, "message": message}
+    if ticket is not None:
+        response["ticket"] = _ticket_info(ticket)
+    return JsonResponse(response)
 
 
 @staff_member_required
