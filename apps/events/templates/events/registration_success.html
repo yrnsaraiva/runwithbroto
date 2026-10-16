@@ -7,16 +7,18 @@
         <!-- Status -->
         <div class="text-center" id="statusBox">
             <div id="statusIcon" class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--brand)]/15 text-[var(--brand)] text-2xl">
-                {% if is_paid %}✓{% else %}…{% endif %}
+                {% if is_paid %}✓{% elif is_failed %}✕{% else %}…{% endif %}
             </div>
 
             <h1 id="statusTitle" class="mt-6 font-display text-5xl leading-[0.95]">
-                {% if is_paid %}{% if price_amount and price_amount > 0 %}Pagamento Confirmado{% else %}Inscrição Confirmada{% endif %}{% elif is_preregistered %}{% if deadline_passed %}Prazo de confirmação terminado{% else %}Pré-inscrição registada{% endif %}{% else %}A aguardar pagamento{% endif %}
+                {% if is_paid %}{% if price_amount and price_amount > 0 %}Pagamento Confirmado{% else %}Inscrição Confirmada{% endif %}{% elif is_failed %}Pagamento não efetuado{% elif is_preregistered %}{% if deadline_passed %}Prazo de confirmação terminado{% else %}Pré-inscrição registada{% endif %}{% else %}A aguardar pagamento{% endif %}
             </h1>
 
             <p id="statusText" class="mt-4 muted max-w-xl mx-auto">
                 {% if is_paid %}
                     Sua inscrição foi concluída com sucesso. O ingresso já está disponível para download.
+                {% elif is_failed %}
+                    Não recebemos o seu pagamento, por isso o ingresso não foi emitido. Pode tentar novamente.
                 {% elif is_preregistered %}
                     {% if deadline_passed %}
                         A vaga foi libertada por falta de confirmação.
@@ -42,7 +44,14 @@
                 </a>
             {% endif %}
 
-            {% if not is_paid and not is_preregistered and ticket.checkout_url %}
+            {% if is_failed %}
+                <a href="{% url 'events:event_detail' ticket.event_id_external %}"
+                   class="inline-block mt-6 bg-[var(--brand)] text-black rounded-2xl px-8 py-4 font-semibold">
+                    Tentar novamente
+                </a>
+            {% endif %}
+
+            {% if not is_paid and not is_failed and not is_preregistered and ticket.checkout_url %}
                 <a id="checkoutLink" href="{{ ticket.checkout_url }}" rel="noopener"
                    class="inline-block mt-6 bg-[var(--brand)] text-black rounded-2xl px-8 py-4 font-semibold">
                     Pagar com cartão
@@ -107,13 +116,24 @@
 
     </section>
 
-    {% if not is_paid and not is_preregistered %}
+    {% if not is_paid and not is_failed and not is_preregistered %}
     <script>
+        function showUnpaid(title, text) {
+            document.getElementById("statusIcon").textContent = "✕";
+            document.getElementById("statusTitle").textContent = title;
+            document.getElementById("statusText").textContent = text;
+            const c = document.getElementById("checkoutLink");
+            if (c) c.style.display = "none";
+        }
         (function () {
             const url = "{% url 'events:ticket_status' ticket.public_token %}";
             let tries = 0;
             const timer = setInterval(async () => {
-                if (++tries > 100) return clearInterval(timer);  // ~5 min
+                if (++tries > 100) {  // ~5 min
+                    clearInterval(timer);
+                    return showUnpaid("Pagamento não confirmado",
+                        "Ainda não recebemos o seu pagamento. Se já pagou, atualize a página dentro de instantes; caso contrário, tente novamente.");
+                }
                 try {
                     const d = await (await fetch(url, {cache: "no-store"})).json();
                     if (d.paid) {
@@ -125,6 +145,11 @@
                         const c = document.getElementById("checkoutLink");
                         if (c) c.style.display = "none";
                         document.getElementById("downloadBtn").style.display = "";
+                    }
+                    else if (d.payment === "failed") {
+                        clearInterval(timer);
+                        showUnpaid("Pagamento não efetuado",
+                            "Não recebemos o seu pagamento, por isso o ingresso não foi emitido. Pode tentar novamente.");
                     }
                 } catch (e) { /* tenta de novo */ }
             }, 3000);

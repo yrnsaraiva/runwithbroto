@@ -445,6 +445,20 @@ class TicketTypeTests(TestCase):
         html = self.client.get(reverse("events:registration_success", args=[t.public_token])).content.decode()
         self.assertIn("VIP", html)
 
+    def test_success_page_shows_error_when_payment_failed(self):
+        t = make_ticket(payment_status="failed")
+        html = self.client.get(reverse("events:registration_success", args=[t.public_token])).content.decode()
+        self.assertIn("Pagamento não efetuado", html)
+        self.assertIn("Tentar novamente", html)
+        self.assertNotIn("Pagamento Confirmado", html)
+        self.assertIn('id="downloadBtn" style="display:none"', html)
+
+    def test_success_page_shows_ticket_when_paid(self):
+        t = make_ticket(payment_status="paid", price_amount=100)
+        html = self.client.get(reverse("events:registration_success", args=[t.public_token])).content.decode()
+        self.assertIn("Pagamento Confirmado", html)
+        self.assertNotIn("Pagamento não efetuado", html)
+
     @needs_fitz
     def test_pdf_text_uses_the_type_and_not_the_old_hardcoded_one(self):
         from .pdf import build_external_ticket_pdf
