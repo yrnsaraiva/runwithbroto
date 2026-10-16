@@ -117,14 +117,14 @@ def dashboard_callback(request, context):
     agora = timezone.now()
     hoje = timezone.localdate(agora)
 
-    todos = ExternalTicket.objects.annotate(
+    todos = ExternalTicket.objects.filter(payment_status__in=CONFIRMADOS).annotate(
         dia_ref=TruncDate(Coalesce("external_created_at", "created_at"))
     )
     tickets = todos.filter(event_id_external=evento_id) if evento_id else todos
 
     # ---- selector de eventos (mais recentes primeiro)
     eventos = list(
-        ExternalTicket.objects.exclude(event_id_external="")
+        ExternalTicket.objects.filter(payment_status__in=CONFIRMADOS).exclude(event_id_external="")
         .values("event_id_external", "event_name").distinct().order_by("event_name")
     )
 
@@ -235,7 +235,7 @@ def dashboard_callback(request, context):
 
     # ---- resumo por evento (sempre todos os eventos)
     por_evento = (
-        ExternalTicket.objects.values("event_name")
+        ExternalTicket.objects.filter(payment_status__in=CONFIRMADOS).values("event_name")
         .annotate(
             total=Count("id"),
             conf=Count("id", filter=Q(payment_status__in=CONFIRMADOS)),
