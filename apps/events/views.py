@@ -400,6 +400,7 @@ def register_success(request, token):
         "price_amount": ticket.price_amount,
         "is_paid": ticket.payment_status.lower() in ("paid", "invited"),
         "is_preregistered": ticket.payment_status.lower() == "preregistered",
+        "is_failed": ticket.payment_status.lower() == "failed",
         "confirmation_deadline": ticket.confirmation_deadline,
         "deadline_passed": bool(
             ticket.confirmation_deadline and ticket.confirmation_deadline < timezone.now()
