@@ -41,18 +41,20 @@ class DashboardTests(TestCase):
         self.assertIsNone(self.kpi(r, "Por confirmar"))     # só aparece se houver
         self.assertIsNone(self.kpi(r, "Receita"))
 
-    def test_kpis_count_only_confirmed_payments(self):
+    def test_kpis_hide_unresolved_gateway_states(self):
         ticket(1, payment="paid", amount=300, phone="258841111111", entered=True)
         ticket(2, payment="paid", amount=300, phone="258841111111")      # mesma pessoa
         ticket(3, payment="invited")
-        for n, estado in enumerate(("preregistered", "pending", "refunded", "failed"), start=4):
+        ticket(4, payment="preregistered")
+        for n, estado in enumerate(("pending", "refunded", "failed", "review"), start=5):
             ticket(n, payment=estado)                                    # não aparecem
         r = self.get()
-        self.assertEqual(self.kpi(r, "Inscrições")["metric"], "3")
+        self.assertEqual(self.kpi(r, "Inscrições")["metric"], "4")
         self.assertEqual(self.kpi(r, "Confirmados")["metric"], "3")            # paid + invited
-        self.assertIsNone(self.kpi(r, "Por confirmar"))
+        self.assertEqual(self.kpi(r, "Confirmados")["footer"], "75% das inscrições")
+        self.assertEqual(self.kpi(r, "Por confirmar")["metric"], "1")
         self.assertIsNone(self.kpi(r, "Pagamento pendente"))
-        self.assertEqual(self.kpi(r, "Pessoas (telefones únicos)")["metric"], "2")
+        self.assertEqual(self.kpi(r, "Pessoas (telefones únicos)")["metric"], "3")
         entradas = self.kpi(r, "Entradas (check-in)")
         self.assertEqual(entradas["metric"], "1")
         self.assertEqual(entradas["footer"], "33% dos confirmados")
@@ -95,7 +97,7 @@ class DashboardTests(TestCase):
 
     def test_shirt_sizes_count_only_tickets_holding_a_spot(self):
         ticket(1, size="L")
-        ticket(2, size="L", payment="invited")
+        ticket(2, size="L", payment="preregistered")
         ticket(3, size="XL", payment="refunded")   # não aparece
         r = self.get()
         dados = json.loads(r.context["camisetesChartData"])
@@ -137,9 +139,9 @@ class DashboardTests(TestCase):
         ticket(2, name="Corrida", payment="preregistered")
         r = self.get()
         linha = r.context["table_eventos"]["rows"][0]
-        self.assertEqual(linha, ["Corrida", "1", "1", "0", "1", "100%", "100 MZN"])
+        self.assertEqual(linha, ["Corrida", "2", "1", "1", "1", "100%", "100 MZN"])
         estados = [row[3] for row in r.context["table_recentes"]["rows"]]
-        self.assertEqual(estados, ["Confirmado"])
+        self.assertCountEqual(estados, ["Confirmado", "Por confirmar"])
 
     def test_page_contains_filters_and_cards(self):
         ticket(1, payment="paid")
@@ -161,7 +163,7 @@ class DashboardTests(TestCase):
 
 
 class AdminOnlyConfirmedTests(TestCase):
-    def test_changelist_hides_unconfirmed_tickets(self):
+    def test_changelist_hides_unresolved_tickets(self):
         admin = User.objects.create_superuser("root", "r@x.co", "Pa$$w0rd!123")
         self.client.force_login(admin)
         for n, estado in enumerate(("paid", "invited", "preregistered", "pending", "failed"), start=1):
@@ -169,4 +171,4 @@ class AdminOnlyConfirmedTests(TestCase):
         r = self.client.get(reverse("admin:events_externalticket_changelist"))
         self.assertEqual(r.status_code, 200)
         ids = {t.external_id for t in r.context["cl"].result_list}
-        self.assertEqual(ids, {"TK1", "TK2"})
+        self.assertEqual(ids, {"TK1", "TK2", "TK3"})

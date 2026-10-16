@@ -95,8 +95,10 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
     actions = ("export_selected_csv", "export_selected_pdf")
 
     def get_queryset(self, request):
-        # Só bilhetes com pagamento confirmado (pago ou convite).
-        return super().get_queryset(request).filter(payment_status__in=("paid", "invited"))
+        # Só bilhetes resolvidos: pagos, convites e pré-inscrições. Pendentes, falhados,
+        # em revisão e reembolsados dependem do gateway e não devem aparecer aqui.
+        return super().get_queryset(request).filter(
+            payment_status__in=("paid", "invited", "preregistered"))
 
     fieldsets = (
         ("Ticket", {
