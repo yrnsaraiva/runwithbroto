@@ -76,7 +76,11 @@
                         <div class="text-[10px] font-semibold uppercase tracking-widest text-white/40">quick actions</div>
 
                         <div class="mt-4 grid gap-3">
+                        {% if event.registration_open %}
                         <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:register' event.id %}">{% if event.is_preregistration %}Pré-inscrever-me{% else %}Inscrever-se{% endif %}</a>
+                        {% else %}
+                            <div class="text-sm font-semibold text-white/80">Inscrições encerradas</div>
+                        {% endif %}
                         {% if event.is_preregistration %}
                             {% if event.confirmation_open %}
                                 <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:confirm_presence' event.id %}">Confirmar presença</a>
