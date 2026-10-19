@@ -134,6 +134,27 @@ class FreeTicketFormTests(TestCase):
         self.assertNotIn("paymentMethod", m.call_args.args[0])
 
 
+CLOSED_EVENT = {**EVENT, "registrationOpen": False}
+
+
+@mock.patch("apps.events.views._get_event_from_api", return_value=CLOSED_EVENT)
+class RegistrationClosedTests(TestCase):
+    url = "/events/event/EV1/inscrever/"
+
+    def test_detail_hides_the_register_button(self, _):
+        html = self.client.get("/events/event/EV1/").content.decode()
+        self.assertIn("Inscrições encerradas", html)
+        self.assertNotIn(self.url, html)
+
+    def test_form_get_and_post_are_blocked(self, _):
+        self.assertEqual(self.client.get(self.url).status_code, 302)
+        with mock.patch("apps.events.views._create_ticket_in_api") as m:
+            r = self.client.post(self.url, {"full_name": "Ana", "phone": "841234567",
+                                            "external_reference": "a" * 32})
+        self.assertEqual(r.status_code, 302)
+        m.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # Pré-inscrição + confirmação de presença
 # ---------------------------------------------------------------------------

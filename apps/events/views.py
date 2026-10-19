@@ -85,6 +85,8 @@ def _build_event_context(event_data):
         "is_free": is_free,
         # Nem todos os eventos têm camisetes: só nesses o formulário pede o tamanho.
         "offers_shirts": bool(event_data.get("offersShirts")),
+        # A organização encerra as inscrições na API (checkbox do evento).
+        "registration_open": event_data.get("registrationOpen", True) is not False,
         "is_preregistration": event_data.get("registrationMode") == "preregistration",
         "confirmation_deadline": _parse_datetime(event_data.get("confirmationDeadline")),
         "confirmation_opens_at": _parse_datetime(event_data.get("confirmationOpensAt")),
@@ -260,6 +262,9 @@ def register_form(request, event_id):
         return redirect("events:event_list")
 
     event = _build_event_context(event_data)
+    if not event["registration_open"]:
+        messages.error(request, "As inscrições para este evento estão encerradas.")
+        return redirect("events:event_detail", event_id=event_id)
     tamanhos = TamanhoCamisete.choices
 
     # GET: apenas exibe o formulário
