@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load rich_text %}
 
 {% block content %}
 
@@ -21,9 +22,9 @@
                             <span class="block">{{ event.title }}</span>
                         </h1>
 
-                        <p class="mt-4 muted leading-relaxed max-w-2xl">
-                            {{ event.description }}
-                        </p>
+                        <div class="mt-4 muted leading-relaxed max-w-2xl space-y-3">
+                            {{ event.description|rich_text }}
+                        </div>
 
                         <div class="mt-6 grid sm:grid-cols-3 gap-3 text-sm">
                             <div class="border hairline p-4">

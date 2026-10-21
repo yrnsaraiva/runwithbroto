@@ -677,3 +677,40 @@ class TicketDesignTests(TestCase):
         from reportlab.lib.utils import ImageReader
         with mock.patch("apps.events.pdf._load_remote_image", return_value=ImageReader(io.BytesIO(img.getvalue()))):
             self.assertTrue(self.pdf(event_image_url="https://x/y.png").startswith(b"%PDF"))
+
+
+class RichTextTests(TestCase):
+    def render(self, text):
+        from .templatetags.rich_text import rich_text
+        return str(rich_text(text))
+
+    def test_escapes_html(self):
+        html = self.render("<script>alert(1)</script> **x**")
+        self.assertNotIn("<script>", html)
+        self.assertIn("&lt;script&gt;", html)
+        self.assertIn("<strong", html)
+
+    def test_single_line_with_emojis_becomes_list_and_hashtags(self):
+        html = self.render(
+            "🌅 **Titulo!** Intro. 🏃 Corrida de 5 km 📍 **Local:** Cais66 "
+            "🎟️ **Entrada gratuita** Vem correr! 🌞 #Maputo #Run")
+        self.assertEqual(html.count("<li"), 3)
+        self.assertIn("<p>Vem correr!</p>", html)
+        self.assertIn("#Maputo #Run", html)
+        self.assertNotIn("**", html)
+
+    def test_newlines_and_dash_lists(self):
+        html = self.render("Linha 1\n\n- a\n- b")
+        self.assertIn("<p>Linha 1</p>", html)
+        self.assertEqual(html.count("<li"), 2)
+
+    def test_empty(self):
+        self.assertEqual(self.render(""), "")
+        self.assertEqual(self.render(None), "")
+
+    def test_detail_page_renders_description_structured(self):
+        ev = {**EVENT, "description": "🌅 **Abertura** texto. 🏃 Corrida 📍 **Local:** Cais66"}
+        with mock.patch("apps.events.views._get_event_from_api", return_value=ev):
+            html = self.client.get("/events/event/EV1/").content.decode()
+        self.assertIn("<li", html)
+        self.assertNotIn("**", html)
