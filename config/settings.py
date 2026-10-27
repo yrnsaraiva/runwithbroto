@@ -357,6 +357,7 @@ UNFOLD = {
 
 # Sessão longa o bastante para o scanner ficar aberto durante um evento.
 SESSION_COOKIE_AGE = 60 * 60 * 12  # 12 horas
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
