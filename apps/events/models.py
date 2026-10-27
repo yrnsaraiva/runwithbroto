@@ -22,6 +22,7 @@ class TamanhoCamisete(models.TextChoices):
     M = "M", "Médio (M)"
     L = "L", "Grande (L)"
     XL = "XL", "Extra Grande (XL)"
+    XLL = "XLL", "Extra extra Grande (XXL)"
 
 
 class ExternalTicket(models.Model):
