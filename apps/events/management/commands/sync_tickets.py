@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from apps.events import etk_client
 from apps.events.sync import apply_api_ticket
+from apps.events.sync import ensure_local_ticket
 
 
 class Command(BaseCommand):
@@ -21,5 +22,9 @@ class Command(BaseCommand):
         since = None if opts["all"] else \
             (timezone.now() - timedelta(minutes=opts["minutes"])).isoformat().replace("+00:00", "Z")
         tickets = etk_client.list_tickets(since=since)
-        updated = sum(1 for t in tickets if apply_api_ticket(t))
-        self.stdout.write(f"{len(tickets)} bilhetes recebidos, {updated} atualizados localmente.")
+        processed = sum(1 for t in tickets if ensure_local_ticket(t))
+
+        self.stdout.write(
+            f"{len(tickets)} bilhetes recebidos, "
+            f"{processed} processados localmente."
+        )
