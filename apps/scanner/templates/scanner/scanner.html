@@ -781,7 +781,7 @@
     let scanning = true, stream = null;
     let validating = false;          // trava enquanto há pedido em curso
     let lastQR = "", lastSeen = 0;   // último QR visto e quando
-    const RELEASE_MS = 1500;         // QR tem de ficar ausente tanto tempo para poder ser relido
+    const RELEASE_MS = 2500;         // QR tem de ficar ausente tanto tempo para poder ser relido
 
     async function startCamera() {
         try {
