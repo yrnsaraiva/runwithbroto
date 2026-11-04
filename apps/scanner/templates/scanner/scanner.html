@@ -778,8 +778,10 @@
     const video = document.getElementById("camera-video");
     const canvas = document.getElementById("camera-canvas");
     const ctx = canvas.getContext("2d", {willReadFrequently: true});
-    let scanning = true, stream = null, lastQR = "", lastQRTime = 0;
-    const COOLDOWN = 3000;
+    let scanning = true, stream = null;
+    let validating = false;          // trava enquanto há pedido em curso
+    let lastQR = "", lastSeen = 0;   // último QR visto e quando
+    const RELEASE_MS = 1500;         // QR tem de ficar ausente tanto tempo para poder ser relido
 
     async function startCamera() {
         try {
@@ -809,26 +811,30 @@
     }
 
     function scanFrame() {
-        if (!scanning) return;
-        if (video.readyState !== video.HAVE_ENOUGH_DATA) {
-            requestAnimationFrame(scanFrame);
-            return;
-        }
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(img.data, img.width, img.height, {inversionAttempts: "dontInvert"});
-        if (code?.data) {
-            const now = Date.now();
-            if (code.data !== lastQR || now - lastQRTime > COOLDOWN) {
-                lastQR = code.data;
-                lastQRTime = now;
-                handleQR(code.data);
-            }
-        }
+    if (!scanning) return;
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
         requestAnimationFrame(scanFrame);
+        return;
     }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height, {inversionAttempts: "dontInvert"});
+
+    if (code?.data) {
+        const now = Date.now();
+        const sameAsLast = code.data === lastQR;
+        const wasAbsent = now - lastSeen > RELEASE_MS;
+        lastSeen = now;  // atualiza sempre: enquanto o QR estiver visível, não "expira"
+
+        if (!validating && (!sameAsLast || wasAbsent)) {
+            lastQR = code.data;
+            handleQR(code.data);
+        }
+    }
+    requestAnimationFrame(scanFrame);
+}
 
     // ── Validação ──────────────────────────────────────────
     function handleQR(raw) {
@@ -856,6 +862,7 @@
     });
 
     async function doValidate(qr) {
+        validating = true;
         switchTab("result");
         showLoading();
         try {
@@ -867,6 +874,9 @@
             showResult(await r.json());
         } catch {
             showResult({status: "error", message: "Erro de ligação."});
+        } finally {
+            validating = false;
+            lastSeen = Date.now();  // evita reler logo a seguir se o QR ainda estiver à frente
         }
         if (document.getElementById("panel-log").classList.contains("active")) loadLog();
     }

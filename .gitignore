@@ -27,6 +27,17 @@ db.sqlite3
 enviar_bilhetes.py
 teste_unitario_envio_tickets.py
 
+enviar_sms.py
+enviar_email.py
+enviar_email_unitario.py
+
+RWB_whatsapp.xlsx
+RWB_email.xlsx
+
+#logs
+enviados_email_sunrise.csv
+envios_log.csv
+
 # local
 db.sqlite3
 .env
