@@ -24,8 +24,7 @@ db.sqlite3
 
 
 # scripts
-enviar_bilhetes.py
-teste_unitario_envio_tickets.py
+
 
 enviar_sms.py
 enviar_email.py
