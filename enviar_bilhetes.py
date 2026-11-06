@@ -73,7 +73,7 @@ def gerar_html(nome, event_name):
 # ENVIO
 # ========================
 def enviar_bilhetes():
-    qs = ExternalTicket.objects.filter(payment_status__iexact="paid", entered=False)
+    qs = ExternalTicket.objects.filter(payment_status__iexact="invited", entered=False)
 
     if EVENTO:
         qs = qs.filter(event_name__icontains=EVENTO)
