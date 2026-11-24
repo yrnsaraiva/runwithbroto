@@ -18,7 +18,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 
 from . import etk_client
-from .models import ExternalTicket, TamanhoCamisete
+from .models import ExternalTicket, TamanhoCamisete, TemporaryRegistration, TemporaryRegistrationEntry
 from .pdf import build_external_ticket_pdf
 from .sync import apply_api_ticket, ensure_local_ticket
 
@@ -569,3 +569,360 @@ def confirm_presence(request, event_id):
             done.append(row)
     ctx.update(pending=pending, done=done, searched=True)
     return render(request, template, ctx)
+
+
+# =============================================================================
+# INSCRIÇÃO TEMPORÁRIA (camada temporária com vagas limitadas e stock de t-shirts)
+# =============================================================================
+
+def _validate_temp_registration_data(post_data, temp_reg):
+    """
+    Valida os dados do formulário de inscrição temporária.
+    Retorna um dicionário com os dados limpos ou erros.
+    """
+    errors = {}
+    cleaned = {}
+
+    # Telefone
+    phone = _normalize_phone(post_data.get("phone"))
+    if not re.fullmatch(r"258\d{9}", phone):
+        errors["phone"] = "Número inválido. Use 9 dígitos (ex.: 84xxxxxxx) ou já com 258."
+    else:
+        cleaned["phone"] = phone
+
+    # Nome
+    full_name = (post_data.get("full_name") or "").strip()
+    if not full_name:
+        errors["full_name"] = "Nome completo é obrigatório."
+    else:
+        cleaned["full_name"] = full_name
+
+    # Email
+    email = (post_data.get("email") or "").strip()
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        errors["email"] = "E-mail inválido."
+    else:
+        cleaned["email"] = email
+
+    # Tamanho de t-shirt: obrigatório se o evento exige
+    cleaned["tamanho_camisete"] = ""
+    if temp_reg.require_shirt_size:
+        tamanho = (post_data.get("tamanho_camisete") or "").strip()
+        if tamanho not in TamanhoCamisete.values:
+            errors["tamanho_camisete"] = "Escolha o tamanho da camisete."
+        elif not temp_reg.is_shirt_size_available(tamanho):
+            errors["tamanho_camisete"] = f"Esgotado: não há mais t-shirts tamanho {tamanho}."
+        else:
+            cleaned["tamanho_camisete"] = tamanho
+
+    # Pagamento: se não é gratuito, exige método de pagamento
+    if temp_reg.require_payment:
+        payment = (post_data.get("payment") or "").strip().lower()
+        if payment not in dict(PAYMENT_METHODS):
+            errors["payment"] = "Escolha o método de pagamento."
+        else:
+            cleaned["payment"] = payment
+
+    return cleaned, errors
+
+
+def _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size="", selected_payment="mpesa", errors=None):
+    """Contexto para o template do formulário de inscrição temporária."""
+    event_data = None
+    try:
+        event_data = _get_event_from_api(temp_reg.event_id_external)
+    except Exception as e:
+        logger.warning("Não foi possível ler evento %s: %s", temp_reg.event_id_external, e)
+
+    event = _build_event_context(event_data) if event_data else {
+        "title": temp_reg.name,
+        "description": temp_reg.description,
+        "image_url": "",
+        "start_at": None,
+        "city": "",
+        "meeting_point": "",
+        "ticket_price_display": "—",
+        "is_free": not temp_reg.require_payment,
+        "offers_shirts": temp_reg.require_shirt_size,
+    }
+
+    # Preço do lote selecionado (ou ativo)
+    price_amount = event.get("price_amount")
+    price_display = "Grátis" if not temp_reg.require_payment else (f"{price_amount} MTn" if price_amount else "—")
+
+    return {
+        "temp_reg": temp_reg,
+        "event": event,
+        "tamanhos": tamanhos,
+        "selected_size": selected_size,
+        "external_reference": reference,
+        "payment_methods": PAYMENT_METHODS,
+        "selected_payment": selected_payment,
+        "errors": errors or {},
+        "price_display": price_display,
+        "available_shirt_sizes": temp_reg.get_available_shirt_sizes(),
+        "remaining_slots": temp_reg.remaining_slots,
+    }
+
+
+@require_http_methods(["GET", "POST"])
+def temp_registration_form(request, slug):
+    """Formulário de inscrição temporária (GET) e processamento (POST)."""
+    temp_reg = get_object_or_404(TemporaryRegistration, slug=slug)
+
+    if not temp_reg.is_open:
+        messages.error(request, "Esta inscrição não está disponível no momento.")
+        return render(request, "events/temp_registration_closed.html", {"temp_reg": temp_reg})
+
+    tamanhos = TamanhoCamisete.choices
+
+    if request.method == "GET":
+        return render(request, "events/temp_register.html", _temp_registration_form_context(temp_reg, tamanhos, _new_reference()))
+
+    # POST: valida e processa
+    cleaned, errors = _validate_temp_registration_data(request.POST, temp_reg)
+    reference = _clean_reference(request.POST.get("external_reference"))
+    selected_size = request.POST.get("tamanho_camisete", "")
+    selected_payment = request.POST.get("payment", "mpesa")
+
+    if errors:
+        return render(request, "events/temp_register.html",
+                      _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, errors),
+                      status=400)
+
+    # Cria a entrada de inscrição (status pending)
+    entry = TemporaryRegistrationEntry.objects.create(
+        registration=temp_reg,
+        full_name=cleaned["full_name"],
+        phone=cleaned["phone"],
+        email=cleaned["email"],
+        tamanho_camisete=cleaned.get("tamanho_camisete", ""),
+        external_reference=reference,
+        payment_method=cleaned.get("payment", ""),
+        status="pending",
+    )
+
+    # Se não requer pagamento, confirma imediatamente
+    if not temp_reg.require_payment:
+        return _confirm_temp_registration(entry, request)
+
+    # Busca preço/lote para criar ticket na API
+    price_id = temp_reg.price_id_external
+    if not price_id:
+        # Usa o preço ativo do evento
+        try:
+            event_data = _get_event_from_api(temp_reg.event_id_external)
+            prices = event_data.get("prices", [])
+            active_price = next((p for p in prices if (p.get("status") or "").lower() == "active"), prices[0] if prices else None)
+            if active_price:
+                price_id = active_price.get("id")
+        except Exception as e:
+            logger.error("Erro ao buscar preço do evento %s: %s", temp_reg.event_id_external, e)
+
+    if not price_id:
+        entry.status = "failed"
+        entry.payment_status = "error"
+        entry.save(update_fields=["status", "payment_status"])
+        messages.error(request, "Não foi possível determinar o preço. Contacte a organização.")
+        return render(request, "events/temp_register.html",
+                      _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {"price": "Preço não configurado"}),
+                      status=400)
+
+    # Monta payload para API
+    payload = {
+        "priceId": price_id,
+        "eventId": temp_reg.event_id_external,
+        "phone": cleaned["phone"],
+        "externalReference": reference,
+    }
+    if cleaned.get("email"):
+        payload["email"] = cleaned["email"]
+    if cleaned.get("full_name"):
+        payload["fullName"] = cleaned["full_name"]
+    if cleaned.get("payment"):
+        payload["paymentMethod"] = cleaned["payment"]
+    if cleaned.get("tamanho_camisete"):
+        payload["shirtSize"] = cleaned["tamanho_camisete"]
+
+    try:
+        response_data = _create_ticket_in_api(payload)
+    except requests.HTTPError as e:
+        logger.error(f"Erro ao criar ticket temporário: {e}")
+        code = getattr(e.response, "status_code", 502)
+        entry.status = "failed"
+        entry.payment_status = "failed"
+        entry.save(update_fields=["status", "payment_status"])
+        messages.error(request, _api_error_message(e, "Não foi possível processar o pagamento. Tente novamente."))
+        return render(request, "events/temp_register.html",
+                      _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {}),
+                      status=code if code in (400, 402, 404, 409, 422) else 502)
+    except Exception as e:
+        logger.error(f"Erro ao criar ticket temporário: {e}")
+        entry.status = "failed"
+        entry.payment_status = "error"
+        entry.save(update_fields=["status", "payment_status"])
+        messages.error(request, "Não foi possível processar o pagamento. Tente novamente.")
+        return render(request, "events/temp_register.html",
+                      _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {}),
+                      status=502)
+
+    # Verifica resposta da API
+    if response_data.get("status") == "success":
+        ticket_data = response_data.get("data", {})
+        entry.external_ticket_id = ticket_data.get("id", "")
+        entry.payment_status = ticket_data.get("payment", "pending")
+        entry.save(update_fields=["external_ticket_id", "payment_status"])
+
+        # Se pagamento já confirmado (pago ou convite), confirma a inscrição
+        if entry.payment_status.lower() in ("paid", "invited"):
+            return _confirm_temp_registration(entry, request)
+
+        # Pagamento pendente - redireciona para página de aguardo
+        messages.success(request, "Inscrição registada. Confirme o pagamento no seu telefone.")
+        return redirect("events:temp_registration_waiting", token=entry.ticket_public_token or reference)
+    else:
+        error_msg = response_data.get("message") or "Falha ao iniciar o pagamento."
+        entry.status = "failed"
+        entry.payment_status = "failed"
+        entry.save(update_fields=["status", "payment_status"])
+        messages.error(request, error_msg)
+        return render(request, "events/temp_register.html",
+                      _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {}),
+                      status=400)
+
+
+def _confirm_temp_registration(entry, request):
+    """Confirma uma inscrição temporária: incrementa vagas usadas e guarda token do ticket."""
+    from django.db import transaction
+
+    with transaction.atomic():
+        entry.refresh_from_db()
+        if entry.status == "confirmed":
+            return redirect("events:temp_registration_success", token=entry.ticket_public_token)
+
+        temp_reg = entry.registration
+        temp_reg.increment_used_slots()
+        entry.status = "confirmed"
+        entry.confirmed_at = timezone.now()
+
+        # Busca o ticket na API para obter o public_token
+        if entry.external_ticket_id:
+            try:
+                ticket_data = etk_client.get_ticket(entry.external_ticket_id)
+                local_ticket = ensure_local_ticket(ticket_data)
+                entry.ticket_public_token = local_ticket.public_token
+            except Exception as e:
+                logger.warning("Não foi possível obter token do ticket %s: %s", entry.external_ticket_id, e)
+
+        entry.save(update_fields=["status", "confirmed_at", "ticket_public_token", "updated_at"])
+
+    messages.success(request, entry.registration.custom_success_message or "Inscrição confirmada com sucesso!")
+    return redirect("events:temp_registration_success", token=entry.ticket_public_token)
+
+
+@never_cache
+@require_http_methods(["GET"])
+def temp_registration_waiting(request, token):
+    """Página de aguardo enquanto pagamento é processado."""
+    entry = get_object_or_404(TemporaryRegistrationEntry, external_reference=token)
+    temp_reg = entry.registration
+
+    context = {
+        "entry": entry,
+        "temp_reg": temp_reg,
+        "event_name": temp_reg.name,
+        "checkout_url": entry.checkout_url if hasattr(entry, 'checkout_url') else "",
+    }
+    return render(request, "events/temp_registration_waiting.html", context)
+
+
+@never_cache
+@require_http_methods(["GET"])
+def temp_registration_status(request, token):
+    """Estado do pagamento (JSON) para a página de aguardo."""
+    entry = get_object_or_404(TemporaryRegistrationEntry, external_reference=token)
+
+    # Se ainda pendente, sonda a API
+    if entry.status == "pending" and entry.external_ticket_id:
+        try:
+            ticket_data = etk_client.get_ticket(entry.external_ticket_id)
+            payment_status = ticket_data.get("payment", "").lower()
+            entry.payment_status = ticket_data.get("payment", "")
+            entry.save(update_fields=["payment_status", "updated_at"])
+
+            if payment_status in ("paid", "invited"):
+                # Confirma automaticamente
+                return _confirm_temp_registration(entry, None)  # request não é usado no redirect
+        except Exception as e:
+            logger.warning("Não foi possível sondar ticket %s: %s", entry.external_ticket_id, e)
+
+    return JsonResponse({
+        "status": entry.status,
+        "payment_status": entry.payment_status,
+        "confirmed": entry.status == "confirmed",
+        "token": str(entry.ticket_public_token) if entry.ticket_public_token else None,
+        "redirect_url": reverse("events:temp_registration_success", args=[entry.ticket_public_token]) if entry.ticket_public_token else None,
+    })
+
+
+@never_cache
+@require_http_methods(["GET"])
+def temp_registration_success(request, token):
+    """Página de sucesso após confirmação da inscrição temporária."""
+    entry = get_object_or_404(TemporaryRegistrationEntry, ticket_public_token=token)
+
+    if entry.status != "confirmed":
+        messages.error(request, "Esta inscrição ainda não foi confirmada.")
+        return redirect("events:temp_registration_waiting", token=entry.external_reference)
+
+    context = {
+        "entry": entry,
+        "temp_reg": entry.registration,
+        "event_name": entry.registration.name,
+        "buyer_name": entry.full_name,
+        "tamanho_camisete": entry.tamanho_camisete,
+    }
+    return render(request, "events/temp_registration_success.html", context)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def temp_registration_webhook(request):
+    """Webhook para atualização de status de pagamento de inscrições temporárias."""
+    secret = settings.ETICKETS_WEBHOOK_SECRET
+    if not secret:
+        return JsonResponse({"error": "webhook não configurado"}, status=503)
+
+    import hmac
+    import hashlib
+    expected = hmac.new(secret.encode(), request.body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, request.headers.get("X-ETK-Signature", "")):
+        return JsonResponse({"error": "assinatura inválida"}, status=401)
+
+    import json
+    try:
+        payload = json.loads(request.body)
+        data = payload["data"]
+    except (ValueError, KeyError, TypeError):
+        return JsonResponse({"error": "payload inválido"}, status=400)
+
+    ticket_id = data.get("id")
+    payment_status = (data.get("payment") or "").lower()
+
+    if not ticket_id:
+        return JsonResponse({"error": "ticket_id ausente"}, status=400)
+
+    try:
+        entry = TemporaryRegistrationEntry.objects.get(external_ticket_id=ticket_id)
+    except TemporaryRegistrationEntry.DoesNotExist:
+        return JsonResponse({"processed": False, "reason": "entry not found"})
+
+    entry.payment_status = data.get("payment", "")
+
+    if payment_status in ("paid", "invited") and entry.status == "pending":
+        _confirm_temp_registration(entry, None)
+    elif payment_status == "failed":
+        entry.status = "failed"
+        entry.save(update_fields=["status", "payment_status", "updated_at"])
+
+    return JsonResponse({"processed": True})

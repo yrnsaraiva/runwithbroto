@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-20 text-center">
+    <div class="text-8xl mb-6">🔒</div>
+
+    <h1 class="font-display uppercase text-4xl sm:text-5xl md:text-6xl leading-[0.9] text-ink mb-4">
+        Inscrição Indisponível
+    </h1>
+
+    <p class="text-lg muted mb-8 max-w-lg mx-auto">
+        A inscrição temporária <strong>"{{ temp_reg.name }}"</strong> não está disponível no momento.
+    </p>
+
+    <div class="grid gap-4 sm:grid-cols-3 max-w-xl mx-auto text-sm">
+        <div class="p-4 border hairline">
+            <div class="text-[10px] font-semibold uppercase tracking-widest muted">Status</div>
+            <div class="mt-1 font-semibold {% if temp_reg.status == 'open' %}text-green-600{% elif temp_reg.status == 'full' %}text-red-600{% else %}text-neutral-600{% endif %}">
+                {{ temp_reg.get_status_display }}
+            </div>
+        </div>
+
+        <div class="p-4 border hairline">
+            <div class="text-[10px] font-semibold uppercase tracking-widest muted">Período</div>
+            <div class="mt-1 font-semibold">
+                {% if temp_reg.opens_at and temp_reg.closes_at %}
+                {{ temp_reg.opens_at|date:"d/m/Y H:i" }} — {{ temp_reg.closes_at|date:"d/m/Y H:i" }}
+                {% else %}
+                Não definido
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="p-4 border hairline">
+            <div class="text-[10px] font-semibold uppercase tracking-widest muted">Vagas</div>
+            <div class="mt-1 font-semibold">
+                {{ temp_reg.used_slots }} / {{ temp_reg.total_slots }} usadas
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-10">
+        <a href="{% url 'events:event_list' %}"
+           class="inline-flex items-center gap-2 bg-[var(--brand)] text-black px-6 py-4 font-semibold hover:opacity-90 transition">
+            <svg aria-hidden="true" fill="none" height="20" viewBox="0 0 24 24" width="20">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+            </svg>
+            Ver Eventos Disponíveis
+        </a>
+    </div>
+</div>
+{% endblock %}

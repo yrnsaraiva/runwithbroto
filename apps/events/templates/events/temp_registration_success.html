@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-12">
+    <div class="text-center mb-10">
+        <div class="w-24 h-24 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-6">
+            <svg aria-hidden="true" fill="none" height="48" viewBox="0 0 24 24" width="48" style="color: #1baf7a;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+            </svg>
+        </div>
+
+        <h1 class="font-display uppercase text-4xl sm:text-5xl leading-[0.9] text-ink mb-3">
+            Inscrição Confirmada!
+        </h1>
+
+        <p class="text-lg muted">
+            A sua participação em <strong>"{{ temp_reg.name }}"</strong> está garantida.
+        </p>
+    </div>
+
+    <div class="border hairline rounded-xl p-6 mb-8">
+        <div class="text-[10px] font-semibold uppercase tracking-widest muted mb-4">DETALHES DA INSCRIÇÃO</div>
+
+        <dl class="grid gap-4 sm:grid-cols-2 text-sm">
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-widest muted">Nome</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ entry.full_name }}</dd>
+            </div>
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-widest muted">Telefone</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ entry.phone }}</dd>
+            </div>
+            {% if entry.email %}
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-widest muted">Email</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ entry.email }}</dd>
+            </div>
+            {% endif %}
+            {% if entry.tamanho_camisete %}
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-widest muted">T-shirt</dt>
+                <dd class="mt-1 font-semibold text-ink">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[var(--brand)] text-black">
+                        {{ entry.get_tamanho_camisete_display }}
+                    </span>
+                </dd>
+            </div>
+            {% endif %}
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-widest muted">Referência</dt>
+                <dd class="mt-1 font-mono text-sm text-ink">{{ entry.external_reference }}</dd>
+            </div>
+            <div>
+                <dt class="text-[10px] font-semibold uppercase tracking-widest muted">Confirmada em</dt>
+                <dd class="mt-1 font-semibold text-ink">{{ entry.confirmed_at|date:"d/m/Y H:i" }}</dd>
+            </div>
+        </dl>
+    </div>
+
+    {% if entry.external_ticket_id %}
+    <div class="border hairline rounded-xl p-6 mb-8">
+        <div class="text-[10px] font-semibold uppercase tracking-widest muted mb-4">BILHETE</div>
+
+        <div class="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
+            <div class="flex-1">
+                <p class="text-sm muted mb-2">O seu bilhete foi gerado com sucesso.</p>
+                <p class="font-mono text-sm text-ink">{{ entry.external_ticket_id }}</p>
+            </div>
+            <a href="{% url 'events:download_external_ticket_pdf' entry.ticket_public_token %}"
+               class="inline-flex items-center gap-2 bg-[var(--brand)] text-black px-6 py-4 font-semibold hover:opacity-90 transition whitespace-nowrap">
+                <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+                    <path d="M7 10l5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+                    <path d="M12 15V3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+                </svg>
+                Baixar Bilhete (PDF)
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if temp_reg.custom_success_message %}
+    <div class="bg-green-50 border border-green-200 rounded-xl p-6 mb-8">
+        <div class="text-green-800">{{ temp_reg.custom_success_message }}</div>
+    </div>
+    {% endif %}
+
+    <div class="text-center">
+        <a href="{% url 'events:event_list' %}"
+           class="inline-flex items-center gap-2 border hairline px-6 py-3 font-semibold hover:bg-neutral-100 transition">
+            <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
+                <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>
+            </svg>
+            Ver Eventos
+        </a>
+    </div>
+</div>
+{% endblock %}

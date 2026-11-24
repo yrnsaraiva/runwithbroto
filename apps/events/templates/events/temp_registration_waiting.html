@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-20 text-center">
+    <div class="relative mb-8">
+        <div class="w-24 h-24 mx-auto border-4 border-[var(--brand)] rounded-full animate-spin border-t-transparent"></div>
+        <div class="absolute inset-0 flex items-center justify-center">
+            <div class="w-16 h-16 bg-[var(--brand)] rounded-full flex items-center justify-center">
+                <svg aria-hidden="true" fill="none" height="32" viewBox="0 0 24 24" width="32" style="color: black;">
+                    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <h1 class="font-display uppercase text-4xl sm:text-5xl leading-[0.9] text-ink mb-4">
+        A aguardar pagamento
+    </h1>
+
+    <p class="text-lg muted mb-8 max-w-lg mx-auto">
+        A sua inscrição em <strong>"{{ temp_reg.name }}"</strong> foi registada. Por favor, complete o pagamento no seu telefone.
+    </p>
+
+    <div class="bg-neutral-100 rounded-xl p-6 mb-8 text-left">
+        <div class="grid gap-4 sm:grid-cols-2 text-sm">
+            <div>
+                <div class="text-[10px] font-semibold uppercase tracking-widest muted">Nome</div>
+                <div class="mt-1 font-semibold text-ink">{{ entry.full_name }}</div>
+            </div>
+            <div>
+                <div class="text-[10px] font-semibold uppercase tracking-widest muted">Telefone</div>
+                <div class="mt-1 font-semibold text-ink">{{ entry.phone }}</div>
+            </div>
+            {% if entry.tamanho_camisete %}
+            <div>
+                <div class="text-[10px] font-semibold uppercase tracking-widest muted">T-shirt</div>
+                <div class="mt-1 font-semibold text-ink">{{ entry.get_tamanho_camisete_display }}</div>
+            </div>
+            {% endif %}
+            <div>
+                <div class="text-[10px] font-semibold uppercase tracking-widest muted">Método</div>
+                <div class="mt-1 font-semibold text-ink">{{ entry.get_payment_method_display|default:"—" }}</div>
+            </div>
+            <div class="sm:col-span-2">
+                <div class="text-[10px] font-semibold uppercase tracking-widest muted">Referência</div>
+                <div class="mt-1 font-mono text-sm text-ink">{{ entry.external_reference }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-sm muted mb-6">
+        Esta página atualiza automaticamente quando o pagamento for confirmado.<br>
+        Se não for redirecionado em instantes, <a href="." class="underline text-[var(--brand)]">recarregue a página</a>.
+    </div>
+
+    <div class="flex gap-3 justify-center">
+        <a href="{% url 'events:event_list' %}"
+           class="inline-flex items-center gap-2 border hairline px-6 py-3 font-semibold hover:bg-neutral-100 transition">
+            Voltar aos Eventos
+        </a>
+    </div>
+
+    <script>
+        // Poll for status every 3 seconds
+        const pollUrl = "{% url 'events:temp_registration_status' entry.external_reference %}";
+        const pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(pollUrl);
+                const data = await response.json();
+
+                if (data.confirmed && data.redirect_url) {
+                    clearInterval(pollInterval);
+                    window.location.href = data.redirect_url;
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    document.body.innerHTML = `
+                        <div class="max-w-2xl mx-auto px-4 py-20 text-center">
+                            <div class="text-8xl mb-6">❌</div>
+                            <h1 class="font-display uppercase text-4xl text-ink mb-4">Pagamento não confirmado</h1>
+                            <p class="text-lg muted mb-8">O pagamento não foi concluído. Por favor, tente novamente.</p>
+                            <a href="{% url 'events:temp_registration' temp_reg.slug %}" class="inline-flex items-center gap-2 bg-[var(--brand)] text-black px-6 py-4 font-semibold hover:opacity-90 transition">Tentar Novamente</a>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error('Polling error:', e);
+            }
+        }, 3000);
+
+        // Stop polling after 15 minutes
+        setTimeout(() => clearInterval(pollInterval), 15 * 60 * 1000);
+    </script>
+{% endblock %}

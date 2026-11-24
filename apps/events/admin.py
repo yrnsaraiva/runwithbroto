@@ -14,7 +14,7 @@ from datetime import timedelta
 from django.shortcuts import get_object_or_404, redirect, render
 
 from . import etk_client
-from .models import ExternalTicket, Provincia, TamanhoCamisete
+from .models import ExternalTicket, Provincia, TamanhoCamisete, TemporaryRegistration, TemporaryRegistrationEntry
 from .pdfs_external_checkin import build_external_checkin_list_pdf
 from .pdf import build_external_ticket_pdf
 
@@ -429,3 +429,123 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
     def download_ticket_link(self, obj):
         url = reverse("admin:externalticket_download_ticket_pdf", args=[obj.pk])
         return format_html('<a class="button" href="{}">Baixar PDF</a>', url)
+
+
+# =============================================================================
+# INSCRIÇÕES TEMPORÁRIAS - ADMIN
+# =============================================================================
+
+class TemporaryRegistrationEntryInline(admin.TabularInline):
+    model = TemporaryRegistrationEntry
+    extra = 0
+    readonly_fields = (
+        "full_name", "phone", "email", "tamanho_camisete",
+        "external_reference", "external_ticket_id", "ticket_public_token",
+        "status", "payment_method", "payment_status",
+        "created_at", "updated_at", "confirmed_at",
+    )
+    fields = readonly_fields
+    can_delete = False
+    verbose_name = "Inscrição"
+    verbose_name_plural = "Inscrições"
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(TemporaryRegistration)
+class TemporaryRegistrationAdmin(ModelAdmin):
+    list_display = (
+        "name", "slug", "event_id_external", "status",
+        "used_slots", "total_slots", "remaining_slots_display",
+        "opens_at", "closes_at", "created_at",
+    )
+    list_filter = ("status", "require_shirt_size", "require_payment", "opens_at", "closes_at")
+    search_fields = ("name", "slug", "event_id_external")
+    readonly_fields = ("created_at", "updated_at", "used_slots", "remaining_slots_display")
+    ordering = ("-created_at",)
+    list_per_page = 50
+    inlines = [TemporaryRegistrationEntryInline]
+
+    fieldsets = (
+        ("Identificação", {
+            "fields": ("slug", "name", "description"),
+        }),
+        ("Evento & Preço", {
+            "fields": ("event_id_external", "price_id_external"),
+        }),
+        ("Vagas", {
+            "fields": ("total_slots", "used_slots", "remaining_slots_display"),
+        }),
+        ("Stock de T-shirts", {
+            "fields": (
+                "shirt_stock_s", "shirt_stock_m", "shirt_stock_l",
+                "shirt_stock_xl", "shirt_stock_xll",
+            ),
+        }),
+        ("Período", {
+            "fields": ("opens_at", "closes_at"),
+        }),
+        ("Configurações", {
+            "fields": ("status", "require_shirt_size", "require_payment", "custom_success_message"),
+        }),
+        ("Metadados", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+
+    @admin.display(description="Vagas Restantes")
+    def remaining_slots_display(self, obj):
+        remaining = obj.remaining_slots
+        color = "green" if remaining > 10 else "orange" if remaining > 0 else "red"
+        return format_html('<span style="color: {}; font-weight: bold;">{} / {}</span>', color, remaining, obj.total_slots)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(
+            entries_confirmed=Count("entries", filter=Q(entries__status="confirmed")),
+        )
+
+
+@admin.register(TemporaryRegistrationEntry)
+class TemporaryRegistrationEntryAdmin(ModelAdmin):
+    list_display = (
+        "full_name", "registration", "phone", "tamanho_camisete",
+        "status", "payment_status", "external_ticket_id", "created_at",
+    )
+    list_filter = ("status", "payment_status", "payment_method", "registration", "created_at")
+    search_fields = ("full_name", "phone", "email", "external_reference", "external_ticket_id")
+    readonly_fields = (
+        "registration", "full_name", "phone", "email", "tamanho_camisete",
+        "external_reference", "external_ticket_id", "ticket_public_token",
+        "status", "payment_method", "payment_status",
+        "created_at", "updated_at", "confirmed_at",
+    )
+    ordering = ("-created_at",)
+    list_per_page = 50
+
+    fieldsets = (
+        ("Inscrição", {
+            "fields": ("registration", "status", "confirmed_at"),
+        }),
+        ("Participante", {
+            "fields": ("full_name", "phone", "email", "tamanho_camisete"),
+        }),
+        ("Pagamento", {
+            "fields": ("payment_method", "payment_status", "external_reference"),
+        }),
+        ("Ticket API", {
+            "fields": ("external_ticket_id", "ticket_public_token"),
+        }),
+        ("Metadados", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
