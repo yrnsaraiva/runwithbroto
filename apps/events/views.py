@@ -798,6 +798,9 @@ def _confirm_temp_registration(entry, request):
     with transaction.atomic():
         entry.refresh_from_db()
         if entry.status == "confirmed":
+            if not entry.ticket_public_token:
+                entry.ticket_public_token = uuid.uuid4()
+                entry.save(update_fields=["ticket_public_token", "updated_at"])
             return redirect("events:temp_registration_success", token=entry.ticket_public_token)
 
         temp_reg = entry.registration
@@ -813,6 +816,10 @@ def _confirm_temp_registration(entry, request):
                 entry.ticket_public_token = local_ticket.public_token
             except Exception as e:
                 logger.warning("Não foi possível obter token do ticket %s: %s", entry.external_ticket_id, e)
+
+        # Inscrições gratuitas (ou falha na API) não têm ticket externo: gera token local
+        if not entry.ticket_public_token:
+            entry.ticket_public_token = uuid.uuid4()
 
         entry.save(update_fields=["status", "confirmed_at", "ticket_public_token", "updated_at"])
 
