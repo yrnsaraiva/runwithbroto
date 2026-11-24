@@ -189,7 +189,7 @@ class TemporaryRegistration(models.Model):
 
     def get_shirt_stock_used(self, size):
         """Retorna quantas t-shirts desse tamanho já foram reservadas."""
-        return self.registrations.filter(
+        return self.entries.filter(
             tamanho_camisete=size,
             status__in=["confirmed", "pending"]
         ).count()
