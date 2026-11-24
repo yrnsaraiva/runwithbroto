@@ -661,6 +661,10 @@ def _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size
         "errors": errors or {},
         "price_display": price_display,
         "available_shirt_sizes": temp_reg.get_available_shirt_sizes(),
+        "size_options": [
+            {"value": value, "label": label, "available": temp_reg.get_shirt_stock_remaining(value)}
+            for value, label in tamanhos
+        ],
         "remaining_slots": temp_reg.remaining_slots,
     }
 
