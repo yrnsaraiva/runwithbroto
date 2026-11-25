@@ -725,6 +725,19 @@ from . import views as views_module
 from .models import TemporaryRegistration, TemporaryRegistrationEntry
 
 
+from contextlib import contextmanager
+
+
+@contextmanager
+def free_api(tid, **kw):
+    """Inscrição gratuita: o bilhete é uma entrada normal (não um convite) que a API devolve já paga."""
+    ticket = api_invite(tid, **kw) | {"payment": "paid", "isInvite": False, "note": ""}
+    with mock.patch("apps.events.views._create_ticket_in_api",
+                    return_value={"status": "success", "data": ticket}) as create, \
+         mock.patch("apps.events.views.etk_client.get_ticket", return_value=ticket):
+        yield create
+
+
 def make_temp_reg(**kw):
     now = timezone.now()
     defaults = dict(slug="sunrise-run", name="Sunrise Run", event_id_external="EV1",
@@ -758,15 +771,18 @@ class TempRegistrationTests(TestCase):
         self.assertEqual(self.reg.get_shirt_stock_remaining("M"), 1)
 
     def test_free_registration_issues_a_real_ticket(self, _):
-        with mock.patch("apps.events.invites.etk_client.create_invites",
-                        return_value=[api_invite("TKT1", phone="258841234567")]) as api:
+        with free_api("TKT1", phone="258841234567") as api:
             r = self.client.post(self.url, self.data)
         payload = api.call_args.args[0]
-        self.assertEqual((payload["eventId"], payload["priceId"], payload["quantity"]), ("EV1", "PRC1", 1))
-        self.assertEqual((payload["holderName"], payload["phone"]), ("Ana", "258841234567"))
+        self.assertEqual((payload["eventId"], payload["priceId"]), ("EV1", "PRC1"))
+        self.assertEqual((payload["fullName"], payload["phone"]), ("Ana", "258841234567"))
+        self.assertNotIn("quantity", payload)        # não é um convite
+        self.assertNotIn("paymentMethod", payload)   # gratuito: sem método de pagamento
 
         ticket = ExternalTicket.objects.get(external_id="TKT1")
         self.assertEqual(ticket.tamanho_camisete, "M")
+        self.assertEqual(ticket.payment_status, "paid")  # entrada normal, não convite
+        self.assertFalse(ticket.is_invite)
         entry = TemporaryRegistrationEntry.objects.get()
         self.assertEqual((entry.status, entry.external_ticket_id), ("confirmed", "TKT1"))
         self.assertEqual(entry.ticket_public_token, ticket.public_token)
@@ -776,8 +792,7 @@ class TempRegistrationTests(TestCase):
         self.assertEqual(self.reg.used_slots, 1)
 
     def test_success_page_opens_after_free_registration(self, _):
-        with mock.patch("apps.events.invites.etk_client.create_invites",
-                        return_value=[api_invite("TKT1")]):
+        with free_api("TKT1"):
             r = self.client.post(self.url, self.data, follow=True)
         self.assertEqual(r.status_code, 200)
 
@@ -785,7 +800,7 @@ class TempRegistrationTests(TestCase):
         import requests
         resp = mock.Mock(status_code=409)
         resp.json.return_value = {"message": "Sem vagas neste lote."}
-        with mock.patch("apps.events.invites.etk_client.create_invites",
+        with mock.patch("apps.events.views._create_ticket_in_api",
                         side_effect=requests.HTTPError(response=resp)):
             r = self.client.post(self.url, self.data)
         self.assertEqual(r.status_code, 409)
@@ -795,7 +810,7 @@ class TempRegistrationTests(TestCase):
         self.assertEqual(self.reg.used_slots, 0)
 
     def test_sold_out_size_is_rejected(self, _):
-        with mock.patch("apps.events.invites.etk_client.create_invites") as api:
+        with mock.patch("apps.events.views._create_ticket_in_api") as api:
             r = self.client.post(self.url, {**self.data, "tamanho_camisete": "S"})
         self.assertEqual(r.status_code, 400)
         api.assert_not_called()
@@ -813,8 +828,7 @@ class TempRegistrationEmailTests(TestCase):
         self.reg = make_temp_reg()
 
     def register(self, **extra):
-        with mock.patch("apps.events.invites.etk_client.create_invites",
-                        return_value=[api_invite("TKT1", phone="258841234567")]):
+        with free_api("TKT1", phone="258841234567"):
             return self.client.post(self.url, {**self.data, **extra})
 
     def test_ticket_is_emailed_with_link_and_pdf(self, _):
@@ -885,8 +899,7 @@ class TempRegistrationStockTests(TestCase):
     def post(self, n, size="M"):
         data = {"full_name": f"P{n}", "phone": f"84123456{n}", "email": "",
                 "tamanho_camisete": size, "external_reference": f"{n}" * 32}
-        with mock.patch("apps.events.invites.etk_client.create_invites",
-                        return_value=[api_invite(f"TK{n}", phone=f"2588412345{n}")]):
+        with free_api(f"TK{n}", phone=f"2588412345{n}"):
             return self.client.post(self.url, data)
 
     def test_stock_drops_with_each_registration_until_sold_out(self, _):
@@ -905,7 +918,7 @@ class TempRegistrationStockTests(TestCase):
         resp.json.return_value = {"message": "Sem vagas."}
         data = {"full_name": "Ana", "phone": "841234567", "tamanho_camisete": "M",
                 "external_reference": "9" * 32}
-        with mock.patch("apps.events.invites.etk_client.create_invites",
+        with mock.patch("apps.events.views._create_ticket_in_api",
                         side_effect=requests.HTTPError(response=resp)):
             self.client.post(self.url, data)
         self.assertEqual(self.reg.get_shirt_stock_remaining("M"), 2)
@@ -928,7 +941,7 @@ class TempRegistrationStockTests(TestCase):
 
         with mock.patch.object(views_module, "_validate_temp_registration_data",
                                side_effect=validate_then_lose_the_shirt), \
-             mock.patch("apps.events.invites.etk_client.create_invites") as api:
+             mock.patch("apps.events.views._create_ticket_in_api") as api:
             r = self.client.post(self.url, data)
         self.assertEqual(r.status_code, 400)
         api.assert_not_called()

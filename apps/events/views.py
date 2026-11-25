@@ -748,46 +748,6 @@ def temp_registration_form(request, slug):
                       _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {"price": "Preço não configurado"}),
                       status=400)
 
-    # Sem pagamento: emite um convite (bilhete gratuito normal) na API e guarda o
-    # ExternalTicket local, para não ser preciso criar o bilhete à mão depois.
-    if not temp_reg.require_payment:
-        try:
-            tickets = invites_service.create_invites(
-                event_id=temp_reg.event_id_external,
-                price_id=price_id,
-                quantity=1,
-                name=cleaned["full_name"],
-                email=cleaned.get("email", ""),
-                phone=cleaned["phone"],
-                shirt_size=cleaned.get("tamanho_camisete", ""),
-            )
-        except requests.HTTPError as e:
-            logger.error("Erro ao emitir convite da inscrição temporária: %s", e)
-            code = getattr(e.response, "status_code", 502)
-            entry.status = "failed"
-            entry.payment_status = "failed"
-            entry.save(update_fields=["status", "payment_status"])
-            messages.error(request, _api_error_message(e, "Não foi possível emitir o bilhete. Tente novamente."))
-            return render(request, "events/temp_register.html",
-                          _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {}),
-                          status=code if code in (400, 402, 404, 409, 422) else 502)
-        except Exception as e:
-            logger.error("Erro ao emitir convite da inscrição temporária: %s", e)
-            entry.status = "failed"
-            entry.payment_status = "error"
-            entry.save(update_fields=["status", "payment_status"])
-            messages.error(request, "Não foi possível emitir o bilhete. Tente novamente.")
-            return render(request, "events/temp_register.html",
-                          _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {}),
-                          status=502)
-
-        ticket = tickets[0]
-        entry.external_ticket_id = ticket.external_id
-        entry.ticket_public_token = ticket.public_token
-        entry.payment_status = ticket.payment_status or "invited"
-        entry.save(update_fields=["external_ticket_id", "ticket_public_token", "payment_status"])
-        return _confirm_temp_registration(entry, request)
-
     # Monta payload para API
     payload = {
         "priceId": price_id,
@@ -833,8 +793,12 @@ def temp_registration_form(request, slug):
         entry.payment_status = ticket_data.get("payment", "pending")
         entry.save(update_fields=["external_ticket_id", "payment_status"])
 
-        # Se pagamento já confirmado (pago ou convite), confirma a inscrição
-        if entry.payment_status.lower() in ("paid", "invited"):
+        # Inscrição gratuita (sem pagamento) ou pagamento já confirmado: confirma logo.
+        # O bilhete é sempre uma entrada normal criada na API (nunca um convite).
+        if not temp_reg.require_payment or entry.payment_status.lower() in ("paid", "invited"):
+            if entry.payment_status.lower() not in ("paid", "invited"):
+                logger.warning("Inscrição gratuita %s: a API devolveu pagamento '%s' (o lote devia ter preço 0).",
+                               entry.external_ticket_id, entry.payment_status)
             return _confirm_temp_registration(entry, request)
 
         # Pagamento pendente - redireciona para página de aguardo
