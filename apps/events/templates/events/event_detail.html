@@ -74,24 +74,24 @@
                     </div>
 
                     <div class="relative">
-                        <div class="text-[10px] font-semibold uppercase tracking-widest text-white/40">quick actions</div>
+{#                        <div class="text-[10px] font-semibold uppercase tracking-widest text-white/40">quick actions</div>#}
 
-                        <div class="mt-4 grid gap-3">
-                        {% if event.registration_open %}
-                        <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:register' event.id %}">{% if event.is_preregistration %}Pré-inscrever-me{% else %}Inscrever-se{% endif %}</a>
-                        {% else %}
-                            <div class="text-sm font-semibold text-white/80">Inscrições encerradas</div>
-                        {% endif %}
-                        {% if event.is_preregistration %}
-                            {% if event.confirmation_open %}
-                                <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:confirm_presence' event.id %}">Confirmar presença</a>
-                                {% if event.confirmation_deadline %}<div class="text-xs text-white/60">Confirmação até {{ event.confirmation_deadline|date:"d/m/Y H:i" }}</div>{% endif %}
-                            {% else %}
-                                <div class="text-xs text-white/60">A confirmação de presença será aberta mais perto do evento.</div>
-                            {% endif %}
-                        {% endif %}
+{#                        <div class="mt-4 grid gap-3">#}
+{#                        {% if event.registration_open %}#}
+{#                        <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:register' event.id %}">{% if event.is_preregistration %}Pré-inscrever-me{% else %}Inscrever-se{% endif %}</a>#}
+{#                        {% else %}#}
+{#                            <div class="text-sm font-semibold text-white/80">Inscrições encerradas</div>#}
+{#                        {% endif %}#}
+{#                        {% if event.is_preregistration %}#}
+{#                            {% if event.confirmation_open %}#}
+{#                                <a class="btn-solid text-center" style="border-radius:0" href="{% url 'events:confirm_presence' event.id %}">Confirmar presença</a>#}
+{#                                {% if event.confirmation_deadline %}<div class="text-xs text-white/60">Confirmação até {{ event.confirmation_deadline|date:"d/m/Y H:i" }}</div>{% endif %}#}
+{#                            {% else %}#}
+{#                                <div class="text-xs text-white/60">A confirmação de presença será aberta mais perto do evento.</div>#}
+{#                            {% endif %}#}
+{#                        {% endif %}#}
 {#                            <a class="btn-solid text-center" style="border-radius:0" href="#">Vendas encerradas</a>#}
-                        </div>
+{#                        </div>#}
 
                         <div class="mt-6 border-t border-white/10 pt-6 text-sm">
                             <div class="text-[10px] font-semibold uppercase tracking-widest text-white/40">city</div>
