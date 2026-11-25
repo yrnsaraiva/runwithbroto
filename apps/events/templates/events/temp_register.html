@@ -222,10 +222,6 @@
                         {% if not temp_reg.require_payment %}Confirmar Inscrição{% else %}Confirmar & Pagar{% endif %}
                     </button>
 
-                    <p class="text-xs muted leading-relaxed">
-                        {% if not temp_reg.require_payment %}Você receberá o bilhete por email assim que confirmar.{% else %}Você receberá confirmação automática após o pagamento.{% endif %}
-                    </p>
-
                     <script>
                         const form = document.querySelector("form");
                         const btn = form.querySelector("button[type='submit']");
