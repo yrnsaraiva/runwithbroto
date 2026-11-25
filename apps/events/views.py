@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 
 from . import etk_client
+from . import invites as invites_service
 from .models import ExternalTicket, TamanhoCamisete, TemporaryRegistration, TemporaryRegistrationEntry
 from .pdf import build_external_ticket_pdf
 from .sync import apply_api_ticket, ensure_local_ticket
@@ -706,10 +707,6 @@ def temp_registration_form(request, slug):
         status="pending",
     )
 
-    # Se não requer pagamento, confirma imediatamente
-    if not temp_reg.require_payment:
-        return _confirm_temp_registration(entry, request)
-
     # Busca preço/lote para criar ticket na API
     price_id = temp_reg.price_id_external
     if not price_id:
@@ -731,6 +728,46 @@ def temp_registration_form(request, slug):
         return render(request, "events/temp_register.html",
                       _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {"price": "Preço não configurado"}),
                       status=400)
+
+    # Sem pagamento: emite um convite (bilhete gratuito normal) na API e guarda o
+    # ExternalTicket local, para não ser preciso criar o bilhete à mão depois.
+    if not temp_reg.require_payment:
+        try:
+            tickets = invites_service.create_invites(
+                event_id=temp_reg.event_id_external,
+                price_id=price_id,
+                quantity=1,
+                name=cleaned["full_name"],
+                email=cleaned.get("email", ""),
+                phone=cleaned["phone"],
+                shirt_size=cleaned.get("tamanho_camisete", ""),
+            )
+        except requests.HTTPError as e:
+            logger.error("Erro ao emitir convite da inscrição temporária: %s", e)
+            code = getattr(e.response, "status_code", 502)
+            entry.status = "failed"
+            entry.payment_status = "failed"
+            entry.save(update_fields=["status", "payment_status"])
+            messages.error(request, _api_error_message(e, "Não foi possível emitir o bilhete. Tente novamente."))
+            return render(request, "events/temp_register.html",
+                          _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {}),
+                          status=code if code in (400, 402, 404, 409, 422) else 502)
+        except Exception as e:
+            logger.error("Erro ao emitir convite da inscrição temporária: %s", e)
+            entry.status = "failed"
+            entry.payment_status = "error"
+            entry.save(update_fields=["status", "payment_status"])
+            messages.error(request, "Não foi possível emitir o bilhete. Tente novamente.")
+            return render(request, "events/temp_register.html",
+                          _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, {}),
+                          status=502)
+
+        ticket = tickets[0]
+        entry.external_ticket_id = ticket.external_id
+        entry.ticket_public_token = ticket.public_token
+        entry.payment_status = ticket.payment_status or "invited"
+        entry.save(update_fields=["external_ticket_id", "ticket_public_token", "payment_status"])
+        return _confirm_temp_registration(entry, request)
 
     # Monta payload para API
     payload = {
@@ -813,13 +850,18 @@ def _confirm_temp_registration(entry, request):
         entry.confirmed_at = timezone.now()
 
         # Busca o ticket na API para obter o public_token
-        if entry.external_ticket_id:
+        if entry.external_ticket_id and not entry.ticket_public_token:
             try:
                 ticket_data = etk_client.get_ticket(entry.external_ticket_id)
                 local_ticket = ensure_local_ticket(ticket_data)
                 entry.ticket_public_token = local_ticket.public_token
             except Exception as e:
                 logger.warning("Não foi possível obter token do ticket %s: %s", entry.external_ticket_id, e)
+
+        # O tamanho da camisete só existe no site (a API não o guarda): copia-o para o bilhete local
+        if entry.ticket_public_token and entry.tamanho_camisete:
+            ExternalTicket.objects.filter(public_token=entry.ticket_public_token).update(
+                tamanho_camisete=entry.tamanho_camisete)
 
         # Inscrições gratuitas (ou falha na API) não têm ticket externo: gera token local
         if not entry.ticket_public_token:

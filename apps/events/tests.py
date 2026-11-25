@@ -714,3 +714,86 @@ class RichTextTests(TestCase):
             html = self.client.get("/events/event/EV1/").content.decode()
         self.assertIn("<li", html)
         self.assertNotIn("**", html)
+
+
+from datetime import timedelta
+
+from django.utils import timezone
+
+from .models import TemporaryRegistration, TemporaryRegistrationEntry
+
+
+def make_temp_reg(**kw):
+    now = timezone.now()
+    defaults = dict(slug="sunrise-run", name="Sunrise Run", event_id_external="EV1",
+                    price_id_external="PRC1", total_slots=10, shirt_stock_m=2,
+                    opens_at=now - timedelta(days=1), closes_at=now + timedelta(days=1),
+                    require_payment=False, require_shirt_size=True)
+    defaults.update(kw)
+    return TemporaryRegistration.objects.create(**defaults)
+
+
+@mock.patch("apps.events.views._get_event_from_api", return_value=EVENT)
+class TempRegistrationTests(TestCase):
+    url = "/events/temp/sunrise-run/"
+    data = {"full_name": "Ana", "phone": "841234567", "email": "a@b.co",
+            "tamanho_camisete": "M", "external_reference": "b" * 32}
+
+    def setUp(self):
+        self.reg = make_temp_reg()
+
+    def test_shirt_sizes_show_disponivel_or_esgotado(self, _):
+        html = self.client.get(self.url).content.decode()
+        self.assertIn("Disponível", html)
+        self.assertIn("Esgotado", html)  # S, L, XL, XLL têm stock 0
+        self.assertNotIn("disp.</span>", html)
+
+    def test_stock_used_counts_entries(self, _):
+        TemporaryRegistrationEntry.objects.create(
+            registration=self.reg, full_name="X", phone="258841111111", tamanho_camisete="M",
+            external_reference="c" * 32, status="pending")
+        self.assertEqual(self.reg.get_shirt_stock_used("M"), 1)
+        self.assertEqual(self.reg.get_shirt_stock_remaining("M"), 1)
+
+    def test_free_registration_issues_a_real_ticket(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        return_value=[api_invite("TKT1", phone="258841234567")]) as api:
+            r = self.client.post(self.url, self.data)
+        payload = api.call_args.args[0]
+        self.assertEqual((payload["eventId"], payload["priceId"], payload["quantity"]), ("EV1", "PRC1", 1))
+        self.assertEqual((payload["holderName"], payload["phone"]), ("Ana", "258841234567"))
+
+        ticket = ExternalTicket.objects.get(external_id="TKT1")
+        self.assertEqual(ticket.tamanho_camisete, "M")
+        entry = TemporaryRegistrationEntry.objects.get()
+        self.assertEqual((entry.status, entry.external_ticket_id), ("confirmed", "TKT1"))
+        self.assertEqual(entry.ticket_public_token, ticket.public_token)
+        self.assertRedirects(r, reverse("events:temp_registration_success", args=[ticket.public_token]),
+                             fetch_redirect_response=False)
+        self.reg.refresh_from_db()
+        self.assertEqual(self.reg.used_slots, 1)
+
+    def test_success_page_opens_after_free_registration(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        return_value=[api_invite("TKT1")]):
+            r = self.client.post(self.url, self.data, follow=True)
+        self.assertEqual(r.status_code, 200)
+
+    def test_api_refusal_marks_entry_failed_and_keeps_slot_free(self, _):
+        import requests
+        resp = mock.Mock(status_code=409)
+        resp.json.return_value = {"message": "Sem vagas neste lote."}
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        side_effect=requests.HTTPError(response=resp)):
+            r = self.client.post(self.url, self.data)
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(TemporaryRegistrationEntry.objects.get().status, "failed")
+        self.assertFalse(ExternalTicket.objects.exists())
+        self.reg.refresh_from_db()
+        self.assertEqual(self.reg.used_slots, 0)
+
+    def test_sold_out_size_is_rejected(self, _):
+        with mock.patch("apps.events.invites.etk_client.create_invites") as api:
+            r = self.client.post(self.url, {**self.data, "tamanho_camisete": "S"})
+        self.assertEqual(r.status_code, 400)
+        api.assert_not_called()
