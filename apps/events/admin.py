@@ -6,7 +6,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.validators import validate_email
 from django.http import HttpResponse
 from django.urls import path, reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils import timezone
 import json
 from django.db.models import Count, Sum, Q, Avg
@@ -462,7 +462,8 @@ class TemporaryRegistrationAdmin(ModelAdmin):
     )
     list_filter = ("status", "require_shirt_size", "require_payment", "opens_at", "closes_at")
     search_fields = ("name", "slug", "event_id_external")
-    readonly_fields = ("created_at", "updated_at", "used_slots", "remaining_slots_display")
+    readonly_fields = ("created_at", "updated_at", "used_slots", "remaining_slots_display",
+                       "shirt_stock_overview")
     ordering = ("-created_at",)
     list_per_page = 50
     inlines = [TemporaryRegistrationEntryInline]
@@ -478,7 +479,10 @@ class TemporaryRegistrationAdmin(ModelAdmin):
             "fields": ("total_slots", "used_slots", "remaining_slots_display"),
         }),
         ("Stock de T-shirts", {
+            "description": "Os campos abaixo são o stock TOTAL de cada tamanho; "
+                           "o resumo mostra quantas já foram reservadas e quantas restam.",
             "fields": (
+                "shirt_stock_overview",
                 "shirt_stock_s", "shirt_stock_m", "shirt_stock_l",
                 "shirt_stock_xl", "shirt_stock_xll",
             ),
@@ -500,6 +504,19 @@ class TemporaryRegistrationAdmin(ModelAdmin):
         remaining = obj.remaining_slots
         color = "green" if remaining > 10 else "orange" if remaining > 0 else "red"
         return format_html('<span style="color: {}; font-weight: bold;">{} / {}</span>', color, remaining, obj.total_slots)
+
+    @admin.display(description="Stock atual")
+    def shirt_stock_overview(self, obj):
+        if not obj or not obj.pk:
+            return "—"
+        rows = []
+        for item in obj.get_shirt_stock_summary():
+            color = "green" if item["remaining"] > 5 else "orange" if item["remaining"] > 0 else "red"
+            rows.append(format_html(
+                '<div><strong>{}</strong>: <span style="color: {}; font-weight: bold;">{} restantes</span>'
+                ' de {} ({} reservadas)</div>',
+                item["size"], color, item["remaining"], item["total"], item["used"]))
+        return format_html_join("", "{}", ((r,) for r in rows))
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)

@@ -695,17 +695,36 @@ def temp_registration_form(request, slug):
                       _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, errors),
                       status=400)
 
-    # Cria a entrada de inscrição (status pending)
-    entry = TemporaryRegistrationEntry.objects.create(
-        registration=temp_reg,
-        full_name=cleaned["full_name"],
-        phone=cleaned["phone"],
-        email=cleaned["email"],
-        tamanho_camisete=cleaned.get("tamanho_camisete", ""),
-        external_reference=reference,
-        payment_method=cleaned.get("payment", ""),
-        status="pending",
-    )
+    # Reserva atómica: bloqueia a inscrição, volta a verificar vagas e stock de t-shirts
+    # (dois pedidos simultâneos não podem levar a última) e só então cria a entrada (pending).
+    from django.db import transaction
+
+    reservation_error = None
+    with transaction.atomic():
+        locked = TemporaryRegistration.objects.select_for_update().get(pk=temp_reg.pk)
+        if not locked.is_open:
+            reservation_error = {"slots": "As vagas esgotaram entretanto."}
+        elif cleaned.get("tamanho_camisete") and not locked.is_shirt_size_available(cleaned["tamanho_camisete"]):
+            reservation_error = {"tamanho_camisete": f"Esgotado: não há mais t-shirts tamanho {cleaned['tamanho_camisete']}."}
+        else:
+            entry = TemporaryRegistrationEntry.objects.create(
+                registration=locked,
+                full_name=cleaned["full_name"],
+                phone=cleaned["phone"],
+                email=cleaned["email"],
+                tamanho_camisete=cleaned.get("tamanho_camisete", ""),
+                external_reference=reference,
+                payment_method=cleaned.get("payment", ""),
+                status="pending",
+            )
+
+    if reservation_error:
+        if "slots" in reservation_error:
+            messages.error(request, reservation_error["slots"])
+            return render(request, "events/temp_registration_closed.html", {"temp_reg": temp_reg}, status=409)
+        return render(request, "events/temp_register.html",
+                      _temp_registration_form_context(temp_reg, tamanhos, reference, selected_size, selected_payment, reservation_error),
+                      status=400)
 
     # Busca preço/lote para criar ticket na API
     price_id = temp_reg.price_id_external

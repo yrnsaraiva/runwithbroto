@@ -202,6 +202,16 @@ class TemporaryRegistration(models.Model):
     def is_shirt_size_available(self, size):
         return self.get_shirt_stock_remaining(size) > 0
 
+    def get_shirt_stock_summary(self):
+        """Por tamanho: total, reservadas (pendentes + confirmadas) e restantes."""
+        summary = []
+        for size, label in TamanhoCamisete.choices:
+            total = self.get_shirt_stock(size)
+            used = self.get_shirt_stock_used(size)
+            summary.append({"size": size, "label": label, "total": total,
+                            "used": used, "remaining": max(0, total - used)})
+        return summary
+
     def get_available_shirt_sizes(self):
         """Retorna lista de tamanhos com stock disponível."""
         available = []

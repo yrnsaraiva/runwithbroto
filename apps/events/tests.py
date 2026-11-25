@@ -721,6 +721,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
+from . import views as views_module
 from .models import TemporaryRegistration, TemporaryRegistrationEntry
 
 
@@ -872,3 +873,75 @@ class TempRegistrationEmailTests(TestCase):
         self.assertEqual(mail.outbox[0].to, ["a@b.co"])
         reg.refresh_from_db()
         self.assertEqual(reg.used_slots, 1)
+
+
+@mock.patch("apps.events.views._get_event_from_api", return_value=EVENT)
+class TempRegistrationStockTests(TestCase):
+    url = "/events/temp/sunrise-run/"
+
+    def setUp(self):
+        self.reg = make_temp_reg(shirt_stock_m=2, total_slots=10)
+
+    def post(self, n, size="M"):
+        data = {"full_name": f"P{n}", "phone": f"84123456{n}", "email": "",
+                "tamanho_camisete": size, "external_reference": f"{n}" * 32}
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        return_value=[api_invite(f"TK{n}", phone=f"2588412345{n}")]):
+            return self.client.post(self.url, data)
+
+    def test_stock_drops_with_each_registration_until_sold_out(self, _):
+        self.assertEqual(self.reg.get_shirt_stock_remaining("M"), 2)
+        self.assertEqual(self.post(1).status_code, 302)
+        self.assertEqual(self.reg.get_shirt_stock_remaining("M"), 1)
+        self.assertEqual(self.post(2).status_code, 302)
+        self.assertEqual(self.reg.get_shirt_stock_remaining("M"), 0)
+        r = self.post(3)
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(TemporaryRegistrationEntry.objects.count(), 2)
+
+    def test_failed_registration_gives_the_shirt_back(self, _):
+        import requests
+        resp = mock.Mock(status_code=409)
+        resp.json.return_value = {"message": "Sem vagas."}
+        data = {"full_name": "Ana", "phone": "841234567", "tamanho_camisete": "M",
+                "external_reference": "9" * 32}
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        side_effect=requests.HTTPError(response=resp)):
+            self.client.post(self.url, data)
+        self.assertEqual(self.reg.get_shirt_stock_remaining("M"), 2)
+
+    def test_last_shirt_cannot_be_taken_twice(self, _):
+        """A reserva é verificada de novo dentro do lock: se o stock acabou entre a
+        validação e a criação da entrada, a inscrição é recusada."""
+        self.reg.shirt_stock_m = 1
+        self.reg.save()
+        data = {"full_name": "Ana", "phone": "841234567", "tamanho_camisete": "M",
+                "external_reference": "8" * 32}
+        real_validate = views_module._validate_temp_registration_data
+
+        def validate_then_lose_the_shirt(post, reg):
+            result = real_validate(post, reg)
+            TemporaryRegistrationEntry.objects.create(
+                registration=reg, full_name="Outro", phone="258841111111", tamanho_camisete="M",
+                external_reference="7" * 32, status="pending")
+            return result
+
+        with mock.patch.object(views_module, "_validate_temp_registration_data",
+                               side_effect=validate_then_lose_the_shirt), \
+             mock.patch("apps.events.invites.etk_client.create_invites") as api:
+            r = self.client.post(self.url, data)
+        self.assertEqual(r.status_code, 400)
+        api.assert_not_called()
+        self.assertEqual(TemporaryRegistrationEntry.objects.count(), 1)
+
+
+class TempRegistrationAdminStockTests(TestCase):
+    def test_admin_shows_reserved_and_remaining_per_size(self):
+        reg = make_temp_reg(shirt_stock_m=5)
+        TemporaryRegistrationEntry.objects.create(
+            registration=reg, full_name="X", phone="258841111111", tamanho_camisete="M",
+            external_reference="c" * 32, status="confirmed")
+        self.client.force_login(get_user_model().objects.create_superuser("root", "r@x.co", "Pa$$w0rd!123"))
+        html = self.client.get(f"/admin/events/temporaryregistration/{reg.pk}/change/").content.decode()
+        self.assertIn("1 reservadas", html)
+        self.assertIn("4 restantes", html)
