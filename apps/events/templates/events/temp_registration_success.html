@@ -67,7 +67,7 @@
                 <p class="text-sm muted mb-2">O seu bilhete foi gerado com sucesso.</p>
                 <p class="font-mono text-sm text-ink">{{ entry.external_ticket_id }}</p>
             </div>
-            <a href="{% url 'events:download_external_ticket_pdf' entry.ticket_public_token %}"
+            <a href="{% url 'events:temp_registration_download' entry.ticket_public_token %}"
                class="inline-flex items-center gap-2 bg-[var(--brand)] text-black px-6 py-4 font-semibold hover:opacity-90 transition whitespace-nowrap">
                 <svg aria-hidden="true" fill="none" height="18" viewBox="0 0 24 24" width="18">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/>

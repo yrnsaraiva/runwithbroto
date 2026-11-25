@@ -832,19 +832,10 @@ def _confirm_temp_registration(entry, request):
         entry.status = "confirmed"
         entry.confirmed_at = timezone.now()
 
-        # Busca o ticket na API para obter o public_token
-        if entry.external_ticket_id and not entry.ticket_public_token:
-            try:
-                ticket_data = etk_client.get_ticket(entry.external_ticket_id)
-                local_ticket = ensure_local_ticket(ticket_data)
-                entry.ticket_public_token = local_ticket.public_token
-            except Exception as e:
-                logger.warning("Não foi possível obter token do ticket %s: %s", entry.external_ticket_id, e)
-
-        # O tamanho da camisete só existe no site (a API não o guarda): copia-o para o bilhete local
-        if entry.ticket_public_token and entry.tamanho_camisete:
-            ExternalTicket.objects.filter(public_token=entry.ticket_public_token).update(
-                tamanho_camisete=entry.tamanho_camisete)
+        # Bilhete local (criado se faltar, a partir da API): é o seu public_token que identifica a inscrição
+        local_ticket = _local_ticket_for_entry(entry)
+        if local_ticket and not entry.ticket_public_token:
+            entry.ticket_public_token = local_ticket.public_token
 
         # Inscrições gratuitas (ou falha na API) não têm ticket externo: gera token local
         if not entry.ticket_public_token:
@@ -860,11 +851,30 @@ def _confirm_temp_registration(entry, request):
     return redirect("events:temp_registration_success", token=entry.ticket_public_token)
 
 
+def _local_ticket_for_entry(entry):
+    """ExternalTicket local da inscrição: pelo token, pelo id da API ou, se ainda não existir
+    localmente, buscando-o à API. Copia o tamanho da camisete (a API não o guarda)."""
+    ticket = None
+    if entry.ticket_public_token:
+        ticket = ExternalTicket.objects.filter(public_token=entry.ticket_public_token).first()
+    if not ticket and entry.external_ticket_id:
+        ticket = ExternalTicket.objects.filter(external_id=entry.external_ticket_id).first()
+    if not ticket and entry.external_ticket_id:
+        try:
+            ticket = ensure_local_ticket(etk_client.get_ticket(entry.external_ticket_id))
+        except Exception as e:
+            logger.warning("Não foi possível obter o bilhete %s: %s", entry.external_ticket_id, e)
+    if ticket and entry.tamanho_camisete and ticket.tamanho_camisete != entry.tamanho_camisete:
+        ExternalTicket.objects.filter(pk=ticket.pk).update(tamanho_camisete=entry.tamanho_camisete)
+        ticket.tamanho_camisete = entry.tamanho_camisete
+    return ticket
+
+
 def _send_temp_ticket_email(entry, request):
     """Envia o bilhete por e-mail na primeira confirmação. Nunca desfaz a inscrição se falhar."""
-    if not entry.email or not entry.ticket_public_token or not invites_service.email_enabled():
+    if not entry.email or not invites_service.email_enabled():
         return
-    ticket = ExternalTicket.objects.filter(public_token=entry.ticket_public_token).first()
+    ticket = _local_ticket_for_entry(entry)
     if not ticket or ticket.invite_sent_at:
         return
     try:
@@ -938,6 +948,19 @@ def temp_registration_success(request, token):
         "tamanho_camisete": entry.tamanho_camisete,
     }
     return render(request, "events/temp_registration_success.html", context)
+
+
+@never_cache
+@require_http_methods(["GET"])
+def temp_registration_download(request, token):
+    """PDF do bilhete de uma inscrição temporária confirmada (acesso por token não adivinhável)."""
+    entry = get_object_or_404(TemporaryRegistrationEntry, ticket_public_token=token, status="confirmed")
+    ticket = _local_ticket_for_entry(entry)
+    if not ticket:
+        raise Http404("Bilhete não encontrado.")
+    response = HttpResponse(build_external_ticket_pdf(ticket), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="ticket-{ticket.external_id}.pdf"'
+    return response
 
 
 @csrf_exempt

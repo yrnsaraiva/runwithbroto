@@ -18,5 +18,6 @@ urlpatterns = [
     path("temp/aguardando/<str:token>/", views.temp_registration_waiting, name="temp_registration_waiting"),
     path("temp/status/<str:token>/", views.temp_registration_status, name="temp_registration_status"),
     path("temp/<uuid:token>/sucesso/", views.temp_registration_success, name="temp_registration_success"),
+    path("temp/<uuid:token>/download/", views.temp_registration_download, name="temp_registration_download"),
     path("webhooks/temp/", views.temp_registration_webhook, name="temp_registration_webhook"),
 ]

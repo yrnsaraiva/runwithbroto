@@ -1,3 +1,4 @@
+import uuid
 from unittest import mock
 
 from django.core import mail
@@ -958,3 +959,55 @@ class TempRegistrationAdminStockTests(TestCase):
         html = self.client.get(f"/admin/events/temporaryregistration/{reg.pk}/change/").content.decode()
         self.assertIn("1 reservadas", html)
         self.assertIn("4 restantes", html)
+
+
+@mock.patch("apps.events.views._get_event_from_api", return_value=EVENT)
+class TempRegistrationDownloadTests(TestCase):
+    url = "/events/temp/sunrise-run/"
+    data = {"full_name": "Ana", "phone": "841234567", "email": "",
+            "tamanho_camisete": "M", "external_reference": "a" * 32}
+
+    def setUp(self):
+        self.reg = make_temp_reg()
+
+    def download_url(self, entry):
+        return reverse("events:temp_registration_download", args=[entry.ticket_public_token])
+
+    def test_success_page_link_downloads_the_pdf(self, _):
+        with free_api("TKD1", phone="258841234567"):
+            r = self.client.post(self.url, self.data, follow=True)
+        entry = TemporaryRegistrationEntry.objects.get()
+        self.assertContains(r, self.download_url(entry))
+        pdf = self.client.get(self.download_url(entry))
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(pdf["Content-Type"], "application/pdf")
+        self.assertTrue(pdf.content.startswith(b"%PDF"))
+        self.assertIn("ticket-TKD1.pdf", pdf["Content-Disposition"])
+
+    def test_download_works_even_if_the_api_lookup_failed_at_confirmation(self, _):
+        """Se a API falhou na confirmação (token local de reserva), o download vai buscar o bilhete."""
+        ticket = api_invite("TKD2", phone="258841234567") | {"payment": "paid", "isInvite": False, "note": ""}
+        with mock.patch("apps.events.views._create_ticket_in_api",
+                        return_value={"status": "success", "data": ticket}), \
+             mock.patch("apps.events.views.etk_client.get_ticket", side_effect=Exception("API em baixo")):
+            self.client.post(self.url, self.data)
+        entry = TemporaryRegistrationEntry.objects.get()
+        self.assertFalse(ExternalTicket.objects.exists())  # sem bilhete local: o link antigo dava 404
+        with mock.patch("apps.events.views.etk_client.get_ticket", return_value=ticket):
+            pdf = self.client.get(self.download_url(entry))
+        self.assertEqual(pdf.status_code, 200)
+        self.assertEqual(ExternalTicket.objects.get().tamanho_camisete, "M")
+
+    def test_download_does_not_depend_on_the_payment_status_text(self, _):
+        with free_api("TKD3", phone="258841234567"):
+            self.client.post(self.url, self.data)
+        ExternalTicket.objects.update(payment_status="free")
+        entry = TemporaryRegistrationEntry.objects.get()
+        self.assertEqual(self.client.get(self.download_url(entry)).status_code, 200)
+
+    def test_unconfirmed_or_unknown_token_is_404(self, _):
+        entry = TemporaryRegistrationEntry.objects.create(
+            registration=self.reg, full_name="X", phone="258841111111", external_reference="z" * 32,
+            status="pending", ticket_public_token=uuid.uuid4())
+        self.assertEqual(self.client.get(self.download_url(entry)).status_code, 404)
+        self.assertEqual(self.client.get(reverse("events:temp_registration_download", args=[uuid.uuid4()])).status_code, 404)
