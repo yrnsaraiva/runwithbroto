@@ -42,8 +42,9 @@ def email_enabled():
 def invite_link(request, ticket):
     """Link público do bilhete (página com QR e PDF), absoluto."""
     path = reverse("events:registration_success", args=[ticket.public_token])
-    return f"{settings.SITE_BASE_URL}{path}" if settings.SITE_BASE_URL \
-        else request.build_absolute_uri(path)
+    if settings.SITE_BASE_URL:
+        return f"{settings.SITE_BASE_URL}{path}"
+    return request.build_absolute_uri(path) if request else path
 
 
 def normalize_phone(value):
@@ -105,4 +106,25 @@ def send_invite_email(tickets, links):
 
     ExternalTicket.objects.filter(pk__in=[t.pk for t in tickets]).update(
         invite_sent_at=timezone.now())
+    return True
+
+
+def send_ticket_email(ticket, link, to, name=""):
+    """E-mail com o link e o PDF do bilhete de uma inscrição. Devolve True se enviou.
+
+    Só marca `invite_sent_at` depois de o envio ter corrido sem erro.
+    """
+    if not to or not email_enabled():
+        return False
+    greeting = f"Olá {name}," if name else "Olá,"
+    lines = [greeting, "", f"A sua inscrição está confirmada: {_event_line(ticket)}.", "",
+             f"O seu bilhete: {link}", "",
+             "Mostre o QR do bilhete (no telemóvel ou impresso) na entrada.", "", "Run With Broto"]
+    message = EmailMessage(
+        subject=f"O seu bilhete — {ticket.event_name}",
+        body="\n".join(lines), to=[to],
+    )
+    message.attach(f"bilhete-{ticket.external_id}.pdf", build_external_ticket_pdf(ticket), "application/pdf")
+    message.send()
+    ExternalTicket.objects.filter(pk=ticket.pk).update(invite_sent_at=timezone.now())
     return True

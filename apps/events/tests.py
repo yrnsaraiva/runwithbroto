@@ -1,5 +1,6 @@
 from unittest import mock
 
+from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
 
@@ -797,3 +798,77 @@ class TempRegistrationTests(TestCase):
             r = self.client.post(self.url, {**self.data, "tamanho_camisete": "S"})
         self.assertEqual(r.status_code, 400)
         api.assert_not_called()
+
+
+@override_settings(EMAIL_HOST="smtp.test", EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+                   SITE_BASE_URL="https://runwithbroto.test")
+@mock.patch("apps.events.views._get_event_from_api", return_value=EVENT)
+class TempRegistrationEmailTests(TestCase):
+    url = "/events/temp/sunrise-run/"
+    data = {"full_name": "Ana", "phone": "841234567", "email": "a@b.co",
+            "tamanho_camisete": "M", "external_reference": "d" * 32}
+
+    def setUp(self):
+        self.reg = make_temp_reg()
+
+    def register(self, **extra):
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        return_value=[api_invite("TKT1", phone="258841234567")]):
+            return self.client.post(self.url, {**self.data, **extra})
+
+    def test_ticket_is_emailed_with_link_and_pdf(self, _):
+        self.register()
+        self.assertEqual(len(mail.outbox), 1)
+        msg = mail.outbox[0]
+        self.assertEqual(msg.to, ["a@b.co"])
+        self.assertIn("O seu bilhete", msg.subject)
+        ticket = ExternalTicket.objects.get(external_id="TKT1")
+        self.assertIn(f"https://runwithbroto.test/events/tickets/{ticket.public_token}/", msg.body)
+        self.assertEqual([a[0] for a in msg.attachments], ["bilhete-TKT1.pdf"])
+        self.assertTrue(ticket.invite_sent_at)
+
+    def test_no_email_without_address(self, _):
+        r = self.register(email="")
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(EMAIL_HOST="")
+    def test_no_email_when_not_configured(self, _):
+        r = self.register()
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_email_failure_does_not_undo_the_registration(self, _):
+        with mock.patch("apps.events.invites.EmailMessage.send", side_effect=OSError("smtp down")):
+            r = self.register()
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(TemporaryRegistrationEntry.objects.get().status, "confirmed")
+        self.assertFalse(ExternalTicket.objects.get().invite_sent_at)
+
+    def test_paid_flow_waits_then_confirms_and_emails_once(self, _):
+        reg = make_temp_reg(slug="paga", require_payment=True)
+        pending = {"status": "success", "data": {"id": "TKP1", "eventId": "EV1", "priceId": "PRC1",
+                                                  "payment": "pending", "status": "valid"}}
+        data = {**self.data, "payment": "mpesa", "external_reference": "f" * 32}
+        with mock.patch("apps.events.views._create_ticket_in_api", return_value=pending):
+            r = self.client.post("/events/temp/paga/", data)
+        wait_url = reverse("events:temp_registration_waiting", args=["f" * 32])
+        self.assertRedirects(r, wait_url, fetch_redirect_response=False)
+        self.assertEqual(self.client.get(wait_url).status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+
+        paid = api_invite("TKP1", name="Ana", email="a@b.co", phone="258841234567") | {"payment": "paid"}
+        status_url = reverse("events:temp_registration_status", args=["f" * 32])
+        with mock.patch("apps.events.views.etk_client.get_ticket", return_value=paid):
+            first = self.client.get(status_url)
+            second = self.client.get(status_url)
+        self.assertEqual(first.headers["Content-Type"], "application/json")
+        self.assertTrue(first.json()["confirmed"])
+        ticket = ExternalTicket.objects.get(external_id="TKP1")
+        self.assertEqual(first.json()["token"], str(ticket.public_token))
+        self.assertEqual(ticket.tamanho_camisete, "M")
+        self.assertTrue(second.json()["confirmed"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["a@b.co"])
+        reg.refresh_from_db()
+        self.assertEqual(reg.used_slots, 1)

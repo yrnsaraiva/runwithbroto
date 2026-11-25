@@ -869,8 +869,26 @@ def _confirm_temp_registration(entry, request):
 
         entry.save(update_fields=["status", "confirmed_at", "ticket_public_token", "updated_at"])
 
-    messages.success(request, entry.registration.custom_success_message or "Inscrição confirmada com sucesso!")
+    _send_temp_ticket_email(entry, request)
+
+    # Sem request (sondagem JSON / webhook) não há mensagens flash a mostrar
+    if request is not None:
+        messages.success(request, entry.registration.custom_success_message or "Inscrição confirmada com sucesso!")
     return redirect("events:temp_registration_success", token=entry.ticket_public_token)
+
+
+def _send_temp_ticket_email(entry, request):
+    """Envia o bilhete por e-mail na primeira confirmação. Nunca desfaz a inscrição se falhar."""
+    if not entry.email or not entry.ticket_public_token or not invites_service.email_enabled():
+        return
+    ticket = ExternalTicket.objects.filter(public_token=entry.ticket_public_token).first()
+    if not ticket or ticket.invite_sent_at:
+        return
+    try:
+        link = invites_service.invite_link(request, ticket)
+        invites_service.send_ticket_email(ticket, link, to=entry.email, name=entry.full_name)
+    except Exception:
+        logger.exception("Não foi possível enviar o bilhete %s por e-mail", ticket.external_id)
 
 
 @never_cache
@@ -904,8 +922,9 @@ def temp_registration_status(request, token):
             entry.save(update_fields=["payment_status", "updated_at"])
 
             if payment_status in ("paid", "invited"):
-                # Confirma automaticamente
-                return _confirm_temp_registration(entry, None)  # request não é usado no redirect
+                # Confirma automaticamente e responde em JSON (a página de aguardo faz o redirect)
+                _confirm_temp_registration(entry, None)
+                entry.refresh_from_db()
         except Exception as e:
             logger.warning("Não foi possível sondar ticket %s: %s", entry.external_ticket_id, e)
 

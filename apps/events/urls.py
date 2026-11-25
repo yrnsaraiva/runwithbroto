@@ -15,8 +15,8 @@ urlpatterns = [
 
     # Inscrição Temporária
     path("temp/<slug:slug>/", views.temp_registration_form, name="temp_registration"),
-    path("temp/<slug:slug>/aguardando/<str:token>/", views.temp_registration_waiting, name="temp_registration_waiting"),
-    path("temp/<slug:slug>/status/<str:token>/", views.temp_registration_status, name="temp_registration_status"),
+    path("temp/aguardando/<str:token>/", views.temp_registration_waiting, name="temp_registration_waiting"),
+    path("temp/status/<str:token>/", views.temp_registration_status, name="temp_registration_status"),
     path("temp/<uuid:token>/sucesso/", views.temp_registration_success, name="temp_registration_success"),
     path("webhooks/temp/", views.temp_registration_webhook, name="temp_registration_webhook"),
 ]
