@@ -26,6 +26,8 @@ def create_invites(*, event_id, price_id, quantity, name="", email="", phone="",
         if value:
             payload[key] = value
     tickets = [ensure_local_ticket(t) for t in etk_client.create_invites(payload)]
+    if name and len(tickets) > 1:
+        _number_names(tickets, name)
     if shirt_size:
         # O tamanho é só do site (a API não o guarda).
         ExternalTicket.objects.filter(pk__in=[t.pk for t in tickets]).update(
@@ -33,6 +35,21 @@ def create_invites(*, event_id, price_id, quantity, name="", email="", phone="",
         for t in tickets:
             t.tamanho_camisete = shirt_size
     return tickets
+
+
+def _number_names(tickets, name):
+    """"Nome 1", "Nome 2"… nos convites de um mesmo nome. Continua a contagem dos
+    convites já numerados para esse nome no evento. Só no site: a API guarda o nome sem número."""
+    pattern = re.compile(rf"{re.escape(name)} (\d+)", re.IGNORECASE)
+    existing = ExternalTicket.objects.filter(
+        event_id_external=tickets[0].event_id_external,
+        payment_status="invited",
+        buyer_name__istartswith=f"{name} ",
+    ).exclude(pk__in=[t.pk for t in tickets]).values_list("buyer_name", flat=True)
+    last = max((int(m[1]) for m in map(pattern.fullmatch, existing) if m), default=0)
+    for number, ticket in enumerate(tickets, start=last + 1):
+        ticket.buyer_name = f"{name} {number}"
+    ExternalTicket.objects.bulk_update(tickets, ["buyer_name"])
 
 
 def email_enabled():
@@ -57,7 +74,9 @@ def normalize_phone(value):
 
 
 def _greeting(ticket):
-    return f"Olá {ticket.buyer_name}," if ticket.buyer_name else "Olá,"
+    # Sem o contador dos convites: "Olá Ana," e não "Olá Ana 2,".
+    name = re.sub(r"\s+\d+$", "", ticket.buyer_name)
+    return f"Olá {name}," if name else "Olá,"
 
 
 def _event_line(ticket):

@@ -338,6 +338,24 @@ class InvitePanelTests(TestCase):
         self.assertEqual(tickets[0].note, "Patrocinador")
         self.assertEqual(tickets[0].buyer_email, "ana@x.co")
 
+    def create(self, *ids, **over):
+        with mock.patch("apps.events.invites.etk_client.create_invites",
+                        return_value=[api_invite(i) for i in ids]):
+            self.post(quantity=str(len(ids)), **over)
+        return [ExternalTicket.objects.get(external_id=i).buyer_name for i in ids]
+
+    def test_several_invites_with_same_name_are_numbered(self, _):
+        self.assertEqual(self.create("TKI1", "TKI2"), ["Ana 1", "Ana 2"])
+        self.assertEqual(self.create("TKI3", "TKI4"), ["Ana 3", "Ana 4"])
+
+    def test_single_invite_is_not_numbered(self, _):
+        self.assertEqual(self.create("TKI1"), ["Ana"])
+
+    @override_settings(EMAIL_HOST="smtp.test", EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_email_greeting_has_no_counter(self, _):
+        self.create("TKI1", "TKI2")
+        self.assertTrue(mail.outbox[0].body.startswith("Olá Ana,"))
+
     def test_api_refusal_is_shown_and_nothing_saved(self, _):
         import requests
         resp = mock.Mock(); resp.json.return_value = {"message": "Só restam 1 vaga(s) neste lote."}
