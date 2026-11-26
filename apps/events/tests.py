@@ -1011,3 +1011,57 @@ class TempRegistrationDownloadTests(TestCase):
             status="pending", ticket_public_token=uuid.uuid4())
         self.assertEqual(self.client.get(self.download_url(entry)).status_code, 404)
         self.assertEqual(self.client.get(reverse("events:temp_registration_download", args=[uuid.uuid4()])).status_code, 404)
+
+
+class AdminBulkConfirmTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.client.force_login(User.objects.create_superuser("admin", "a@b.co", "x"))
+        self.url = reverse("admin:events_externalticket_changelist")
+
+    def run_action(self, *tickets):
+        return self.client.post(self.url, {
+            "action": "confirm_selected", "_selected_action": [t.pk for t in tickets],
+        }, follow=True)
+
+    def messages_of(self, response):
+        return " | ".join(str(m) for m in response.context["messages"])
+
+    def api_data(self, ticket_id):
+        return {"id": ticket_id, "payment": "paid", "status": "valid"}
+
+    def test_confirms_only_preregistered(self):
+        a = make_ticket(external_id="TK1", payment_status="preregistered", buyer_phone="258841111111")
+        b = make_ticket(external_id="TK2", payment_status="paid", buyer_phone="258842222222")
+        with mock.patch("apps.events.etk_client.confirm_ticket", return_value=self.api_data("TK1")) as c:
+            r = self.run_action(a, b)
+        c.assert_called_once_with("TK1", "258841111111")
+        a.refresh_from_db()
+        self.assertEqual(a.payment_status, "paid")
+        self.assertIn("1 inscrição(ões) confirmada(s)", self.messages_of(r))
+        self.assertIn("1 ignorada(s)", self.messages_of(r))
+
+    def test_one_failure_does_not_stop_the_others(self):
+        import requests
+        resp = mock.Mock(); resp.json.return_value = {"message": "O prazo terminou"}
+        a = make_ticket(external_id="TK1", payment_status="preregistered", buyer_phone="258841111111")
+        b = make_ticket(external_id="TK2", payment_status="preregistered", buyer_phone="258842222222")
+        c_ = make_ticket(external_id="TK3", payment_status="preregistered", buyer_phone="")
+        def fake(ticket_id, phone):
+            if ticket_id == "TK1":
+                raise requests.HTTPError(response=resp)
+            return self.api_data(ticket_id)
+        with mock.patch("apps.events.etk_client.confirm_ticket", side_effect=fake):
+            r = self.run_action(a, b, c_)
+        a.refresh_from_db(); b.refresh_from_db()
+        self.assertEqual((a.payment_status, b.payment_status), ("preregistered", "paid"))
+        self.assertIn("O prazo terminou", self.messages_of(r))
+        self.assertIn("telefone em falta", self.messages_of(r))
+
+    def test_time_budget_reports_remaining(self):
+        a = make_ticket(external_id="TK1", payment_status="preregistered", buyer_phone="258841111111")
+        with mock.patch("apps.events.admin.BULK_CONFIRM_TIME_BUDGET", -1), \
+             mock.patch("apps.events.etk_client.confirm_ticket") as c:
+            r = self.run_action(a)
+        c.assert_not_called()
+        self.assertIn("1 ainda por processar", self.messages_of(r))

@@ -1,5 +1,6 @@
 import csv
 import logging
+import time
 import requests
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -17,6 +18,7 @@ from . import etk_client
 from .models import ExternalTicket, Provincia, TamanhoCamisete, TemporaryRegistration, TemporaryRegistrationEntry
 from .pdfs_external_checkin import build_external_checkin_list_pdf
 from .pdf import build_external_ticket_pdf
+from .sync import ensure_local_ticket
 
 from django.contrib.admin import AdminSite
 from unfold.admin import ModelAdmin
@@ -26,6 +28,10 @@ from import_export.admin import ImportExportModelAdmin
 
 
 logger = logging.getLogger(__name__)
+
+# Tempo máximo (segundos) a iniciar novas chamadas à API numa confirmação em massa,
+# para o pedido do admin não expirar. O que sobrar confirma-se repetindo a ação.
+BULK_CONFIRM_TIME_BUDGET = 25
 
 
 class CustomAdminSite(AdminSite):
@@ -58,6 +64,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "event_name",
         "buyer_name",
         "buyer_phone",
+        "payment_status",
         "entered",
         "download_ticket_link",
     )
@@ -92,7 +99,7 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
         "raw_payload",
     )
 
-    actions = ("export_selected_csv", "export_selected_pdf")
+    actions = ("confirm_selected", "export_selected_csv", "export_selected_pdf")
 
     def get_queryset(self, request):
         # Só bilhetes resolvidos: pagos, convites e pré-inscrições. Pendentes, falhados,
@@ -209,6 +216,63 @@ class ExternalTicketAdmin(ModelAdmin, ImportExportModelAdmin):
             ])
 
         return response
+
+    @admin.action(description="Confirmar pré-inscrições selecionadas", permissions=["change"])
+    def confirm_selected(self, request, queryset):
+        """Confirma na API as pré-inscrições selecionadas (o mesmo que a página pública)."""
+        from .invites import normalize_phone
+
+        tickets = list(queryset.order_by("external_created_at", "pk"))
+        pending = [t for t in tickets if t.payment_status.lower() == "preregistered"]
+        skipped = len(tickets) - len(pending)
+        confirmed_count, remaining, errors = 0, 0, []
+        started = time.monotonic()
+
+        for index, ticket in enumerate(pending):
+            if time.monotonic() - started > BULK_CONFIRM_TIME_BUDGET:
+                remaining = len(pending) - index
+                break
+            label = f"{ticket.external_id} ({ticket.buyer_name or 'sem nome'})"
+            phone = normalize_phone(ticket.buyer_phone)
+            if not phone:
+                errors.append(f"{label}: telefone em falta ou inválido.")
+                continue
+            try:
+                data = etk_client.confirm_ticket(ticket.external_id, phone)
+                local = ensure_local_ticket(data)
+            except requests.HTTPError as exc:
+                try:
+                    detail = exc.response.json().get("message")
+                except Exception:
+                    detail = ""
+                errors.append(f"{label}: {detail or 'a API recusou a confirmação.'}")
+                continue
+            except Exception:
+                logger.exception("Erro ao confirmar %s no admin", ticket.external_id)
+                errors.append(f"{label}: não foi possível confirmar. Tente novamente.")
+                continue
+            if local.payment_status.lower() in ("paid", "invited"):
+                confirmed_count += 1
+                self.log_change(request, local, "Presença confirmada pelo admin.")
+            else:
+                errors.append(f"{label}: a API devolveu o estado «{local.payment_status}».")
+
+        if confirmed_count:
+            self.message_user(request, f"{confirmed_count} inscrição(ões) confirmada(s).", messages.SUCCESS)
+        if skipped:
+            self.message_user(
+                request, f"{skipped} ignorada(s): não estavam em pré-inscrição.", messages.WARNING)
+        for error in errors[:10]:
+            self.message_user(request, error, messages.ERROR)
+        if len(errors) > 10:
+            self.message_user(request, f"E mais {len(errors) - 10} erro(s).", messages.ERROR)
+        if remaining:
+            self.message_user(
+                request,
+                f"{remaining} ainda por processar (limite de tempo). "
+                "Selecione-as e execute a ação novamente.",
+                messages.WARNING,
+            )
 
     def export_selected_csv(self, request, queryset):
         response = HttpResponse(content_type="text/csv; charset=utf-8")
